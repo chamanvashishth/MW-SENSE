@@ -84,6 +84,7 @@ void sendReading(const SensorReading& reading) {
   document["value"] = reading.value;
   document["unit"] = reading.unit;
   document["simulation"] = false;
+  document["device_token"] = MW_SENSE_DEVICE_TOKEN;
   document["request_id"] = makeRequestId();
   document["firmware_version"] = MW_SENSE_FIRMWARE_VERSION;
 
@@ -103,6 +104,7 @@ void sendHeartbeat(uint32_t now) {
   document["node_id"] = MW_SENSE_NODE_ID;
   document["firmware_version"] = MW_SENSE_FIRMWARE_VERSION;
   document["event"] = "heartbeat";
+  document["device_token"] = MW_SENSE_DEVICE_TOKEN;
   String payload;
   serializeJson(document, payload);
   const String topic = String("mw-sense/") + MW_SENSE_NODE_ID + "/status";
