@@ -142,7 +142,10 @@ def get_telemetry(
 
 @app.post("/telemetry", response_model=TelemetryOut, status_code=status.HTTP_201_CREATED, dependencies=[Depends(require_api_token)])
 def post_telemetry(payload: TelemetryIn):
-    record = database.insert_reading(payload.model_dump(), DB_PATH)
+    try:
+        record = database.insert_reading(payload.model_dump(), DB_PATH)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     removed = database.prune_expired_readings(DB_PATH, retention_days())
     if removed:
         logger.info("ingest_retention_cleanup removed=%s", removed)
