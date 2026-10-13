@@ -12,6 +12,7 @@ from backend.mqtt_bridge import (
     ingest_mqtt_heartbeat,
     ingest_mqtt_message,
     parse_mqtt_message,
+    build_mqtt_callbacks,
 )
 
 
@@ -145,3 +146,74 @@ def test_mqtt_heartbeat_rejects_bad_credentials_topics_and_unknown_nodes(tmp_pat
             json.dumps({**heartbeat, "node_id": "NODE-02", "device_token": token}),
             path,
         )
+
+
+class FakeReasonCode:
+    def __init__(self, failed=False):
+        self.is_failure = failed
+
+    def __str__(self):
+        return "connection-lost" if self.is_failure else "success"
+
+
+class FakeMqttConnection:
+    def __init__(self):
+        self.subscriptions = []
+
+    def subscribe(self, topics):
+        self.subscriptions.extend(topics)
+        return 0, 1
+
+
+class FakeMqttMessage:
+    def __init__(self, topic, payload):
+        self.topic = topic
+        self.payload = payload
+
+
+def test_broker_callbacks_subscribe_and_ingest_physical_reading(tmp_path):
+    path, token = registered_node(tmp_path)
+    on_connect, _, on_message = build_mqtt_callbacks(path)
+    connection = FakeMqttConnection()
+    on_connect(connection, None, {}, FakeReasonCode(), None)
+    assert connection.subscriptions == [
+        ("mw-sense/+/+/telemetry", 1),
+        ("mw-sense/+/status", 1),
+    ]
+    body = json.dumps(valid_payload(device_token=token)).encode("utf-8")
+    message = FakeMqttMessage("mw-sense/NODE-01/TEMP-01/telemetry", body)
+    on_message(connection, None, message)
+    on_message(connection, None, message)
+    records, count = list_readings(path)
+    assert count == 1
+    assert records[0]["simulation"] is False
+
+
+def test_broker_callbacks_process_heartbeat_and_reject_bad_messages(tmp_path):
+    path, token = registered_node(tmp_path)
+    _, on_disconnect, on_message = build_mqtt_callbacks(path)
+    connection = FakeMqttConnection()
+    heartbeat = {
+        "node_id": "NODE-01",
+        "firmware_version": "0.1.0",
+        "event": "heartbeat",
+        "device_token": token,
+    }
+    on_message(connection, None, FakeMqttMessage(
+        "mw-sense/NODE-01/status", json.dumps(heartbeat).encode("utf-8")
+    ))
+    on_message(connection, None, FakeMqttMessage(
+        "mw-sense/NODE-01/TEMP-01/telemetry", b"not-json"
+    ))
+    on_disconnect(connection, None, None, FakeReasonCode(failed=True), None)
+    from backend.database import list_devices
+    device = list_devices(path)[0]
+    assert device["last_status"] == "online"
+    assert device["firmware_version"] == "0.1.0"
+
+
+def test_broker_callback_does_not_subscribe_after_rejected_connection():
+    on_connect, _, _ = build_mqtt_callbacks()
+    connection = FakeMqttConnection()
+    on_connect(connection, None, {}, FakeReasonCode(failed=True), None)
+    assert connection.subscriptions == []
