@@ -229,7 +229,35 @@ def test_health_diagnostics_are_protected_when_token_is_configured(client, monke
     assert report["integrity"] == "ok"
     assert report["schema_version"] == 4
     assert report["telemetry_records"] == 0
-    assert report["device_records"] == 0
+    assert report["simulated_records"] == 0
+    assert report["physical_records"] == 0
+    assert report["registered_devices"] == 0
+
+
+def test_diagnostics_distinguish_physical_readings_from_registered_devices(client, monkeypatch):
+    monkeypatch.setenv("MW_SENSE_API_TOKEN", "diagnostic-secret")
+    headers = {"Authorization": "Bearer diagnostic-secret"}
+    assert client.post("/telemetry", json=valid_reading(), headers=headers).status_code == 201
+
+    registered = client.post(
+        "/devices",
+        json={"node_id": "NODE-01", "label": "Lab node"},
+        headers=headers,
+    )
+    assert registered.status_code == 201
+    physical = valid_reading(
+        simulation=False,
+        request_id="physical-diagnostic-reading",
+        firmware_version="0.1.0",
+    )
+    assert client.post("/telemetry", json=physical, headers=headers).status_code == 201
+
+    report = client.get("/health/diagnostics", headers=headers).json()
+    assert report["telemetry_records"] == 2
+    assert report["simulated_records"] == 1
+    assert report["physical_records"] == 1
+    assert report["registered_devices"] == 1
+    assert "credential" not in str(report).lower()
 
 
 def test_negative_retention_configuration_is_rejected(monkeypatch):
