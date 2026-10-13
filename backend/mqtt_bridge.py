@@ -70,6 +70,49 @@ def ingest_mqtt_heartbeat(topic: str, body: bytes | str, database_path=DEFAULT_D
     return device
 
 
+def build_mqtt_callbacks(database_path=DEFAULT_DB_PATH):
+    """Create broker callbacks separately so message handling can be tested."""
+    def on_connect(connection, userdata, flags, reason_code, properties):
+        if reason_code.is_failure:
+            logger.error("mqtt_connection_rejected reason=%s", reason_code)
+            return
+        result, message_id = connection.subscribe([
+            ("mw-sense/+/+/telemetry", 1),
+            ("mw-sense/+/status", 1),
+        ])
+        if result != 0:
+            logger.error("mqtt_subscription_failed result=%s", result)
+            return
+        logger.info(
+            "mqtt_bridge_connected topics=mw-sense/+/+/telemetry,mw-sense/+/status"
+        )
+
+    def on_disconnect(connection, userdata, disconnect_flags, reason_code, properties):
+        if reason_code.is_failure:
+            logger.warning("mqtt_connection_lost reason=%s; client will retry", reason_code)
+        else:
+            logger.info("mqtt_connection_closed reason=%s", reason_code)
+
+    def on_message(connection, userdata, message):
+        try:
+            if message.topic.count("/") == 2 and message.topic.endswith("/status"):
+                device = ingest_mqtt_heartbeat(message.topic, message.payload, database_path)
+                logger.info("mqtt_heartbeat_received node_id=%s", device["node_id"])
+                return
+            record = ingest_mqtt_message(message.topic, message.payload, database_path)
+            logger.info(
+                "mqtt_reading_stored node_id=%s sensor_id=%s record_id=%s",
+                record["node_id"], record["sensor_id"], record["id"],
+            )
+        except (ValueError, KeyError) as exc:
+            logger.warning("mqtt_message_rejected topic=%s reason=%s", message.topic, exc)
+        except Exception:
+            # Do not log payloads: they may contain device credentials.
+            logger.exception("mqtt_message_processing_failed topic=%s", message.topic)
+
+    return on_connect, on_disconnect, on_message
+
+
 def main():
     try:
         import paho.mqtt.client as mqtt
@@ -94,31 +137,11 @@ def main():
     if os.getenv("MW_SENSE_MQTT_TLS", "true").lower() in {"1", "true", "yes"}:
         client.tls_set()
 
-    def on_connect(connection, userdata, flags, reason_code, properties):
-        if reason_code.is_failure:
-            logger.error("mqtt_connection_rejected reason=%s", reason_code)
-            return
-        connection.subscribe([("mw-sense/+/+/telemetry", 1), ("mw-sense/+/status", 1)])
-        logger.info("mqtt_bridge_connected topics=mw-sense/+/+/telemetry,mw-sense/+/status")
-
-    def on_message(connection, userdata, message):
-        try:
-            if message.topic.count("/") == 2 and message.topic.endswith("/status"):
-                device = ingest_mqtt_heartbeat(message.topic, message.payload, database_path)
-                logger.info("mqtt_heartbeat_received node_id=%s", device["node_id"])
-                return
-            record = ingest_mqtt_message(message.topic, message.payload, database_path)
-            logger.info(
-                "mqtt_reading_stored node_id=%s sensor_id=%s record_id=%s",
-                record["node_id"], record["sensor_id"], record["id"],
-            )
-        except (ValueError, KeyError) as exc:
-            logger.warning("mqtt_message_rejected topic=%s reason=%s", message.topic, exc)
-
-    client.on_connect = on_connect
-    client.on_message = on_message
+    client.on_connect, client.on_disconnect, client.on_message = build_mqtt_callbacks(database_path)
+    client.reconnect_delay_set(min_delay=1, max_delay=60)
     initialize_database(database_path)
-    client.connect(host, port, keepalive=60)
+    # Async connection lets loop_forever manage initial failures and reconnects.
+    client.connect_async(host, port, keepalive=60)
     logger.info("starting_mw_sense_mqtt_bridge host=%s port=%s", host, port)
     client.loop_forever()
 
