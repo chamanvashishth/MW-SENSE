@@ -52,9 +52,24 @@ def initialize_database(database_path: str | Path | None = None) -> None:
             "CREATE UNIQUE INDEX IF NOT EXISTS idx_telemetry_request_id ON telemetry(request_id) WHERE request_id IS NOT NULL"
         )
         from datetime import datetime, timezone
+        connection.execute("""
+            CREATE TABLE IF NOT EXISTS devices (
+                node_id TEXT PRIMARY KEY,
+                label TEXT NOT NULL,
+                firmware_version TEXT,
+                registered_at TEXT NOT NULL,
+                last_seen_at TEXT,
+                last_status TEXT NOT NULL DEFAULT 'registered'
+                    CHECK (last_status IN ('registered', 'online', 'offline'))
+            )
+        """)
         connection.execute(
             "INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (?, ?)",
             (1, datetime.now(timezone.utc).isoformat()),
+        )
+        connection.execute(
+            "INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (?, ?)",
+            (2, datetime.now(timezone.utc).isoformat()),
         )
 
 
@@ -64,6 +79,13 @@ def insert_reading(payload: dict[str, Any], database_path: str | Path | None = N
     received_at = datetime.now(timezone.utc).isoformat()
     with connect(database_path) as connection:
         request_id = payload.get("request_id")
+        if not payload.get("simulation", True):
+            device = connection.execute(
+                "SELECT node_id FROM devices WHERE node_id = ?",
+                (payload["node_id"],),
+            ).fetchone()
+            if not device:
+                raise ValueError("Physical telemetry requires a registered device node.")
         if request_id:
             existing = connection.execute(
                 "SELECT id, payload_json, received_at FROM telemetry WHERE request_id = ?",
@@ -85,6 +107,12 @@ def insert_reading(payload: dict[str, Any], database_path: str | Path | None = N
             ),
         )
         record_id = cursor.lastrowid
+        if not payload.get("simulation", True):
+            connection.execute(
+                """UPDATE devices SET last_seen_at = ?, last_status = 'online',
+                firmware_version = COALESCE(?, firmware_version) WHERE node_id = ?""",
+                (received_at, payload.get("firmware_version"), payload["node_id"]),
+            )
     return {"id": record_id, **payload, "status": "VALID", "received_at": received_at}
 
 
@@ -166,3 +194,37 @@ def get_database_diagnostics(database_path: str | Path | None = None) -> dict[st
         "device_records": total - simulated,
         "latest_received_at": latest,
     }
+
+
+
+def register_device(node_id: str, label: str, database_path: str | Path | None = None) -> dict[str, Any]:
+    now = datetime.now(timezone.utc).isoformat()
+    with connect(database_path) as connection:
+        connection.execute(
+            """INSERT INTO devices (node_id, label, registered_at)
+            VALUES (?, ?, ?)
+            ON CONFLICT(node_id) DO UPDATE SET label = excluded.label""",
+            (node_id, label, now),
+        )
+        row = connection.execute("SELECT * FROM devices WHERE node_id = ?", (node_id,)).fetchone()
+    return dict(row)
+
+
+def update_device_heartbeat(node_id: str, firmware_version: str | None = None, database_path: str | Path | None = None) -> dict[str, Any] | None:
+    now = datetime.now(timezone.utc).isoformat()
+    with connect(database_path) as connection:
+        cursor = connection.execute(
+            """UPDATE devices SET last_seen_at = ?, last_status = 'online',
+            firmware_version = COALESCE(?, firmware_version) WHERE node_id = ?""",
+            (now, firmware_version, node_id),
+        )
+        if not cursor.rowcount:
+            return None
+        row = connection.execute("SELECT * FROM devices WHERE node_id = ?", (node_id,)).fetchone()
+    return dict(row)
+
+
+def list_devices(database_path: str | Path | None = None) -> list[dict[str, Any]]:
+    with connect(database_path) as connection:
+        rows = connection.execute("SELECT * FROM devices ORDER BY node_id").fetchall()
+    return [dict(row) for row in rows]
