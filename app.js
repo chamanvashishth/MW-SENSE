@@ -9,7 +9,11 @@ const packetStatus = document.querySelector("#packet-status");
 const networkStatus = document.querySelector("#network-status");
 const toast = document.querySelector("#toast");
 const recordsBody = document.querySelector("#records-body");
-const records = [];
+const storageNotice = document.querySelector("#storage-status");
+const recordStore = window.MWSenseTelemetry.createRecordStore(window.localStorage, "mw-sense.telemetry.v1", 5000);
+let records = [];
+try { records = recordStore.load(); if (storageNotice) storageNotice.textContent = "Saved in this browser"; }
+catch (error) { records = []; if (storageNotice) storageNotice.textContent = "Storage unavailable · session only"; }
 let transmitted = 0;
 let runId = 0;
 let selectedSensor = "temperature";
@@ -81,11 +85,13 @@ function renderRecords() {
   recordsBody.innerHTML = visible.length ? visible.map((r) =>
     "<tr><td>" + new Date(r.timestamp).toLocaleTimeString() + "</td><td>" + r.node_id + "</td><td>" + r.sensor_id + "</td><td>" + r.parameter.replace("_", " ") + "</td><td>" + r.value + " " + r.unit + "</td><td><span class=\"record-valid\">" + r.status + "</span></td></tr>"
   ).join("") : '<tr><td colspan="6" class="empty-state">No matching records. Transmit a sample or change the filter.</td></tr>';
-  document.querySelector("#record-summary").textContent = records.length + " record" + (records.length === 1 ? "" : "s") + " in this session";
+  document.querySelector("#record-summary").textContent = records.length + " saved record" + (records.length === 1 ? "" : "s");
 }
 document.querySelector("#record-filter").addEventListener("change", renderRecords);
 document.querySelector("#clear-records").addEventListener("click", () => {
-  records.length = 0;
+  records = [];
+  try { recordStore.clear(); if (storageNotice) storageNotice.textContent = "Saved in this browser"; }
+  catch (error) { if (storageNotice) storageNotice.textContent = "Storage unavailable · session only"; }
   transmitted = 0;
   readingCount.textContent = "000";
   renderRecords();
@@ -159,6 +165,8 @@ async function transmit() {
       setStage(index, "done");
       if (index === stages.length - 1) {
         records.push(payload);
+        try { recordStore.save(payload); if (storageNotice) storageNotice.textContent = "Saved in this browser"; }
+        catch (error) { if (storageNotice) storageNotice.textContent = "Storage unavailable · current session only"; showToast("Reading delivered, but browser storage could not save it."); }
         updateNodeHealth(payload);
         checkThresholds(payload);
         transmitted++;
@@ -167,7 +175,7 @@ async function transmit() {
         pipelineState.textContent = "SAMPLE DELIVERED";
         packetStatus.textContent = "STORED · SIMULATED";
         renderRecords();
-        showToast("Sample delivered and added to the session data explorer.");
+        showToast("Sample delivered and added to the data explorer.");
         outcome = "delivered";
       }
     }
@@ -334,7 +342,7 @@ const guide = [
   ["Validation", "Before sending data, firmware should check that the reading is present, numeric, and within the expected range. The current demo uses bounded inputs."],
   ["Transmission", "The node packages its reading and sends it over a wireless link. Latency, packet loss, and link availability can be changed in the network lab."],
   ["Gateway", "A gateway receives messages from nodes and routes them to the next service. This browser model represents that step locally."],
-  ["Storage", "A delivered sample is added to the current browser session. It is not written to a server or permanent database."],
+  ["Storage", "A delivered sample is saved in this browser when local storage is available. It stays on this device and is not sent to a server or shared database."],
   ["Visualization", "The dashboard turns stored readings into a trend and checks the configured alert thresholds. Try changing a sensor value and sampling again."]
 ];
 function renderGuide() {
