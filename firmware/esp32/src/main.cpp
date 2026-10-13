@@ -25,6 +25,8 @@ uint32_t lastHeartbeatAt = 0;
 uint32_t lastWifiAttemptAt = 0;
 uint32_t lastMqttAttemptAt = 0;
 uint32_t lastQueueDrainAt = 0;
+uint32_t queueRetryCount = 0;
+String lastPublishedRequestId;
 constexpr uint32_t QUEUE_RETRY_INTERVAL_MS = 5000UL;
 
 String telemetryTopic(const char* sensorId) {
@@ -139,6 +141,11 @@ void sendHeartbeat(uint32_t now) {
   document["firmware_version"] = MW_SENSE_FIRMWARE_VERSION;
   document["event"] = "heartbeat";
   document["device_token"] = MW_SENSE_DEVICE_TOKEN;
+  document["uptime_seconds"] = millis() / 1000UL;
+  document["queue_depth"] = offlineQueue.count();
+  document["retry_count"] = queueRetryCount;
+  document["wifi_rssi_dbm"] = WiFi.RSSI();
+  document["mqtt_connected"] = mqtt.connected();
   String payload;
   serializeJson(document, payload);
   const String topic = String("mw-sense/") + MW_SENSE_NODE_ID + "/status";
@@ -188,7 +195,22 @@ void loop() {
     if (now - lastQueueDrainAt >= QUEUE_RETRY_INTERVAL_MS) {
       lastQueueDrainAt = now;
       String oldest;
-      if (offlineQueue.peekOldest(oldest)) publishPayload(oldest);
+      if (offlineQueue.peekOldest(oldest)) {
+        JsonDocument queuedReading;
+        if (!deserializeJson(queuedReading, oldest)) {
+          const String requestId = queuedReading["request_id"] | "";
+          if (!requestId.isEmpty()) {
+            if (requestId == lastPublishedRequestId) {
+              ++queueRetryCount;
+            } else {
+              lastPublishedRequestId = requestId;
+            }
+          }
+        }
+        publishPayload(oldest);
+      } else {
+        lastPublishedRequestId = "";
+      }
     }
   }
 
