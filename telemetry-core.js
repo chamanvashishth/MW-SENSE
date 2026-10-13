@@ -92,7 +92,72 @@
     return { load, save, clear, key: storageKey, limit: maxRecords };
   }
 
-  const api = { validatePayload, isPacketDropped, createGatewayEnvelope, storeGatewayRecord, createRecordStore };
+
+  function createLocalAdapter(storage, key, limit) {
+    const store = createRecordStore(storage, key, limit);
+    return {
+      kind: "browser-local",
+      list: () => Promise.resolve(store.load()),
+      append: (record) => Promise.resolve(store.save(record)),
+      clear: () => Promise.resolve(store.clear())
+    };
+  }
+
+  function createHttpAdapter(baseUrl, fetchImpl) {
+    if (typeof baseUrl !== "string" || !/^https?:\/\//.test(baseUrl)) {
+      throw new TypeError("A valid HTTP API base URL is required.");
+    }
+    const request = fetchImpl || (typeof fetch === "function" ? fetch.bind(root) : null);
+    if (!request) throw new TypeError("Fetch is not available in this environment.");
+    async function send(path, options) {
+      const response = await request(baseUrl.replace(/\/$/, "") + path, {
+        ...options,
+        headers: { "Content-Type": "application/json", ...(options && options.headers) }
+      });
+      if (!response.ok) throw new Error("Telemetry API request failed with status " + response.status + ".");
+      return response.status === 204 ? null : response.json();
+    }
+    return {
+      kind: "http-api",
+      list: () => send("/telemetry", { method: "GET" }),
+      append: (record) => send("/telemetry", { method: "POST", body: JSON.stringify(record) }),
+      clear: () => send("/telemetry", { method: "DELETE" })
+    };
+  }
+
+  function createTelemetryRepository(adapter) {
+    if (!adapter || !["list", "append", "clear"].every((method) => typeof adapter[method] === "function")) {
+      throw new TypeError("A telemetry adapter must implement list, append and clear.");
+    }
+    return {
+      kind: adapter.kind || "custom",
+      list: () => adapter.list(),
+      append: (record) => {
+        if (!validatePayload(record).valid || record.status !== "VALID") {
+          return Promise.reject(new TypeError("Only validated telemetry readings can be appended."));
+        }
+        return adapter.append(record);
+      },
+      clear: () => adapter.clear(),
+      exportSnapshot: async () => ({
+        format: "mw-sense.telemetry-export",
+        schema_version: "1.0",
+        exported_at: new Date().toISOString(),
+        records: await adapter.list()
+      }),
+      importSnapshot: async (snapshot) => {
+        if (!snapshot || snapshot.format !== "mw-sense.telemetry-export" || snapshot.schema_version !== "1.0" || !Array.isArray(snapshot.records)) {
+          throw new TypeError("This file is not a supported MW-SENSE telemetry export.");
+        }
+        const invalid = snapshot.records.filter((record) => !validatePayload(record).valid || record.status !== "VALID");
+        if (invalid.length) throw new TypeError("Import rejected: one or more readings are invalid.");
+        for (const record of snapshot.records) await adapter.append(record);
+        return snapshot.records.length;
+      }
+    };
+  }
+
+  const api = { validatePayload, isPacketDropped, createGatewayEnvelope, storeGatewayRecord, createRecordStore, createLocalAdapter, createHttpAdapter, createTelemetryRepository };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   root.MWSenseTelemetry = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);
