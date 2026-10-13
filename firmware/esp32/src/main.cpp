@@ -154,7 +154,7 @@ void sendHeartbeat(uint32_t now) {
     JsonDocument queuedReading;
     if (!deserializeJson(queuedReading, oldest)) {
       const char* queuedTimestamp = queuedReading["timestamp"] | "";
-      if (queuedTimestamp[0] != '\\0') {
+      if (queuedTimestamp[0] != '\0') {
         document["oldest_pending_timestamp"] = queuedTimestamp;
       }
     }
