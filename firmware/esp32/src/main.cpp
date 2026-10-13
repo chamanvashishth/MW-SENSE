@@ -24,6 +24,7 @@ uint32_t lastHeartbeatAt = 0;
 uint32_t lastWifiAttemptAt = 0;
 uint32_t lastMqttAttemptAt = 0;
 uint32_t lastQueueDrainAt = 0;
+constexpr uint32_t QUEUE_RETRY_INTERVAL_MS = 5000UL;
 
 String telemetryTopic(const char* sensorId) {
   return String("mw-sense/") + MW_SENSE_NODE_ID + "/" + sensorId + "/telemetry";
@@ -41,9 +42,30 @@ bool publishPayload(const String& payload) {
   const String sensorId = document["sensor_id"] | "";
   if (sensorId.isEmpty()) return false;
   const String topic = telemetryTopic(sensorId.c_str());
-  // PubSubClient publishes QoS 0. Use a QoS 1-capable client for broker-level
-  // delivery guarantees; request IDs still protect application retries.
+  // The queue entry stays on flash until the backend confirms database storage.
   return mqtt.publish(topic.c_str(), payload.c_str(), false);
+}
+
+void onMqttMessage(char* rawTopic, byte* rawPayload, unsigned int length) {
+  const String topic(rawTopic);
+  const String prefix = String("mw-sense/") + MW_SENSE_NODE_ID + "/";
+  if (!topic.startsWith(prefix) || topic.indexOf("/ack/") < 0) return;
+
+  String body;
+  body.reserve(length);
+  for (unsigned int i = 0; i < length; ++i) body += static_cast<char>(rawPayload[i]);
+
+  JsonDocument acknowledgement;
+  if (deserializeJson(acknowledgement, body)) return;
+  const String requestId = acknowledgement["request_id"] | "";
+  const bool accepted = acknowledgement["accepted"] | false;
+  if (!accepted || requestId.isEmpty()) return;
+
+  const String expectedSuffix = String("/ack/") + requestId;
+  if (!topic.endsWith(expectedSuffix)) return;
+  if (offlineQueue.acknowledgeOldest(requestId)) {
+    Serial.println("Backend acknowledged and removed a queued reading.");
+  }
 }
 
 bool currentTimestamp(char* output, size_t outputSize) {
@@ -65,7 +87,12 @@ void connectMqttIfDue(uint32_t now) {
   lastMqttAttemptAt = now;
   const String clientId = String("mw-sense-") + MW_SENSE_NODE_ID + "-" + bootId;
   if (mqtt.connect(clientId.c_str(), MQTT_USERNAME, MQTT_PASSWORD)) {
-    Serial.println("MQTT connected.");
+    const String acknowledgementTopic = String("mw-sense/") + MW_SENSE_NODE_ID + "/+/ack/+";
+    if (mqtt.subscribe(acknowledgementTopic.c_str(), 1)) {
+      Serial.println("MQTT connected; backend acknowledgements subscribed.");
+    } else {
+      Serial.println("MQTT connected, but acknowledgement subscription failed.");
+    }
   }
 }
 
@@ -90,8 +117,8 @@ void sendReading(const SensorReading& reading) {
 
   String payload;
   serializeJson(document, payload);
-  if (!publishPayload(payload) && !offlineQueue.enqueue(payload)) {
-    Serial.println("Publish failed and offline queue is full or unavailable.");
+  if (!offlineQueue.enqueue(payload)) {
+    Serial.println("Reading could not be saved; offline queue is full or unavailable.");
   }
 }
 
@@ -139,6 +166,7 @@ void setup() {
 #endif
   mqtt.setServer(MQTT_HOST, MQTT_PORT);
   mqtt.setBufferSize(1024);
+  mqtt.setCallback(onMqttMessage);
   connectWifiIfDue(millis());
 }
 
@@ -150,9 +178,10 @@ void loop() {
 
   if (mqtt.connected()) {
     sendHeartbeat(now);
-    if (now - lastQueueDrainAt >= 1000UL) {
+    if (now - lastQueueDrainAt >= QUEUE_RETRY_INTERVAL_MS) {
       lastQueueDrainAt = now;
-      offlineQueue.publishOldest(publishPayload);
+      String oldest;
+      if (offlineQueue.peekOldest(oldest)) publishPayload(oldest);
     }
   }
 
