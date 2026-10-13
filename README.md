@@ -233,6 +233,18 @@ A physical telemetry POST (`simulation: false`) is accepted only for a registere
 
 The ESP32 reference stores a monotonically increasing boot count in its NVS preferences namespace and reports it with the next authenticated heartbeat. The API records a lifecycle event when it observes a new boot count. Heartbeats also report the timestamp of the oldest queued reading, allowing the dashboard to estimate how long the oldest unsent sample has been waiting. The protected `GET /devices/{node_id}/lifecycle-events` endpoint returns recent boot events. The boot counter depends on intact NVS storage; erasing or replacing NVS resets the count. Queue age is calculated from the sample's UTC timestamp and is only as trustworthy as the node's synchronized clock.
 
+The protected device registry also evaluates the latest heartbeat against configurable operational thresholds and returns `health_state` (`healthy`, `warning`, or `critical`) with human-readable `health_warnings`. The dashboard shows the health state; hover or focus the state to inspect its warnings. Defaults are deliberately conservative starting points, not validated site limits:
+
+| Environment variable | Default | Meaning |
+|---|---:|---|
+| `MW_SENSE_DEVICE_OFFLINE_SECONDS` | 120 | Seconds without heartbeat before a node is marked offline |
+| `MW_SENSE_QUEUE_WARNING_DEPTH` | 10 | Queue depth that raises a warning |
+| `MW_SENSE_RETRY_WARNING_COUNT` | 5 | Delivery retries since boot that raise a warning |
+| `MW_SENSE_WEAK_WIFI_RSSI_DBM` | 85 | Absolute RSSI magnitude; readings at or below -85 dBm raise a warning |
+| `MW_SENSE_PENDING_WARNING_SECONDS` | 900 | Age of oldest queued sample that raises a warning |
+
+Offline and recovery transitions are added to lifecycle history when the protected device registry is read. This is polling-based detection, not an always-running event listener; the recorded transition time is when the API notices the stale heartbeat. Thresholds are operational hints, not safety alarms. Pending-age evaluation requires a timezone-aware UTC timestamp and a synchronized device clock.
+
 ### Physical node runtime diagnostics
 
 Authenticated device heartbeats can report firmware uptime, offline queue depth, retry count for the current boot, Wi-Fi RSSI, and MQTT connection state. The API validates and stores the latest values, and the device operations table displays them alongside node status. These are point-in-time reports from the latest heartbeat, not continuous monitoring. Older firmware or API clients may omit the optional fields; the dashboard then displays "Not reported". The retry counter resets on reboot, and RSSI alone does not establish reliable wireless coverage.
