@@ -17,7 +17,7 @@ MW-SENSE is an educational project workspace for introducing the architecture an
 - Adjustable threshold checks with a small in-session alert feed.
 - Repeatable network presets and a six-step guided walkthrough.
 - Simulated wireless-link on/off behavior.
-- Responsive dark interface for desktop and mobile.
+- Responsive, minimal neutral interface for desktop and mobile, with keyboard focus states and reduced-motion support.
 
 ## Run locally
 
@@ -42,9 +42,10 @@ MW-SENSE/
 ├── styles.css       # Responsive visual system
 ├── app.js           # Browser-side virtual telemetry simulation
 ├── telemetry-core.js # Payload validation, repository adapters and gateway contract
-├── tests/            # Unit and end-to-end pipeline tests
+├── tests/            # Unit, integration, and browser smoke tests
 ├── .github/workflows/ci.yml # Automated Node.js checks
-├── package.json      # Dependency-free test command
+├── package.json      # Node.js test command
+├── requirements-browser.txt # Isolated Playwright test dependency
 ├── README.md        # Project overview and setup
 └── LICENSE
 ```
@@ -89,6 +90,19 @@ Run the checks locally with Node.js:
 ```bash
 npm test
 ```
+
+Run the Chromium browser smoke tests separately (Python 3.12+):
+
+```bash
+python -m pip install -r requirements-browser.txt
+python -m playwright install chromium
+python tests/browser_smoke.py
+```
+
+The browser smoke test opens the real page and checks a successful simulated
+transmission, browser-local persistence, offline-link rejection, and the
+mobile navigation layout. It is a UI regression check, not a hardware test.
+
 
 The dashboard accesses readings through a small repository interface (`list`, `append`, and `clear`). The browser dashboard now offers a storage selector for browser-local storage or a configured FastAPI server. Server mode must be connected explicitly using the API URL and a successful health check before it accepts transmissions. The repository can create and import version 1.0 JSON snapshots and validates every imported reading before appending it. The local adapter is synchronous; the HTTP adapter is asynchronous, so callers can use either through the same returned interface.
 
