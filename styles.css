@@ -81,3 +81,28 @@
 .api-token-input{height:34px;min-width:150px;width:180px;padding:0 9px;background:#0a1928;border:1px solid #294158;border-radius:5px;color:#d5e2ec;font:9px var(--mono)}
 .api-token-input:disabled{opacity:.45;cursor:not-allowed}
 @media(max-width:760px){.api-token-input{width:100%;min-width:0}}
+
+
+/* Device registry and credential operations */
+.device-admin-panel{margin-top:16px;padding:20px}
+.device-admin-copy{max-width:760px;color:#91a6b9;font-size:9px;line-height:1.7;margin:9px 0 15px}
+.device-table{min-width:760px}
+.device-status{display:inline-flex;align-items:center;gap:6px;font:9px var(--mono);text-transform:uppercase}
+.device-status:before{content:"";width:6px;height:6px;border-radius:50%;background:#71869a}
+.device-status.online:before{background:#5ed0a4;box-shadow:0 0 8px #5ed0a455}
+.device-status.offline:before{background:#f0a16e}
+.device-status.registered:before{background:#7895b4}
+.credential-state{font:9px var(--mono);color:#9eb1c2}
+.device-actions{display:flex;gap:6px;flex-wrap:wrap}
+.device-actions button{padding:6px 8px;font-size:8px}
+.device-events{margin-top:13px;padding:11px 13px;border:1px solid var(--line);border-radius:6px;background:#091725;color:#8da3b7;font-size:9px;line-height:1.7}
+.device-events b{color:#dce8f0;font-weight:600}
+.device-event-row{display:flex;justify-content:space-between;gap:15px;border-bottom:1px solid #1b2d3e;padding:5px 0}
+.device-event-row:last-child{border-bottom:0}
+.credential-reveal{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:13px;padding:12px;border:1px solid #41665f;background:#0c211f;border-radius:6px}
+.credential-reveal>div{min-width:170px;flex:1}
+.credential-reveal b,.credential-reveal small{display:block}
+.credential-reveal b{font-size:10px;color:#d9eee6}
+.credential-reveal small{font-size:8px;color:#9cb8ad;margin-top:4px}
+.credential-reveal input{height:32px;min-width:180px;flex:2;padding:0 9px;border:1px solid #3b5b55;border-radius:5px;background:#071815;color:#d9eee6;font:9px var(--mono)}
+@media(max-width:760px){.device-admin-panel{padding:14px}.credential-reveal{align-items:stretch}.credential-reveal input{min-width:100%;flex-basis:100%}}
