@@ -160,7 +160,8 @@ def main():
                 assert diagnostics["integrity"] == "ok"
                 assert diagnostics["telemetry_records"] == 1
                 assert diagnostics["simulated_records"] == 1
-                assert diagnostics["device_records"] == 0
+                assert diagnostics["physical_records"] == 0
+                assert diagnostics["registered_devices"] == 1
                 assert "credential" not in str(diagnostics).lower()
 
                 with page.expect_download() as download_info:
