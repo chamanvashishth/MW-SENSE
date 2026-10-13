@@ -53,7 +53,7 @@ function deviceRequest(path, options = {}) {
 async function loadDeviceRegistry() {
   if (!connectedApiBase) return;
   refreshDevicesButton.disabled = true;
-  deviceRows.innerHTML = '<tr><td colspan="6" class="empty-state">Loading registered nodes…</td></tr>';
+  deviceRows.innerHTML = '<tr><td colspan="11" class="empty-state">Loading registered nodes…</td></tr>';
   try {
     const response = await deviceRequest("/devices");
     if (!response.ok) throw new Error("Device list returned " + response.status);
@@ -62,7 +62,7 @@ async function loadDeviceRegistry() {
     if (!devices.length) {
       const row = document.createElement("tr");
       const cell = document.createElement("td");
-      cell.colSpan = 6;
+      cell.colSpan = 11;
       cell.className = "empty-state";
       cell.textContent = "No nodes have been registered yet.";
       row.append(cell);
@@ -132,7 +132,7 @@ async function loadDeviceRegistry() {
       deviceRows.append(row);
     });
   } catch (error) {
-    deviceRows.innerHTML = '<tr><td colspan="6" class="empty-state">Could not load devices. Check API access and reconnect.</td></tr>';
+    deviceRows.innerHTML = '<tr><td colspan="11" class="empty-state">Could not load devices. Check API access and reconnect.</td></tr>';
   } finally {
     refreshDevicesButton.disabled = false;
   }
