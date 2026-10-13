@@ -12,8 +12,10 @@ It is a starting point for a physical prototype, not evidence that a particular 
 - Waits for an NTP-synchronized UTC clock before creating a timestamped reading.
 - Publishes telemetry to `mw-sense/{node_id}/{sensor_id}/telemetry`.
 - Publishes a heartbeat to `mw-sense/{node_id}/status`.
-- Queues readings in LittleFS when publishing is unavailable, then drains the queue after reconnecting.
-- Gives each sample a request ID so the backend can safely handle duplicate delivery.
+- Saves each sample in LittleFS before attempting transmission.
+- Retries the oldest queued sample until the backend acknowledges successful database ingestion.
+- Removes a queued sample only when an acknowledgement with the matching request ID arrives.
+- Gives each sample a stable request ID so retries and repeated broker deliveries remain idempotent.
 
 The current adapter publishes temperature only. Humidity, air quality, and soil moisture drivers are not implemented by this firmware reference.
 
@@ -92,7 +94,7 @@ A temperature reading follows this shape:
 }
 ```
 
-The request ID remains stable when the same queued message is retried. The backend uses it to avoid inserting the same sample more than once.
+The request ID remains stable when the same queued message is retried. After validation and database insertion (or recognition of an existing idempotent record), the bridge publishes `mw-sense/{node_id}/{sensor_id}/ack/{request_id}` at QoS 1 with `accepted: true`. The ESP32 subscribes to its own acknowledgement topics and removes only the queue head whose request ID matches. If the acknowledgement is lost, the node retries; the backend recognizes the duplicate and sends the acknowledgement again.
 
 Heartbeat messages use `mw-sense/{node_id}/status` and include the node ID, firmware version, `event: "heartbeat"`, and the same per-device token. The bridge validates the credential for both telemetry and heartbeat messages and removes it before storage.
 
@@ -100,8 +102,9 @@ Heartbeat messages use `mw-sense/{node_id}/status` and include the node ID, firm
 
 - The offline queue is bounded. When it is full, the firmware does not overwrite older unsent readings.
 - LittleFS is mounted without automatic formatting. If the filesystem cannot be mounted, queued persistence is unavailable; the firmware reports the problem rather than erasing stored data.
-- The example uses PubSubClient, which publishes at QoS 0. The bridge's QoS 1 subscription does not upgrade the publisher's delivery guarantee.
-- The request ID protects against duplicate application ingestion, but it is not a substitute for broker-level delivery guarantees.
+- PubSubClient publishes telemetry at QoS 0. MW-SENSE therefore uses an application-level acknowledgement after database ingestion rather than claiming broker-level QoS 1 delivery for the node's telemetry publish.
+- The bridge publishes acknowledgements at QoS 1. The node keeps the sample until it receives the matching acknowledgement; if it does not, it retries with the same request ID.
+- This is an at-least-once retry pattern with idempotent database ingestion, not an end-to-end exactly-once guarantee. Test broker restarts, lost acknowledgements, and power interruption on the target hardware.
 - The firmware waits for NTP synchronization. A sample without a trustworthy timestamp is skipped rather than assigned a fabricated time.
 - Sensor range limits and calibration must be checked against the actual selected sensor before using the readings operationally.
 
