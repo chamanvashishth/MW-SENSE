@@ -104,7 +104,8 @@ const sensorMeta = {
 function getPayload() {
   const input = document.querySelector("#" + selectedSensor);
   const meta = sensorMeta[selectedSensor];
-  return { node_id: meta.node, sensor_id: meta.id, parameter: meta.label, timestamp: new Date().toISOString(), value: Number(input.value), unit: meta.unit, status: "PENDING", simulation: true };
+  const requestId = window.crypto && typeof window.crypto.randomUUID === "function" ? window.crypto.randomUUID() : "mw-" + Date.now() + "-" + Math.random().toString(16).slice(2);
+  return { node_id: meta.node, sensor_id: meta.id, parameter: meta.label, timestamp: new Date().toISOString(), value: Number(input.value), unit: meta.unit, status: "PENDING", simulation: true, request_id: requestId };
 }
 sensorInputs.forEach((id) => {
   const input = document.querySelector("#" + id);
