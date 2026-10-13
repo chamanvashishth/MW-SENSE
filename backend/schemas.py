@@ -88,6 +88,19 @@ class DeviceHeartbeat(BaseModel):
     retry_count: int | None = Field(default=None, ge=0, le=2_147_483_647)
     wifi_rssi_dbm: int | None = Field(default=None, ge=-127, le=0)
     mqtt_connected: bool | None = None
+    boot_count: int | None = Field(default=None, ge=1, le=2_147_483_647)
+    oldest_pending_timestamp: str | None = Field(default=None, min_length=10, max_length=64)
+
+    @field_validator("oldest_pending_timestamp")
+    @classmethod
+    def validate_oldest_pending_timestamp(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        try:
+            datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError as exc:
+            raise ValueError("oldest_pending_timestamp must be a valid ISO 8601 date-time") from exc
+        return value
 
 
 class DeviceOut(BaseModel):
@@ -103,3 +116,5 @@ class DeviceOut(BaseModel):
     retry_count: int | None = None
     wifi_rssi_dbm: int | None = None
     mqtt_connected: bool | None = None
+    boot_count: int | None = None
+    oldest_pending_timestamp: str | None = None
