@@ -88,6 +88,7 @@ int main() {
   assert(queue.peekOldest(oldest));
   assert(oldest == record("rename-fail"));
   assert(!LittleFS.exists("/telemetry.bak"));
+  assert(!LittleFS.exists("/telemetry.tmp"));
   LittleFS.fail_rename_on_call = 0;
 
   std::cout << "OfflineQueue native tests passed\\n";
