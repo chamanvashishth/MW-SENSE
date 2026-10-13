@@ -39,7 +39,7 @@ class OfflineQueue {
   bool peekOldest(String& payload) const {
     File input = LittleFS.open(OFFLINE_QUEUE_FILE, FILE_READ);
     if (!input) return false;
-    payload = input.readStringUntil('\\n');
+    payload = input.readStringUntil('\n');
     input.close();
     return !payload.isEmpty();
   }
@@ -48,7 +48,7 @@ class OfflineQueue {
     if (requestId.isEmpty()) return false;
     File input = LittleFS.open(OFFLINE_QUEUE_FILE, FILE_READ);
     if (!input) return false;
-    String first = input.readStringUntil('\\n');
+    String first = input.readStringUntil('\n');
     String remainder = input.readString();
     input.close();
     if (first.isEmpty()) return false;
