@@ -103,16 +103,17 @@
     };
   }
 
-  function createHttpAdapter(baseUrl, fetchImpl) {
+  function createHttpAdapter(baseUrl, fetchImpl, options) {
     if (typeof baseUrl !== "string" || !/^https?:\/\//.test(baseUrl)) {
       throw new TypeError("A valid HTTP API base URL is required.");
     }
     const request = fetchImpl || (typeof fetch === "function" ? fetch.bind(root) : null);
+    const token = options && typeof options.token === "string" ? options.token.trim() : "";
     if (!request) throw new TypeError("Fetch is not available in this environment.");
     async function send(path, options) {
       const response = await request(baseUrl.replace(/\/$/, "") + path, {
         ...options,
-        headers: { "Content-Type": "application/json", ...(options && options.headers) }
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: "Bearer " + token } : {}), ...(options && options.headers) }
       });
       if (!response.ok) throw new Error("Telemetry API request failed with status " + response.status + ".");
       return response.status === 204 ? null : response.json();
