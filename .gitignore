@@ -19,3 +19,6 @@ backend/*.db-wal
 backend/backups/
 *.sqlite3
 *.sqlite3-*
+
+# Local ESP32 firmware credentials
+firmware/esp32/include/config.h
