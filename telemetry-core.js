@@ -120,7 +120,18 @@
     }
     return {
       kind: "http-api",
-      list: async () => { const result = await send("/telemetry", { method: "GET" }); return result.items; },
+      list: async () => {
+        const items = [];
+        let offset = 0;
+        let nextOffset = 0;
+        while (nextOffset !== null && items.length < 5000) {
+          const result = await send("/telemetry?limit=5000&offset=" + offset, { method: "GET" });
+          items.push(...result.items);
+          nextOffset = result.next_offset === undefined ? null : result.next_offset;
+          if (nextOffset !== null) offset = nextOffset;
+        }
+        return items.slice(0, 5000).reverse();
+      },
       append: (record) => {
         const { status, id, received_at, ...payload } = record;
         return send("/telemetry", { method: "POST", body: JSON.stringify(payload) });
