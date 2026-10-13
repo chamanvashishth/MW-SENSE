@@ -91,6 +91,28 @@ def test_configured_api_token_protects_data_routes(client, monkeypatch):
     assert client.delete("/telemetry").status_code == 401
 
 
+@pytest.mark.parametrize("authorization", [
+    None,
+    "test-secret-token",
+    "Basic test-secret-token",
+    "Bearer ",
+    "Bearer wrong-token",
+])
+def test_rejects_malformed_or_invalid_bearer_headers(client, monkeypatch, authorization):
+    monkeypatch.setenv("MW_SENSE_API_TOKEN", "test-secret-token")
+    headers = {"Authorization": authorization} if authorization is not None else {}
+    assert client.get("/sensors", headers=headers).status_code == 401
+
+
+def test_bearer_scheme_is_case_insensitive(client, monkeypatch):
+    monkeypatch.setenv("MW_SENSE_API_TOKEN", "test-secret-token")
+    response = client.get(
+        "/sensors",
+        headers={"Authorization": "bearer test-secret-token"},
+    )
+    assert response.status_code == 200
+
+
 def test_valid_bearer_token_allows_data_access(client, monkeypatch):
     monkeypatch.setenv("MW_SENSE_API_TOKEN", "test-secret-token")
     headers = {"Authorization": "Bearer test-secret-token"}
