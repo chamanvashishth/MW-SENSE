@@ -1,6 +1,7 @@
 #include <cassert>
 #include <iostream>
 #include "offline_queue.h"
+#include "acknowledgement.h"
 
 static String record(const char* requestId) {
   return String("{\"request_id\":\"") + requestId + "\",\"value\":27.8}";
@@ -11,7 +12,28 @@ static void resetQueue(OfflineQueue& queue) {
   assert(queue.begin());
 }
 
+static void testAcknowledgementTopicBinding() {
+  const String queued =
+      "{\"request_id\":\"NODE-01-boot-7\",\"sensor_id\":\"TEMP-01\",\"value\":27.8}";
+  const String validTopic = "mw-sense/NODE-01/TEMP-01/ack/NODE-01-boot-7";
+  assert(matchesQueuedAcknowledgement(
+      "NODE-01", validTopic, "NODE-01-boot-7", queued));
+  assert(!matchesQueuedAcknowledgement(
+      "NODE-01", "mw-sense/NODE-01/HUM-01/ack/NODE-01-boot-7",
+      "NODE-01-boot-7", queued));
+  assert(!matchesQueuedAcknowledgement(
+      "NODE-01", "mw-sense/NODE-02/TEMP-01/ack/NODE-01-boot-7",
+      "NODE-01-boot-7", queued));
+  assert(!matchesQueuedAcknowledgement(
+      "NODE-01", validTopic, "another-request", queued));
+  assert(!matchesQueuedAcknowledgement(
+      "NODE-01", validTopic, "", queued));
+  assert(!matchesQueuedAcknowledgement(
+      "NODE-01", validTopic, "NODE-01-boot-7", "{malformed"));
+}
+
 int main() {
+  testAcknowledgementTopicBinding();
   OfflineQueue queue;
   resetQueue(queue);
 
