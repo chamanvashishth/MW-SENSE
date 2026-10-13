@@ -220,7 +220,7 @@ Build instructions, the firmware payload contract, credential setup and limitati
 
 The firmware sends telemetry on `mw-sense/{node_id}/{sensor_id}/telemetry` and heartbeat messages on `mw-sense/{node_id}/status`. The MQTT bridge consumes both topics: telemetry updates the stored reading, while heartbeat messages update the registered node's last-seen time and firmware version. Register the node through the API before connecting it.
 
-The example uses PubSubClient, which publishes at QoS 0. A QoS 1 subscription on the bridge does not upgrade the publisher's delivery guarantee. The example also uses an insecure TLS shortcut for development; replace it with broker CA certificate validation before connecting to a real deployment. No live broker, physical board, sensor calibration or radio test is claimed.
+The example uses PubSubClient, which publishes at QoS 0. A QoS 1 subscription on the bridge does not upgrade the publisher's delivery guarantee. The firmware now requires broker CA certificate validation when TLS is enabled. Add the broker CA PEM as `MQTT_ROOT_CA` in your private `config.h`; without it, the firmware stops before connecting. An explicit `MQTT_ALLOW_INSECURE_TLS` opt-in exists for isolated development only and must remain disabled in real deployments. No live broker, physical board, sensor calibration or radio test is claimed.
 
 ### Optional MQTT bridge
 
