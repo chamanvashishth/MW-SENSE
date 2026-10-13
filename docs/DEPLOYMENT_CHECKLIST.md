@@ -42,6 +42,20 @@ This checklist is a gate for a controlled pilot, not a claim that MW-SENSE is pr
 - [ ] Confirm the node reports UTC timestamps and reject or quarantine readings when time is not trustworthy.
 - [ ] Verify the physical installation is safe and appropriate for its environment.
 
+### Firmware queue verification procedure
+
+Run these checks on the target ESP32 with a dedicated test node and a non-production broker. Record the board revision, firmware build, broker version/configuration, test time, and observed queue/database counts. Do not interrupt power while the device is connected to unsafe or critical equipment.
+
+1. **Baseline:** provision the node, synchronize its clock, confirm one physical sample is stored, and record its request ID in the API/database.
+2. **Broker unavailable:** stop the broker or block the node's broker connection. Allow at least three sampling intervals, then inspect serial logs and confirm samples are retained in LittleFS. Restore the broker and confirm queued records drain in order.
+3. **Lost acknowledgement:** allow the bridge to store a sample, then temporarily block acknowledgement delivery to the node. Confirm the same request ID is retried and the database still contains one record for it. Restore acknowledgements and confirm the queue head is removed.
+4. **Wrong acknowledgement:** using a test broker client, publish an acknowledgement with the wrong request ID, sensor topic, or node topic. Confirm the queue count and oldest request ID do not change. Never run this step against a shared or production node identity.
+5. **Power interruption:** with a test sample safely queued, power-cycle the board at controlled points during queue append and acknowledgement/rewrite. Repeat enough times to exercise both before and after the backup rename. After reboot, verify the queue is readable, no unacknowledged record has disappeared, and any retried request ID remains deduplicated by the database.
+6. **Capacity:** disconnect the broker until the queue reaches its configured limit. Confirm the firmware reports that a new sample cannot be queued and does not overwrite the oldest pending sample. Reconnect and verify recovery.
+7. **Evidence:** export the corresponding server records and compare request IDs with serial logs and the queue state. Record missing, repeated, and delayed samples; do not mark the test passed based only on a successful firmware boot.
+
+Software tests validate queue logic and acknowledgement matching. They do not emulate flash wear, ESP32 brownouts, filesystem internals, broker ACLs, or electrical power behavior. Hardware checks must be performed and recorded separately.
+
 ## 5. Dashboard and API
 - [ ] Configure the production API URL and required bearer token in the intended dashboard environment.
 - [ ] Confirm server mode fails closed when the API cannot be reached; do not rely on browser-local storage as a server fallback.
