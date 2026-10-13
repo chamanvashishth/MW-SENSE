@@ -537,6 +537,35 @@ def test_device_credential_can_be_revoked_and_audited(client, monkeypatch):
     assert all("credential" not in event for event in events.json())
 
 
+
+def test_credential_history_is_bounded_and_returns_newest_events(client, monkeypatch):
+    monkeypatch.setenv("MW_SENSE_API_TOKEN", "device-admin")
+    headers = {"Authorization": "Bearer device-admin"}
+    client.post(
+        "/devices",
+        json={"node_id": "NODE-01", "label": "North wing"},
+        headers=headers,
+    )
+    client.post("/devices/NODE-01/credentials", headers=headers)
+    client.post("/devices/NODE-01/credentials", headers=headers)
+    client.delete("/devices/NODE-01/credentials", headers=headers)
+
+    limited = client.get(
+        "/devices/NODE-01/credential-events?limit=2",
+        headers=headers,
+    )
+    assert limited.status_code == 200
+    assert [event["event"] for event in limited.json()] == ["revoked", "rotated"]
+    assert client.get(
+        "/devices/NODE-01/credential-events?limit=0",
+        headers=headers,
+    ).status_code == 422
+    assert client.get(
+        "/devices/NODE-01/credential-events?limit=501",
+        headers=headers,
+    ).status_code == 422
+
+
 def test_revoking_unknown_device_returns_not_found(client, monkeypatch):
     monkeypatch.setenv("MW_SENSE_API_TOKEN", "device-admin")
     response = client.delete(
