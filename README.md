@@ -229,6 +229,10 @@ curl -X POST http://127.0.0.1:8001/devices/NODE-01/heartbeat \
 
 A physical telemetry POST (`simulation: false`) is accepted only for a registered node. Successful physical readings also update that node's last-seen time and firmware version. Simulated readings remain available without device registration. This registry currently uses the fixed node IDs in the educational sensor catalogue. Per-device credential issue, rotation, revocation, and audit history are available; arbitrary node provisioning is not implemented yet.
 
+### Physical node runtime diagnostics
+
+Authenticated device heartbeats can report firmware uptime, offline queue depth, retry count for the current boot, Wi-Fi RSSI, and MQTT connection state. The API validates and stores the latest values, and the device operations table displays them alongside node status. These are point-in-time reports from the latest heartbeat, not continuous monitoring. Older firmware or API clients may omit the optional fields; the dashboard then displays "Not reported". The retry counter resets on reboot, and RSSI alone does not establish reliable wireless coverage.
+
 ### Firmware telemetry contract
 
 Use ISO 8601 UTC timestamps and include a unique `request_id` so a reconnect or QoS 1 redelivery cannot create duplicate readings. The payload shape is:
