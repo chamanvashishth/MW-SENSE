@@ -9,7 +9,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, Res
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import database
-from .schemas import SENSOR_RULES, TelemetryIn, TelemetryList, TelemetryOut
+from .schemas import (SENSOR_RULES, DeviceHeartbeat, DeviceOut, DeviceRegistration, TelemetryIn, TelemetryList, TelemetryOut)
 
 
 logger = logging.getLogger("mw_sense.api")
@@ -90,6 +90,41 @@ def sensors():
         }
         for key, rule in SENSOR_RULES.items()
     }
+
+
+@app.post("/devices", response_model=DeviceOut, status_code=status.HTTP_201_CREATED, dependencies=[Depends(require_api_token)])
+def register_device(payload: DeviceRegistration):
+    supported_nodes = {rule["node"] for rule in SENSOR_RULES.values()}
+    if payload.node_id not in supported_nodes:
+        raise HTTPException(status_code=422, detail="Node ID is not part of the configured sensor catalogue.")
+    return database.register_device(payload.node_id, payload.label, DB_PATH)
+
+
+@app.get("/devices", response_model=list[DeviceOut], dependencies=[Depends(require_api_token)])
+def get_devices():
+    from datetime import datetime, timedelta, timezone
+
+    try:
+        offline_after = int(os.getenv("MW_SENSE_DEVICE_OFFLINE_SECONDS", "120"))
+    except ValueError as exc:
+        raise HTTPException(status_code=500, detail="MW_SENSE_DEVICE_OFFLINE_SECONDS must be a whole number.") from exc
+    if offline_after < 1:
+        raise HTTPException(status_code=500, detail="MW_SENSE_DEVICE_OFFLINE_SECONDS must be positive.")
+    cutoff = datetime.now(timezone.utc) - timedelta(seconds=offline_after)
+    devices = database.list_devices(DB_PATH)
+    for device in devices:
+        seen = device["last_seen_at"]
+        if seen and datetime.fromisoformat(seen.replace("Z", "+00:00")) < cutoff:
+            device["last_status"] = "offline"
+    return devices
+
+
+@app.post("/devices/{node_id}/heartbeat", response_model=DeviceOut, dependencies=[Depends(require_api_token)])
+def device_heartbeat(node_id: str, payload: DeviceHeartbeat):
+    device = database.update_device_heartbeat(node_id, payload.firmware_version, DB_PATH)
+    if not device:
+        raise HTTPException(status_code=404, detail="Device node is not registered.")
+    return device
 
 
 @app.get("/telemetry", response_model=TelemetryList, dependencies=[Depends(require_api_token)])
