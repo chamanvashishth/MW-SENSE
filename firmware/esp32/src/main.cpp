@@ -5,6 +5,7 @@
 #include <PubSubClient.h>
 #include <time.h>
 #include <esp_system.h>
+#include <Preferences.h>
 
 #include "config.h"
 #include "sensor_source.h"
@@ -20,6 +21,7 @@ Dht22Source sensor(DHT_DATA_PIN);
 
 String bootId;
 uint32_t sequenceNumber = 0;
+uint32_t bootCount = 0;
 uint32_t lastSampleAt = 0;
 uint32_t lastHeartbeatAt = 0;
 uint32_t lastWifiAttemptAt = 0;
@@ -146,6 +148,17 @@ void sendHeartbeat(uint32_t now) {
   document["retry_count"] = queueRetryCount;
   document["wifi_rssi_dbm"] = WiFi.RSSI();
   document["mqtt_connected"] = mqtt.connected();
+  if (bootCount > 0) document["boot_count"] = bootCount;
+  String oldest;
+  if (offlineQueue.peekOldest(oldest)) {
+    JsonDocument queuedReading;
+    if (!deserializeJson(queuedReading, oldest)) {
+      const char* queuedTimestamp = queuedReading["timestamp"] | "";
+      if (queuedTimestamp[0] != '\\0') {
+        document["oldest_pending_timestamp"] = queuedTimestamp;
+      }
+    }
+  }
   String payload;
   serializeJson(document, payload);
   const String topic = String("mw-sense/") + MW_SENSE_NODE_ID + "/status";
@@ -157,6 +170,18 @@ void setup() {
   Serial.begin(115200);
   delay(100);
   bootId = String(esp_random(), HEX);
+  Preferences preferences;
+  if (preferences.begin("mw-sense", false)) {
+    const uint32_t previousBootCount = preferences.getULong("boot_count", 0);
+    bootCount = previousBootCount < UINT32_MAX ? previousBootCount + 1 : 1;
+    if (preferences.putULong("boot_count", bootCount) != sizeof(uint32_t)) {
+      Serial.println("Boot counter could not be saved; this session will report no boot count.");
+      bootCount = 0;
+    }
+    preferences.end();
+  } else {
+    Serial.println("Persistent boot counter is unavailable; this session will report no boot count.");
+  }
   sensor.begin();
   if (!offlineQueue.begin()) Serial.println("Offline queue could not be initialized.");
 
