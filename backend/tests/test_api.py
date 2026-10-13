@@ -164,3 +164,59 @@ def test_startup_adds_request_id_to_an_existing_database(tmp_path):
         version = connection.execute("SELECT version FROM schema_migrations").fetchone()["version"]
     assert "request_id" in columns
     assert version == 1
+
+
+
+def test_retention_cleanup_removes_only_expired_readings(client, tmp_path):
+    from datetime import datetime, timedelta, timezone
+    from backend.database import connect, prune_expired_readings
+
+    client.post("/telemetry", json=valid_reading(request_id="keep-this-reading"))
+    client.post("/telemetry", json=valid_reading(value=29.1, request_id="expire-this-reading"))
+    with connect(main.DB_PATH) as connection:
+        old_time = (datetime.now(timezone.utc) - timedelta(days=10)).isoformat()
+        connection.execute(
+            "UPDATE telemetry SET received_at = ? WHERE request_id = ?",
+            (old_time, "expire-this-reading"),
+        )
+
+    assert prune_expired_readings(main.DB_PATH, retention_days=7) == 1
+    listing = client.get("/telemetry").json()
+    assert listing["count"] == 1
+    assert listing["items"][0]["request_id"] == "keep-this-reading"
+
+
+def test_zero_retention_keeps_all_readings(client):
+    from backend.database import prune_expired_readings
+
+    client.post("/telemetry", json=valid_reading())
+    assert prune_expired_readings(main.DB_PATH, retention_days=0) == 0
+    assert client.get("/telemetry").json()["count"] == 1
+
+
+def test_health_diagnostics_are_protected_when_token_is_configured(client, monkeypatch):
+    monkeypatch.setenv("MW_SENSE_API_TOKEN", "diagnostic-secret")
+    assert client.get("/health").status_code == 200
+    assert client.get("/health/diagnostics").status_code == 401
+    response = client.get(
+        "/health/diagnostics",
+        headers={"Authorization": "Bearer diagnostic-secret"},
+    )
+    assert response.status_code == 200
+    report = response.json()
+    assert report["integrity"] == "ok"
+    assert report["schema_version"] == 1
+    assert report["telemetry_records"] == 0
+    assert report["device_records"] == 0
+
+
+def test_negative_retention_configuration_is_rejected(monkeypatch):
+    monkeypatch.setenv("MW_SENSE_RETENTION_DAYS", "-2")
+    with pytest.raises(RuntimeError, match="cannot be negative"):
+        main.retention_days()
+
+
+def test_invalid_retention_configuration_is_rejected(monkeypatch):
+    monkeypatch.setenv("MW_SENSE_RETENTION_DAYS", "one-week")
+    with pytest.raises(RuntimeError, match="whole number"):
+        main.retention_days()
