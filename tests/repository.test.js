@@ -103,3 +103,25 @@ test("HTTP adapter sends bearer authentication and omits server-owned fields", a
   assert.equal("id" in body, false);
   assert.equal("received_at" in body, false);
 });
+
+
+test("HTTP adapter follows telemetry pagination and restores chronological order", async () => {
+  const requests = [];
+  const newer = { ...reading, value: 31 };
+  const older = { ...reading, value: 29 };
+  const adapter = createHttpAdapter("https://example.test", async (url) => {
+    requests.push(url);
+    const offset = Number(new URL(url).searchParams.get("offset"));
+    return {
+      ok: true,
+      status: 200,
+      json: async () => offset === 0
+        ? { items: [newer], count: 2, limit: 1, offset: 0, next_offset: 1 }
+        : { items: [older], count: 2, limit: 1, offset: 1, next_offset: null }
+    };
+  });
+  const result = await adapter.list();
+  assert.deepEqual(result.map((item) => item.value), [29, 31]);
+  assert.equal(requests.length, 2);
+  assert.match(requests[1], /offset=1/);
+});
