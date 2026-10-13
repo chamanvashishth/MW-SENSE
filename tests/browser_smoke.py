@@ -133,6 +133,8 @@ def main():
                 assert heartbeat["body"]["boot_count"] == 1
                 page.locator("#refresh-devices").click()
                 device_row = page.locator("#device-rows tr").filter(has_text="NODE-01")
+                device_row.filter(has_text="HEALTHY").wait_for(timeout=10000)
+                device_row = page.locator("#device-rows tr").filter(has_text="NODE-01")
                 device_row.wait_for(timeout=10000)
                 device_row.filter(has_text="Not issued").wait_for(timeout=10000)
                 device_row.locator('button[data-device-action="issue"]').click()
