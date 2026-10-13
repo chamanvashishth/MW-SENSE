@@ -53,7 +53,7 @@ function deviceRequest(path, options = {}) {
 async function loadDeviceRegistry() {
   if (!connectedApiBase) return;
   refreshDevicesButton.disabled = true;
-  deviceRows.innerHTML = '<tr><td colspan="13" class="empty-state">Loading registered nodes…</td></tr>';
+  deviceRows.innerHTML = '<tr><td colspan="14" class="empty-state">Loading registered nodes…</td></tr>';
   try {
     const response = await deviceRequest("/devices");
     if (!response.ok) throw new Error("Device list returned " + response.status);
@@ -62,7 +62,7 @@ async function loadDeviceRegistry() {
     if (!devices.length) {
       const row = document.createElement("tr");
       const cell = document.createElement("td");
-      cell.colSpan = 13;
+      cell.colSpan = 14;
       cell.className = "empty-state";
       cell.textContent = "No nodes have been registered yet.";
       row.append(cell);
@@ -89,6 +89,7 @@ async function loadDeviceRegistry() {
       const values = [
         device.node_id,
         device.last_status,
+        (device.health_state || "unknown").toUpperCase(),
         device.firmware_version || "Not reported",
         device.boot_count ?? "Not reported",
         formatUptime(device.uptime_seconds),
@@ -102,10 +103,14 @@ async function loadDeviceRegistry() {
       ];
       values.forEach((value, index) => {
         const cell = document.createElement("td");
-        if (index === 1) {
+        if (index === 1 || index === 2) {
           const status = document.createElement("span");
           status.className = "device-status " + String(value).toLowerCase();
           status.textContent = value;
+          if (index === 2 && device.health_warnings?.length) {
+            status.title = device.health_warnings.join("\n");
+            status.setAttribute("aria-label", value + ": " + device.health_warnings.join(" "));
+          }
           cell.append(status);
         } else {
           cell.textContent = value;
@@ -143,7 +148,7 @@ async function loadDeviceRegistry() {
       deviceRows.append(row);
     });
   } catch (error) {
-    deviceRows.innerHTML = '<tr><td colspan="13" class="empty-state">Could not load devices. Check API access and reconnect.</td></tr>';
+    deviceRows.innerHTML = '<tr><td colspan="14" class="empty-state">Could not load devices. Check API access and reconnect.</td></tr>';
   } finally {
     refreshDevicesButton.disabled = false;
   }
