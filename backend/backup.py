@@ -31,7 +31,7 @@ def verify_backup(path):
             raise ValueError("Not an MW-SENSE database; missing: " + ", ".join(sorted(missing)))
         version = db.execute("SELECT MAX(version) FROM schema_migrations").fetchone()[0]
         count = db.execute("SELECT COUNT(*) FROM telemetry").fetchone()[0]
-    return {"path": str(path.resolve()), "schema_version": version, "telemetry_records": count}
+    return {"path": str(path.resolve()), "integrity": integrity, "schema_version": version, "telemetry_records": count}
 
 
 def create_backup(database_path=DEFAULT_DB_PATH, output_path=None):
