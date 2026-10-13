@@ -133,7 +133,7 @@ def test_database_initialization_records_schema_version(client, tmp_path):
     with connect(path) as connection:
         versions = connection.execute("SELECT version FROM schema_migrations").fetchall()
         columns = {row["name"] for row in connection.execute("PRAGMA table_info(telemetry)")}
-    assert [row["version"] for row in versions] == [1, 2]
+    assert [row["version"] for row in versions] == [1, 2, 3]
     assert "request_id" in columns
 
 
@@ -163,7 +163,7 @@ def test_startup_adds_request_id_to_an_existing_database(tmp_path):
         columns = {row["name"] for row in connection.execute("PRAGMA table_info(telemetry)")}
         version = connection.execute("SELECT MAX(version) FROM schema_migrations").fetchone()[0]
     assert "request_id" in columns
-    assert version == 2
+    assert version == 3
 
 
 
@@ -205,7 +205,7 @@ def test_health_diagnostics_are_protected_when_token_is_configured(client, monke
     assert response.status_code == 200
     report = response.json()
     assert report["integrity"] == "ok"
-    assert report["schema_version"] == 2
+    assert report["schema_version"] == 3
     assert report["telemetry_records"] == 0
     assert report["device_records"] == 0
 
@@ -286,3 +286,46 @@ def test_device_routes_require_configured_api_token(client, monkeypatch):
         "/devices",
         json={"node_id": "NODE-01", "label": "Lab node"},
     ).status_code == 401
+
+
+
+def test_device_credential_can_only_be_provisioned_by_admin_and_is_not_listed(client, monkeypatch):
+    monkeypatch.setenv("MW_SENSE_API_TOKEN", "device-admin")
+    headers = {"Authorization": "Bearer device-admin"}
+    registered = client.post(
+        "/devices",
+        json={"node_id": "NODE-01", "label": "Lab node"},
+        headers=headers,
+    )
+    assert registered.status_code == 201
+    assert "credential_hash" not in registered.json()
+
+    assert client.post("/devices/NODE-01/credentials").status_code == 401
+    issued = client.post("/devices/NODE-01/credentials", headers=headers)
+    assert issued.status_code == 200
+    credential = issued.json()["credential"]
+    assert credential
+    assert issued.json()["node_id"] == "NODE-01"
+    assert "credential" not in client.get("/devices", headers=headers).json()[0]
+
+
+def test_rotating_device_credential_invalidates_previous_value(client, monkeypatch):
+    from backend.database import verify_device_credential
+
+    monkeypatch.setenv("MW_SENSE_API_TOKEN", "device-admin")
+    headers = {"Authorization": "Bearer device-admin"}
+    client.post("/devices", json={"node_id": "NODE-02", "label": "Air node"}, headers=headers)
+    first = client.post("/devices/NODE-02/credentials", headers=headers).json()["credential"]
+    second = client.post("/devices/NODE-02/credentials", headers=headers).json()["credential"]
+    assert first != second
+    assert not verify_device_credential("NODE-02", first, main.DB_PATH)
+    assert verify_device_credential("NODE-02", second, main.DB_PATH)
+
+
+def test_cannot_provision_credential_for_unknown_node(client, monkeypatch):
+    monkeypatch.setenv("MW_SENSE_API_TOKEN", "device-admin")
+    response = client.post(
+        "/devices/NODE-99/credentials",
+        headers={"Authorization": "Bearer device-admin"},
+    )
+    assert response.status_code == 404
