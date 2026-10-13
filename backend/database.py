@@ -293,6 +293,15 @@ def update_device_heartbeat(
             return None
         reported_boot = runtime.get("boot_count")
         previous_boot = previous["boot_count"]
+        if previous["last_status"] == "offline":
+            connection.execute(
+                """INSERT INTO device_lifecycle_events
+                (node_id, event, boot_count, created_at, details_json)
+                VALUES (?, 'online', ?, ?, ?)""",
+                (node_id, reported_boot or previous_boot, now, json.dumps({
+                    "reason": "heartbeat_received_after_offline",
+                })),
+            )
         if reported_boot is not None and reported_boot != previous_boot:
             event = "boot" if previous_boot is None or reported_boot > previous_boot else "online"
             connection.execute(
@@ -414,6 +423,36 @@ def verify_device_credential(
         and row["credential_hash"]
         and hmac.compare_digest(row["credential_hash"], digest)
     )
+
+
+def mark_stale_devices_offline(
+    cutoff: datetime, database_path: str | Path | None = None
+) -> list[str]:
+    """Mark stale devices offline once and record their state transition."""
+    cutoff_text = cutoff.astimezone(timezone.utc).isoformat()
+    now = datetime.now(timezone.utc).isoformat()
+    with connect(database_path) as connection:
+        rows = connection.execute(
+            """SELECT node_id, boot_count, last_seen_at FROM devices
+            WHERE last_seen_at IS NOT NULL AND last_seen_at < ?
+            AND last_status != 'offline'""",
+            (cutoff_text,),
+        ).fetchall()
+        for row in rows:
+            connection.execute(
+                "UPDATE devices SET last_status = 'offline' WHERE node_id = ?",
+                (row["node_id"],),
+            )
+            connection.execute(
+                """INSERT INTO device_lifecycle_events
+                (node_id, event, boot_count, created_at, details_json)
+                VALUES (?, 'offline', ?, ?, ?)""",
+                (row["node_id"], row["boot_count"], now, json.dumps({
+                    "last_seen_at": row["last_seen_at"],
+                    "offline_after": cutoff_text,
+                })),
+            )
+    return [row["node_id"] for row in rows]
 
 
 def list_device_lifecycle_events(
