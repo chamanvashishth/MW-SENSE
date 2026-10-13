@@ -128,6 +128,47 @@ def test_mqtt_heartbeat_requires_device_credential_and_updates_node(tmp_path):
     assert device["last_seen_at"]
 
 
+def test_mqtt_heartbeat_persists_runtime_diagnostics(tmp_path):
+    path, token = registered_node(tmp_path)
+    heartbeat = {
+        "node_id": "NODE-01",
+        "firmware_version": "0.1.0",
+        "event": "heartbeat",
+        "device_token": token,
+        "uptime_seconds": 864,
+        "queue_depth": 3,
+        "retry_count": 7,
+        "wifi_rssi_dbm": -61,
+        "mqtt_connected": True,
+    }
+    device = ingest_mqtt_heartbeat("mw-sense/NODE-01/status", json.dumps(heartbeat), path)
+    assert device["uptime_seconds"] == 864
+    assert device["queue_depth"] == 3
+    assert device["retry_count"] == 7
+    assert device["wifi_rssi_dbm"] == -61
+    assert device["mqtt_connected"] == 1
+
+
+@pytest.mark.parametrize("field,value", [
+    ("uptime_seconds", -1),
+    ("queue_depth", -1),
+    ("retry_count", -1),
+    ("wifi_rssi_dbm", -128),
+    ("mqtt_connected", "connected"),
+])
+def test_mqtt_heartbeat_rejects_invalid_runtime_metrics(tmp_path, field, value):
+    path, token = registered_node(tmp_path)
+    heartbeat = {
+        "node_id": "NODE-01",
+        "firmware_version": "0.1.0",
+        "event": "heartbeat",
+        "device_token": token,
+        field: value,
+    }
+    with pytest.raises(ValueError, match="runtime metric"):
+        ingest_mqtt_heartbeat("mw-sense/NODE-01/status", json.dumps(heartbeat), path)
+
+
 def test_mqtt_heartbeat_rejects_bad_credentials_topics_and_unknown_nodes(tmp_path):
     path, token = registered_node(tmp_path)
     heartbeat = {
