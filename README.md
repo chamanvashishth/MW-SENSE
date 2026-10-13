@@ -94,4 +94,4 @@ Run the checks locally with Node.js:
 npm test
 ```
 
-The browser app still keeps its readings in memory for the active page session. The tested gateway storage helper is an in-memory contract used for software verification; it is not durable persistence. These tests do not demonstrate physical sensor accuracy, wireless range, electrical reliability, or a deployed gateway/database.
+The browser app now saves validated virtual readings in `localStorage` under `mw-sense.telemetry.v1`, retaining the most recent 5,000 records on that browser profile. Records load again after a page reload and can be cleared from the data explorer. If browser storage is blocked or unavailable, the app continues with session-only data and shows that limitation. This is device-local browser persistence, not a central database, server backup, or cross-device sync. The tested gateway storage helper remains an in-memory contract for software verification. These tests do not demonstrate physical sensor accuracy, wireless range, electrical reliability, or a deployed gateway/database.
