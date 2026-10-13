@@ -55,6 +55,7 @@ storageMode.addEventListener("change", () => {
       showToast("Could not read browser storage.");
     });
   } else {
+    activeRepository = null;
     records = [];
     renderRecords();
     renderTrend();
