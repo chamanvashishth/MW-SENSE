@@ -58,3 +58,20 @@ jobs:
         run: cp firmware/esp32/include/config.h.example firmware/esp32/include/config.h
       - name: Compile ESP32 reference firmware
         run: pio run -d firmware/esp32
+
+  browser:
+    name: Chromium browser smoke tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install browser test dependencies
+        run: |
+          python -m pip install -r requirements-browser.txt
+          python -m playwright install --with-deps chromium
+      - name: Run browser smoke tests
+        run: python tests/browser_smoke.py
