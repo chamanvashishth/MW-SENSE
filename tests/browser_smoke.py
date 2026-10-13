@@ -66,7 +66,7 @@ def main():
         _wait_for_api(api_url, api_process)
         try:
             with sync_playwright() as playwright:
-                browser = playwright.chromium.launch()
+                browser = playwright.chromium.launch(**({"executable_path": os.environ["MW_SENSE_CHROMIUM_EXECUTABLE"]} if os.getenv("MW_SENSE_CHROMIUM_EXECUTABLE") else {}))
                 context = browser.new_context(
                     viewport={"width": 1440, "height": 1000},
                     accept_downloads=True,
