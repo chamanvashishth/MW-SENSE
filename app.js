@@ -13,6 +13,7 @@ const records = [];
 let transmitted = 0;
 let runId = 0;
 let selectedSensor = "temperature";
+let transmissionInProgress = false;
 
 const sensorMeta = {
   temperature: { id: "TEMP-01", node: "NODE-01", unit: "°C", label: "temperature" },
@@ -24,7 +25,7 @@ const sensorMeta = {
 function getPayload() {
   const input = document.querySelector("#" + selectedSensor);
   const meta = sensorMeta[selectedSensor];
-  return { node_id: meta.node, sensor_id: meta.id, parameter: meta.label, timestamp: new Date().toISOString(), value: Number(input.value), unit: meta.unit, status: "VALID", simulation: true };
+  return { node_id: meta.node, sensor_id: meta.id, parameter: meta.label, timestamp: new Date().toISOString(), value: Number(input.value), unit: meta.unit, status: "PENDING", simulation: true };
 }
 sensorInputs.forEach((id) => {
   const input = document.querySelector("#" + id);
@@ -103,6 +104,8 @@ document.querySelector("#export-csv").addEventListener("click", () => {
 });
 
 async function transmit() {
+  if (transmissionInProgress) return "busy";
+  transmissionInProgress = true;
   const currentRun = ++runId;
   transmitButton.disabled = true;
   transmitButton.style.opacity = ".65";
@@ -113,48 +116,67 @@ async function transmit() {
   pipelineState.textContent = "PROCESSING SAMPLE";
   const stages = ["Acquisition", "Validation", "Transmission", "Gateway", "Storage", "Visualization"];
   let outcome = "pending";
-  for (let index = 0; index < stages.length; index++) {
-    if (currentRun !== runId) return;
-    setStage(index, "active");
-    const latency = index === 2 ? Number(document.querySelector("#latency-control").value) : 0;
-    await new Promise((resolve) => window.setTimeout(resolve, 320 + Math.min(latency, 1000)));
-    if (currentRun !== runId) return;
-    if (index === 2 && !networkToggle.checked) {
-      setStage(index, "error");
-      pipelineState.textContent = "TRANSMISSION FAILED";
-      packetStatus.textContent = "LINK OFFLINE";
-      networkStatus.textContent = "OFFLINE";
-      showToast("Wireless link is disabled. Packet was not delivered.");
-      outcome = "failed";
-      break;
+  try {
+    for (let index = 0; index < stages.length; index++) {
+      if (currentRun !== runId) return "cancelled";
+      setStage(index, "active");
+      const latency = index === 2 ? Number(document.querySelector("#latency-control").value) : 0;
+      await new Promise((resolve) => window.setTimeout(resolve, 320 + Math.min(latency, 1000)));
+      if (currentRun !== runId) return "cancelled";
+      if (index === 1) {
+        const validation = window.MWSenseTelemetry.validatePayload(payload);
+        if (!validation.valid) {
+          setStage(index, "error");
+          pipelineState.textContent = "VALIDATION FAILED";
+          packetStatus.textContent = "INVALID PAYLOAD";
+          payload.status = "INVALID";
+          packetJson.textContent = JSON.stringify({ ...payload, validation_errors: validation.errors }, null, 2);
+          showToast("Sample rejected: " + validation.errors.join(" "));
+          outcome = "invalid";
+          break;
+        }
+        payload.status = "VALID";
+        packetJson.textContent = JSON.stringify(payload, null, 2);
+      }
+      if (index === 2 && !networkToggle.checked) {
+        setStage(index, "error");
+        pipelineState.textContent = "TRANSMISSION FAILED";
+        packetStatus.textContent = "LINK OFFLINE";
+        networkStatus.textContent = "OFFLINE";
+        showToast("Wireless link is disabled. Packet was not delivered.");
+        outcome = "failed";
+        break;
+      }
+      if (index === 2 && window.MWSenseTelemetry.isPacketDropped(Number(document.querySelector("#loss-control").value), Math.random())) {
+        setStage(index, "error");
+        pipelineState.textContent = "PACKET DROPPED";
+        packetStatus.textContent = "SIMULATED LOSS";
+        networkStatus.textContent = "DEGRADED";
+        showToast("Packet was dropped by the simulated link. Try transmitting again.");
+        outcome = "failed";
+        break;
+      }
+      setStage(index, "done");
+      if (index === stages.length - 1) {
+        records.push(payload);
+        updateNodeHealth(payload);
+        checkThresholds(payload);
+        transmitted++;
+        readingCount.textContent = String(transmitted).padStart(3, "0");
+        networkStatus.textContent = "ONLINE";
+        pipelineState.textContent = "SAMPLE DELIVERED";
+        packetStatus.textContent = "STORED · SIMULATED";
+        renderRecords();
+        showToast("Sample delivered and added to the session data explorer.");
+        outcome = "delivered";
+      }
     }
-    if (index === 2 && Math.random() * 100 < Number(document.querySelector("#loss-control").value)) {
-      setStage(index, "error");
-      pipelineState.textContent = "PACKET DROPPED";
-      packetStatus.textContent = "SIMULATED LOSS";
-      networkStatus.textContent = "DEGRADED";
-      showToast("Packet was dropped by the simulated link. Try transmitting again.");
-      outcome = "failed";
-      break;
-    }
-    setStage(index, "done");
-    if (index === stages.length - 1) {
-      records.push(payload);
-      updateNodeHealth(payload);
-      checkThresholds(payload);
-      transmitted++;
-      readingCount.textContent = String(transmitted).padStart(3, "0");
-      networkStatus.textContent = "ONLINE";
-      pipelineState.textContent = "SAMPLE DELIVERED";
-      packetStatus.textContent = "STORED · SIMULATED";
-      renderRecords();
-      showToast("Sample delivered and added to the session data explorer.");
-      outcome = "delivered";
-    }
+    return outcome;
+  } finally {
+    transmissionInProgress = false;
+    transmitButton.disabled = false;
+    transmitButton.style.opacity = "1";
   }
-  transmitButton.disabled = false;
-  transmitButton.style.opacity = "1";
-  return outcome;
 }
 transmitButton.addEventListener("click", transmit);
 document.querySelectorAll(".nav-link").forEach((link) => link.addEventListener("click", () => {
@@ -254,12 +276,7 @@ function takeScheduledSample() {
   samplerBusy = true;
   transmit().finally(() => {
     samplerBusy = false;
-    const latest = records[records.length - 1];
-    if (latest) {
-      updateNodeHealth(latest);
-      checkThresholds(latest);
-      renderTrend();
-    }
+    renderTrend();
   });
 }
 
@@ -306,8 +323,8 @@ document.querySelectorAll("[data-scenario]").forEach((button) => {
     result.querySelector("b").textContent = scenario.title + " · running";
     result.querySelector("p").textContent = scenario.detail;
     const outcome = await transmit();
-    result.querySelector("b").textContent = scenario.title + " · " + (outcome === "delivered" ? "delivered" : "not delivered");
-    result.querySelector("p").textContent = scenario.detail + " " + (outcome === "delivered" ? "The record is now available in the data explorer." : "No record was added; review the pipeline status and try again.");
+    result.querySelector("b").textContent = scenario.title + " · " + (outcome === "delivered" ? "delivered" : outcome === "invalid" ? "rejected" : outcome === "busy" ? "busy" : "not delivered");
+    result.querySelector("p").textContent = scenario.detail + " " + (outcome === "delivered" ? "The record is now available in the data explorer." : outcome === "invalid" ? "The validation stage rejected the payload; no record was stored." : outcome === "busy" ? "Another transmission is already in progress." : "No record was added; review the pipeline status and try again.");
     result.querySelector(".test-result-mark").textContent = outcome === "delivered" ? "✓" : "!";
   });
 });
