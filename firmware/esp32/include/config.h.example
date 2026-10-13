@@ -8,6 +8,17 @@
 #define MQTT_USERNAME "replace-me"
 #define MQTT_PASSWORD "replace-me"
 #define MQTT_USE_TLS 1
+// Preferred: define MQTT_ROOT_CA in your private config.h using the broker's
+// PEM CA certificate in a raw string literal. Never paste a private key here.
+// Example:
+// #define MQTT_ROOT_CA R"EOF(
+// -----BEGIN CERTIFICATE-----
+// paste the broker CA certificate here
+// -----END CERTIFICATE-----
+// )EOF"
+//
+// Development-only escape hatch. Keep this disabled for real deployments.
+#define MQTT_ALLOW_INSECURE_TLS 0
 #define MW_SENSE_NODE_ID "NODE-01"
 #define MW_SENSE_FIRMWARE_VERSION "0.1.0"
 #define DHT_DATA_PIN 4
