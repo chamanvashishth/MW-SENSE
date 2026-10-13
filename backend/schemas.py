@@ -22,6 +22,7 @@ class TelemetryIn(BaseModel):
     value: float = Field(allow_inf_nan=False)
     unit: str = Field(min_length=1, max_length=32)
     simulation: bool
+    request_id: str | None = Field(default=None, min_length=1, max_length=64)
 
     @field_validator("timestamp")
     @classmethod
@@ -63,3 +64,5 @@ class TelemetryList(BaseModel):
     items: list[TelemetryOut]
     count: int
     limit: int
+    offset: int = 0
+    next_offset: int | None = None
