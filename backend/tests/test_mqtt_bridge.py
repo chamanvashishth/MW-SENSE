@@ -159,10 +159,15 @@ class FakeReasonCode:
 class FakeMqttConnection:
     def __init__(self):
         self.subscriptions = []
+        self.publications = []
 
     def subscribe(self, topics):
         self.subscriptions.extend(topics)
         return 0, 1
+
+    def publish(self, topic, payload, qos=0, retain=False):
+        self.publications.append((topic, json.loads(payload), qos, retain))
+        return type("PublishResult", (), {"rc": 0})()
 
 
 class FakeMqttMessage:
@@ -217,3 +222,68 @@ def test_broker_callback_does_not_subscribe_after_rejected_connection():
     connection = FakeMqttConnection()
     on_connect(connection, None, {}, FakeReasonCode(failed=True), None)
     assert connection.subscriptions == []
+
+
+def test_broker_acknowledges_only_after_database_ingestion(tmp_path):
+    path, token = registered_node(tmp_path)
+    _, _, on_message = build_mqtt_callbacks(path)
+    connection = FakeMqttConnection()
+    body = json.dumps(valid_payload(device_token=token)).encode("utf-8")
+    message = FakeMqttMessage("mw-sense/NODE-01/TEMP-01/telemetry", body)
+
+    on_message(connection, None, message)
+    on_message(connection, None, message)
+
+    assert connection.publications == [
+        (
+            "mw-sense/NODE-01/TEMP-01/ack/mqtt-node-01-0001",
+            {"request_id": "mqtt-node-01-0001", "accepted": True},
+            1,
+            False,
+        ),
+        (
+            "mw-sense/NODE-01/TEMP-01/ack/mqtt-node-01-0001",
+            {"request_id": "mqtt-node-01-0001", "accepted": True},
+            1,
+            False,
+        ),
+    ]
+    records, count = list_readings(path)
+    assert count == 1
+
+
+def test_broker_does_not_acknowledge_rejected_telemetry(tmp_path):
+    path, token = registered_node(tmp_path)
+    _, _, on_message = build_mqtt_callbacks(path)
+    connection = FakeMqttConnection()
+    invalid = valid_payload(value=500, device_token=token)
+    on_message(
+        connection,
+        None,
+        FakeMqttMessage(
+            "mw-sense/NODE-01/TEMP-01/telemetry",
+            json.dumps(invalid).encode("utf-8"),
+        ),
+    )
+    assert connection.publications == []
+    assert list_readings(path)[1] == 0
+
+
+def test_broker_does_not_claim_acknowledgement_when_publish_fails(tmp_path):
+    path, token = registered_node(tmp_path)
+    _, _, on_message = build_mqtt_callbacks(path)
+
+    class FailingAckConnection(FakeMqttConnection):
+        def publish(self, topic, payload, qos=0, retain=False):
+            self.publications.append((topic, json.loads(payload), qos, retain))
+            return type("PublishResult", (), {"rc": 4})()
+
+    connection = FailingAckConnection()
+    body = json.dumps(valid_payload(device_token=token)).encode("utf-8")
+    on_message(
+        connection,
+        None,
+        FakeMqttMessage("mw-sense/NODE-01/TEMP-01/telemetry", body),
+    )
+    assert len(connection.publications) == 1
+    assert list_readings(path)[1] == 1
