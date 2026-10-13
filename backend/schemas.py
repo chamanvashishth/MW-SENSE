@@ -92,3 +92,4 @@ class DeviceOut(BaseModel):
     registered_at: str
     last_seen_at: str | None = None
     last_status: str
+    credential_active: bool = False
