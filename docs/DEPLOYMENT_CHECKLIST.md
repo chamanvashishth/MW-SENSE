@@ -25,6 +25,8 @@ This checklist is a gate for a controlled pilot, not a claim that MW-SENSE is pr
 - [ ] Create a unique credential for each physical node; never reuse a shared device token.
 - [ ] Verify broker TLS using the correct CA certificate. Do not use the development-only insecure TLS option.
 - [ ] Verify the broker ACL prevents a node from publishing under another node's topic.
+- [ ] Allow each node to subscribe only to its own `mw-sense/{node_id}/+/ack/+` acknowledgement topics.
+- [ ] Allow the bridge identity to publish acknowledgement messages at QoS 1.
 - [ ] Test bridge startup when the broker is unavailable, then restore the broker and confirm reconnect and resubscription.
 - [ ] Test malformed, unauthorized, duplicate, and out-of-order messages.
 - [ ] Confirm broker persistence and delivery settings match the pilot's loss tolerance.
