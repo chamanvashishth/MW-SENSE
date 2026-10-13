@@ -75,3 +75,13 @@ jobs:
           python -m playwright install --with-deps chromium
       - name: Run browser smoke tests
         run: python tests/browser_smoke.py
+  firmware-queue:
+    name: ESP32 offline queue native tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Prepare firmware configuration
+        run: cp firmware/esp32/include/config.h.example firmware/esp32/include/config.h
+      - name: Compile and run offline queue tests
+        run: g++ -std=c++17 -Wall -Wextra -Werror -Ifirmware/esp32/test/native/stubs -Ifirmware/esp32/include firmware/esp32/test/native/test_offline_queue.cpp -o /tmp/mw-sense-offline-queue-tests && /tmp/mw-sense-offline-queue-tests
