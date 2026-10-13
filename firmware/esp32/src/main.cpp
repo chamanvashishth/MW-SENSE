@@ -119,9 +119,18 @@ void setup() {
 
   configTime(0, 0, "pool.ntp.org", "time.nist.gov");
 #if MQTT_USE_TLS
-  // Development shortcut only. Replace with CA certificate validation before
-  // connecting to a real broker; setInsecure() does not authenticate the broker.
-  secureClient.setInsecure();
+  // Verify the broker by default. An insecure connection is available only
+  // when the developer explicitly opts in through local configuration.
+  #if defined(MQTT_ROOT_CA)
+    secureClient.setCACert(MQTT_ROOT_CA);
+  #elif MQTT_ALLOW_INSECURE_TLS
+    Serial.println("WARNING: MQTT broker certificate verification is disabled.");
+    secureClient.setInsecure();
+  #else
+    Serial.println("MQTT TLS is enabled, but no MQTT_ROOT_CA is configured.");
+    Serial.println("Add the broker CA certificate or explicitly enable the development-only insecure option.");
+    while (true) delay(1000);
+  #endif
   mqtt.setClient(secureClient);
 #else
   mqtt.setClient(plainClient);
