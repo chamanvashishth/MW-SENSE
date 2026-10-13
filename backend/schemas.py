@@ -56,6 +56,7 @@ class TelemetryOut(BaseModel):
     value: float
     unit: str
     simulation: bool
+    request_id: str | None = None
     status: str = "VALID"
     received_at: str
 
