@@ -8,6 +8,11 @@ from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
 from threading import Thread
 from functools import partial
+import os
+import socket
+import subprocess
+import sys
+import time
 from playwright.sync_api import sync_playwright
 import tempfile
 
@@ -15,8 +20,43 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def _free_port():
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        return sock.getsockname()[1]
+
+
+def _wait_for_api(base_url, process):
+    import urllib.request
+
+    deadline = time.monotonic() + 20
+    while time.monotonic() < deadline:
+        if process.poll() is not None:
+            raise RuntimeError("API server exited before becoming ready")
+        try:
+            with urllib.request.urlopen(base_url + "/health", timeout=1) as response:
+                if response.status == 200:
+                    return
+        except Exception:
+            time.sleep(0.25)
+    raise TimeoutError("API server did not become ready")
+
+
 def main():
     with tempfile.TemporaryDirectory() as storage_dir:
+        database_path = Path(storage_dir) / "mw_sense_browser_test.db"
+        api_port = _free_port()
+        api_url = f"http://127.0.0.1:{api_port}"
+        api_env = os.environ.copy()
+        api_env["MW_SENSE_DB_PATH"] = str(database_path)
+        api_process = subprocess.Popen(
+            [sys.executable, "-m", "uvicorn", "backend.main:app", "--host", "127.0.0.1", "--port", str(api_port)],
+            cwd=ROOT,
+            env=api_env,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        _wait_for_api(api_url, api_process)
         handler = partial(SimpleHTTPRequestHandler, directory=str(ROOT))
         server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
         thread = Thread(target=server.serve_forever, daemon=True)
@@ -49,6 +89,34 @@ def main():
                 assert page.locator("#reading-count").inner_text().strip() == "001"
                 assert page.locator("#records-body tr").count() == 1
 
+                page.locator("#storage-mode").select_option("server")
+                page.locator("#api-base-url").fill(api_url)
+                page.locator("#connect-server").click()
+                page.locator("#storage-status").filter(has_text="Connected to API server").wait_for(timeout=10000)
+                page.locator("#transmit-button").click()
+                page.locator("#pipeline-state").filter(has_text="SAMPLE DELIVERED").wait_for(timeout=10000)
+                assert page.locator("#records-body tr").count() == 1
+                server_records = page.evaluate(
+                    "(url) => fetch(url + '/telemetry').then(response => response.json())",
+                    api_url,
+                )
+                assert server_records["count"] == 1
+                assert server_records["items"][0]["simulation"] is True
+
+                with page.expect_download() as download_info:
+                    page.locator("#export-csv").click()
+                download = download_info.value
+                assert download.suggested_filename == "mw-sense-session-readings.csv"
+                csv_path = Path(storage_dir) / download.suggested_filename
+                download.save_as(csv_path)
+                csv_text = csv_path.read_text(encoding="utf-8")
+                assert "timestamp,node_id,sensor_id,parameter,value,unit,status,simulation" in csv_text
+                assert "temperature" in csv_text
+
+                page.locator("#clear-records").click()
+                page.locator("#record-summary").filter(has_text="0 saved records").wait_for(timeout=10000)
+                assert page.evaluate("(url) => fetch(url + '/telemetry').then(r => r.json())", api_url)["count"] == 0
+
                 mobile = context.new_page()
                 mobile.set_viewport_size({"width": 390, "height": 844})
                 mobile.goto(base_url, wait_until="networkidle")
@@ -64,6 +132,8 @@ def main():
             server.shutdown()
             server.server_close()
             thread.join(timeout=2)
+            api_process.terminate()
+            api_process.wait(timeout=10)
 
 
 if __name__ == "__main__":
