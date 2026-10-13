@@ -6,7 +6,7 @@
 class OfflineQueue {
  public:
   bool begin() {
-    if (!LittleFS.begin(true)) return false;
+    if (!LittleFS.begin(false)) return false;
     if (!LittleFS.exists(OFFLINE_QUEUE_FILE)) {
       File file = LittleFS.open(OFFLINE_QUEUE_FILE, FILE_WRITE);
       return static_cast<bool>(file);
