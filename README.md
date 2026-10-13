@@ -63,9 +63,9 @@ The monitoring chart and alert feed use records available in the current browser
 
 ## Planned next milestones
 
-1. **Backend service:** implement and deploy the documented telemetry API with authentication, validation, and durable database storage.
+1. **Backend hardening:** add authentication, authorization, database migrations, retention policies, and production deployment controls.
 2. **Device integration:** connect verified firmware and real telemetry without conflating it with simulation.
-3. **Operations:** add access control, retention policy, observability, and deployment documentation.
+3. **Operations:** add observability, backup/restore, and deployment documentation.
 
 ## Important engineering boundary
 
@@ -90,14 +90,14 @@ Run the checks locally with Node.js:
 npm test
 ```
 
-The dashboard accesses readings through a small repository interface (`list`, `append`, and `clear`). The current browser adapter uses `localStorage`; a separate HTTP adapter defines a future `/telemetry` API boundary (`GET`, `POST`, and `DELETE`) but does not imply that a server exists. The repository can create and import version 1.0 JSON snapshots and validates every imported reading before appending it. The local adapter is synchronous; the HTTP adapter is asynchronous, so callers can use either through the same returned interface.
+The dashboard accesses readings through a small repository interface (`list`, `append`, and `clear`). The browser dashboard now offers a storage selector for browser-local storage or a configured FastAPI server. Server mode must be connected explicitly using the API URL and a successful health check before it accepts transmissions. The repository can create and import version 1.0 JSON snapshots and validates every imported reading before appending it. The local adapter is synchronous; the HTTP adapter is asynchronous, so callers can use either through the same returned interface.
 
-Browser records remain on the current device. If storage is blocked or unavailable, the app continues with session-only data and reports the limitation. This is not a central database, server backup, or cross-device sync. The HTTP API adapter is a contract only; no backend service has been deployed. These tests do not demonstrate physical sensor accuracy, wireless range, electrical reliability, or a deployed gateway/database.
+Browser records remain on the current device. If storage is blocked or unavailable, the app continues with session-only data and reports the limitation. This is not a central database, server backup, or cross-device sync. The FastAPI service is implemented for local development and is not a production deployment. The browser-to-server path is exercised by the API and adapter tests, but a manual browser session should still be performed in the target environment. These tests do not demonstrate physical sensor accuracy, wireless range, electrical reliability, or hardware deployment.
 
 
 ## Python telemetry API
 
-The repository now includes a working FastAPI service backed by SQLite. It is a separate backend from the browser-only virtual lab; the dashboard continues to use browser-local storage until remote mode is explicitly wired into the UI.
+The repository includes a FastAPI service backed by SQLite. The dashboard can use either browser-local storage or this API through the storage selector in the data explorer.
 
 ### Start the API
 
@@ -138,4 +138,4 @@ python -m pip install -r backend/requirements-dev.txt
 python -m pytest backend/tests -q
 ```
 
-GitHub Actions now runs the existing Node.js suite and the Python API tests independently. The HTTP adapter in `telemetry-core.js` speaks the API's `{ items, count, limit }` list response format. The browser UI has not yet been switched to remote mode; that integration is the next milestone. Do not expose the unauthenticated development API directly to the public internet.
+GitHub Actions now runs the existing Node.js suite and the Python API tests independently. The HTTP adapter in `telemetry-core.js` speaks the API's `{ items, count, limit }` list response format. In the dashboard, select **API server**, confirm the server URL, and choose **Connect**. The dashboard checks `/health` and loads server readings before enabling server-backed transmissions. If the connection fails, readings are not silently written to browser storage. Do not expose the unauthenticated development API directly to the public internet.
