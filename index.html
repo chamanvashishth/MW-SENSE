@@ -59,7 +59,7 @@
       <section class="section metrics-grid" aria-label="System summary">
         <article class="metric-card"><div class="metric-top"><span>VIRTUAL NODES</span><span class="metric-symbol">⌘</span></div><strong id="node-count">03</strong><small>Configured in this demo</small></article>
         <article class="metric-card"><div class="metric-top"><span>DATA POINTS</span><span class="metric-symbol">⌁</span></div><strong id="reading-count">000</strong><small>Readings transmitted</small></article>
-        <article class="metric-card"><div class="metric-top"><span>NETWORK STATUS</span><span class="metric-symbol">◉</span></div><strong class="status-value" id="network-status">READY</strong><small>Simulation environment</small></article>
+        <article class="metric-card"><div class="metric-top"><span>NETWORK STATUS</span><span class="metric-symbol">◉</span></div><strong class="status-value" id="network-status" role="status" aria-live="polite">READY</strong><small>Simulation environment</small></article>
         <article class="metric-card"><div class="metric-top"><span>DATA ROUTE</span><span class="metric-symbol">⇢</span></div><strong>6 <small class="inline-unit">STAGES</small></strong><small>From sensing to visualization</small></article>
       </section>
 
@@ -93,7 +93,7 @@
             <p class="microcopy">*Air-quality value is an illustrative simulation unit, not a calibrated ppm measurement.</p>
           </div>
           <div class="panel pipeline-panel" id="data-flow">
-            <div class="panel-heading"><div><span class="panel-kicker">LIVE TELEMETRY</span><h3>Data pipeline</h3></div><span class="pipeline-state" id="pipeline-state">AWAITING SAMPLE</span></div>
+            <div class="panel-heading"><div><span class="panel-kicker">LIVE TELEMETRY</span><h3>Data pipeline</h3></div><span class="pipeline-state" id="pipeline-state" role="status" aria-live="polite" aria-atomic="true">AWAITING SAMPLE</span></div>
             <div class="pipeline-list" id="pipeline-list">
               <div class="pipeline-stage"><span class="stage-index">01</span><span class="stage-dot"></span><div><b>Acquisition</b><small>Read sensor value at the node</small></div><span class="stage-state">IDLE</span></div>
               <div class="pipeline-stage"><span class="stage-index">02</span><span class="stage-dot"></span><div><b>Validation</b><small>Check value and payload format</small></div><span class="stage-state">IDLE</span></div>
@@ -102,7 +102,7 @@
               <div class="pipeline-stage"><span class="stage-index">05</span><span class="stage-dot"></span><div><b>Storage</b><small>Append timestamped record</small></div><span class="stage-state">IDLE</span></div>
               <div class="pipeline-stage"><span class="stage-index">06</span><span class="stage-dot"></span><div><b>Visualization</b><small>Refresh monitoring dashboard</small></div><span class="stage-state">IDLE</span></div>
             </div>
-            <div class="packet-preview"><div class="packet-head"><span>LAST PAYLOAD</span><span id="packet-status">NO DATA</span></div><code id="packet-json">{ "status": "awaiting_sample" }</code></div>
+            <div class="packet-preview"><div class="packet-head"><span>LAST PAYLOAD</span><span id="packet-status" role="status" aria-live="polite">NO DATA</span></div><code id="packet-json">{ "status": "awaiting_sample" }</code></div>
           </div>
         </div>
       </section>
@@ -134,7 +134,7 @@
         <div class="panel explorer-panel">
           <div class="explorer-toolbar"><div><span class="panel-kicker">TELEMETRY DATASET</span><h3>Recent measurements</h3></div><div class="explorer-actions"><label class="filter-label" for="storage-mode">STORAGE</label><select id="storage-mode"><option value="local">This browser</option><option value="server">API server</option></select><input id="api-base-url" class="api-url-input" type="url" value="http://127.0.0.1:8001" aria-label="API server URL" placeholder="http://127.0.0.1:8001"><input id="api-token" class="api-token-input" type="password" autocomplete="off" aria-label="API bearer token" placeholder="API token (optional)"><button class="button secondary" id="connect-server" type="button">Connect</button><label class="filter-label" for="record-filter">PARAMETER</label><select id="record-filter"><option value="all">All parameters</option><option value="temperature">Temperature</option><option value="humidity">Humidity</option><option value="air_quality">Air quality</option><option value="soil_moisture">Soil moisture</option></select><button class="button secondary" id="export-csv">Export CSV ↓</button></div></div>
           <div class="table-wrap"><table class="data-table"><thead><tr><th>TIME</th><th>NODE</th><th>SENSOR</th><th>PARAMETER</th><th>VALUE</th><th>STATUS</th></tr></thead><tbody id="records-body"><tr><td colspan="6" class="empty-state">No readings yet. Transmit a sample from the virtual sensor lab.</td></tr></tbody></table></div>
-          <div class="explorer-foot"><span id="record-summary">0 saved records</span><span class="storage-status" id="storage-status">Checking browser storage…</span><button class="clear-button" id="clear-records">Clear session data</button></div>
+          <div class="explorer-foot"><span id="record-summary" role="status" aria-live="polite">0 saved records</span><span class="storage-status" id="storage-status" role="status" aria-live="polite">Checking browser storage…</span><button class="clear-button" id="clear-records">Clear session data</button></div>
         </div>
         <div class="panel device-admin-panel" id="device-admin-panel">
           <div class="panel-heading"><div><span class="panel-kicker">DEVICE OPERATIONS</span><h3>Registered nodes</h3></div><button class="button secondary" id="refresh-devices" type="button" disabled>Refresh nodes</button></div>
@@ -151,7 +151,7 @@
         <div class="monitoring-grid">
           <div class="panel chart-panel">
             <div class="panel-heading"><div><span class="panel-kicker">SESSION TREND</span><h3 id="chart-title">Temperature history</h3></div><label class="chart-select-label" for="chart-parameter">VIEW <select id="chart-parameter"><option value="temperature">Temperature</option><option value="humidity">Humidity</option><option value="air_quality">Air quality</option><option value="soil_moisture">Soil moisture</option></select></label></div>
-            <div class="chart-summary"><strong id="chart-latest">—</strong><span id="chart-unit">°C</span><small id="chart-caption">No samples collected yet</small></div>
+            <div class="chart-summary"><strong id="chart-latest">—</strong><span id="chart-unit">°C</span><small id="chart-caption" role="status" aria-live="polite">No samples collected yet</small></div>
             <svg id="trend-chart" class="trend-chart" viewBox="0 0 640 190" role="img" aria-label="Simulated sensor readings over time"><line x1="36" y1="20" x2="36" y2="158" class="chart-axis"/><line x1="36" y1="158" x2="620" y2="158" class="chart-axis"/><text x="36" y="180" class="chart-label">Waiting for samples</text></svg>
             <div class="sampler-controls"><label for="sampling-interval">Sample every</label><select id="sampling-interval"><option value="2">2 seconds</option><option value="5" selected>5 seconds</option><option value="10">10 seconds</option><option value="30">30 seconds</option></select><button class="button primary" id="sampler-start">Start sampling</button><button class="button secondary" id="sampler-stop" disabled>Stop</button></div>
             <p class="microcopy">Sampling uses the current virtual sensor values and saves successful samples to the selected storage destination.</p>
