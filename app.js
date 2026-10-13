@@ -10,7 +10,9 @@ const networkStatus = document.querySelector("#network-status");
 const toast = document.querySelector("#toast");
 const recordsBody = document.querySelector("#records-body");
 const storageNotice = document.querySelector("#storage-status");
-const recordStore = window.MWSenseTelemetry.createRecordStore(window.localStorage, "mw-sense.telemetry.v1", 5000);
+let recordStore;
+try { recordStore = window.MWSenseTelemetry.createRecordStore(window.localStorage, "mw-sense.telemetry.v1", 5000); }
+catch (error) { recordStore = null; }
 let records = [];
 try { records = recordStore.load(); if (storageNotice) storageNotice.textContent = "Saved in this browser"; }
 catch (error) { records = []; if (storageNotice) storageNotice.textContent = "Storage unavailable · session only"; }
