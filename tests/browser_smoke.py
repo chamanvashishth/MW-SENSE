@@ -149,14 +149,14 @@ def main():
                 device_row = page.locator("#device-rows tr").filter(has_text="NODE-01")
                 device_row.filter(has_text="Active").wait_for(timeout=10000)
                 device_row.locator('button[data-device-action="history"]').click()
-                page.locator("#device-events").filter(has_text="ISSUED").wait_for(timeout=10000)
-                page.locator("#device-events").filter(has_text="BOOT").wait_for(timeout=10000)
+                page.locator("#device-events").filter(has_text="Credential issued").wait_for(timeout=10000)
+                page.locator("#device-events").filter(has_text="Device restarted").wait_for(timeout=10000)
                 page.on("dialog", lambda dialog: dialog.accept())
                 device_row.locator('button[data-device-action="revoke"]').click()
                 device_row = page.locator("#device-rows tr").filter(has_text="NODE-01")
                 device_row.filter(has_text="Not issued").wait_for(timeout=10000)
                 device_row.locator('button[data-device-action="history"]').click()
-                page.locator("#device-events").filter(has_text="REVOKED").wait_for(timeout=10000)
+                page.locator("#device-events").filter(has_text="Credential revoked").wait_for(timeout=10000)
                 credential_check = page.evaluate(
                     """async ({url, token}) => {
                       const response = await fetch(url + "/devices/NODE-01/credential-events", {
