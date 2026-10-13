@@ -94,6 +94,21 @@ def initialize_database(database_path: str | Path | None = None) -> None:
             "INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (?, ?)",
             (4, datetime.now(timezone.utc).isoformat()),
         )
+        device_columns = {row["name"] for row in connection.execute("PRAGMA table_info(devices)")}
+        runtime_columns = {
+            "uptime_seconds": "INTEGER",
+            "queue_depth": "INTEGER",
+            "retry_count": "INTEGER",
+            "wifi_rssi_dbm": "INTEGER",
+            "mqtt_connected": "INTEGER",
+        }
+        for column, column_type in runtime_columns.items():
+            if column not in device_columns:
+                connection.execute(f"ALTER TABLE devices ADD COLUMN {column} {column_type}")
+        connection.execute(
+            "INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (?, ?)",
+            (5, datetime.now(timezone.utc).isoformat()),
+        )
 
 
 def insert_reading(payload: dict[str, Any], database_path: str | Path | None = None) -> dict[str, Any]:
@@ -238,13 +253,32 @@ def register_device(node_id: str, label: str, database_path: str | Path | None =
     return dict(row)
 
 
-def update_device_heartbeat(node_id: str, firmware_version: str | None = None, database_path: str | Path | None = None) -> dict[str, Any] | None:
+def update_device_heartbeat(
+    node_id: str,
+    firmware_version: str | None = None,
+    database_path: str | Path | None = None,
+    runtime: dict[str, Any] | None = None,
+) -> dict[str, Any] | None:
     now = datetime.now(timezone.utc).isoformat()
+    runtime = runtime or {}
     with connect(database_path) as connection:
         cursor = connection.execute(
-            """UPDATE devices SET last_seen_at = ?, last_status = 'online',
-            firmware_version = COALESCE(?, firmware_version) WHERE node_id = ?""",
-            (now, firmware_version, node_id),
+            """UPDATE devices SET
+                last_seen_at = ?, last_status = 'online',
+                firmware_version = COALESCE(?, firmware_version),
+                uptime_seconds = COALESCE(?, uptime_seconds),
+                queue_depth = COALESCE(?, queue_depth),
+                retry_count = COALESCE(?, retry_count),
+                wifi_rssi_dbm = COALESCE(?, wifi_rssi_dbm),
+                mqtt_connected = COALESCE(?, mqtt_connected)
+            WHERE node_id = ?""",
+            (
+                now, firmware_version, runtime.get("uptime_seconds"),
+                runtime.get("queue_depth"), runtime.get("retry_count"),
+                runtime.get("wifi_rssi_dbm"),
+                int(runtime["mqtt_connected"]) if runtime.get("mqtt_connected") is not None else None,
+                node_id,
+            ),
         )
         if not cursor.rowcount:
             return None
