@@ -12,6 +12,10 @@ MW-SENSE is an educational project workspace for introducing the architecture an
 - Conceptual six-layer architecture: sensor, edge node, wireless link, gateway, data store, dashboard.
 - Adjustable virtual temperature, humidity, air-quality, and soil-moisture values.
 - A six-stage telemetry animation: acquisition, validation, transmission, gateway, storage, visualization.
+- A session data explorer with CSV export and parameter filtering.
+- A live trend chart, configurable virtual sampling, and per-node activity indicators.
+- Adjustable threshold checks with a small in-session alert feed.
+- Repeatable network presets and a six-step guided walkthrough.
 - Simulated wireless-link on/off behavior.
 - Responsive dark interface for desktop and mobile.
 
@@ -48,6 +52,10 @@ Sensors → Edge node → Wireless link → Gateway → Data store → Dashboard
 ```
 
 The design is modular. Actual controller, sensor models, radio protocol, server, and database are deployment decisions and should be documented when verified in the physical implementation.
+
+## Current milestone boundaries
+
+The monitoring chart and alert feed use only records created in the current browser session. Sampling runs in the active page and stops when the user stops it or closes the page. Node activity means a virtual node has delivered a sample during this session; it does not indicate a physical device heartbeat. Thresholds are educational examples, not safety alarms.
 
 ## Planned next milestones
 
