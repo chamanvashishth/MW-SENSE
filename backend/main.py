@@ -67,15 +67,17 @@ def sensors():
     }
 
 
-@app.get("/telemetry", response_model=TelemetryList, dependencies=[__import__("fastapi").Depends(require_api_token)])
+@app.get("/telemetry", response_model=TelemetryList, dependencies=[Depends(require_api_token)])
 def get_telemetry(
     parameter: str | None = Query(default=None),
     limit: int = Query(default=500, ge=1, le=5000),
+    offset: int = Query(default=0, ge=0),
 ):
     if parameter is not None and parameter not in SENSOR_RULES:
         raise HTTPException(status_code=422, detail="Unknown telemetry parameter.")
-    items = database.list_readings(DB_PATH, parameter, limit)
-    return {"items": items, "count": len(items), "limit": limit}
+    items, total = database.list_readings(DB_PATH, parameter, limit, offset)
+    next_offset = offset + len(items) if offset + len(items) < total else None
+    return {"items": items, "count": total, "limit": limit, "offset": offset, "next_offset": next_offset}
 
 
 @app.post("/telemetry", response_model=TelemetryOut, status_code=status.HTTP_201_CREATED, dependencies=[__import__("fastapi").Depends(require_api_token)])
