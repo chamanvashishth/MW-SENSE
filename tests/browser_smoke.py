@@ -45,10 +45,16 @@ def _wait_for_api(base_url, process):
 def main():
     with tempfile.TemporaryDirectory() as storage_dir:
         database_path = Path(storage_dir) / "mw_sense_browser_test.db"
+        handler = partial(SimpleHTTPRequestHandler, directory=str(ROOT))
+        server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
+        thread = Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        base_url = f"http://127.0.0.1:{server.server_port}"
         api_port = _free_port()
         api_url = f"http://127.0.0.1:{api_port}"
         api_env = os.environ.copy()
         api_env["MW_SENSE_DB_PATH"] = str(database_path)
+        api_env["MW_SENSE_ALLOWED_ORIGINS"] = base_url
         api_process = subprocess.Popen(
             [sys.executable, "-m", "uvicorn", "backend.main:app", "--host", "127.0.0.1", "--port", str(api_port)],
             cwd=ROOT,
@@ -57,11 +63,6 @@ def main():
             stderr=subprocess.DEVNULL,
         )
         _wait_for_api(api_url, api_process)
-        handler = partial(SimpleHTTPRequestHandler, directory=str(ROOT))
-        server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
-        thread = Thread(target=server.serve_forever, daemon=True)
-        thread.start()
-        base_url = f"http://127.0.0.1:{server.server_port}"
         try:
             with sync_playwright() as playwright:
                 browser = playwright.chromium.launch()
@@ -88,6 +89,8 @@ def main():
                 page.locator("#pipeline-state").filter(has_text="TRANSMISSION FAILED").wait_for(timeout=10000)
                 assert page.locator("#reading-count").inner_text().strip() == "001"
                 assert page.locator("#records-body tr").count() == 1
+                page.locator("label.toggle-label").click()
+                assert page.locator("#network-toggle").is_checked() is True
 
                 page.locator("#storage-mode").select_option("server")
                 page.locator("#api-base-url").fill(api_url)
