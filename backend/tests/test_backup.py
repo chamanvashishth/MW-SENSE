@@ -29,7 +29,7 @@ def test_backup_is_consistent_and_verifiable(tmp_path):
     report = verify_backup(created)
 
     assert created == backup
-    assert report["schema_version"] == 4
+    assert report["schema_version"] == 5
     assert report["telemetry_records"] == 1
     records, total = list_readings(created)
     assert total == 1
