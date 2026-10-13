@@ -286,3 +286,85 @@ button,input,select,textarea{font-family:var(--sans)}
   .section-heading h2{font-size:23px}
   .footer{margin-top:45px}
 }
+
+
+/* Final interaction and small-screen pass */
+:where(a,button,input,select,textarea,[tabindex]):focus-visible{
+  outline:2px solid #66866b;
+  outline-offset:3px;
+}
+::selection{background:#dce8d9;color:#263b2e}
+input:not([type="range"]):not([type="checkbox"]):not([type="radio"]),
+select,textarea{
+  color:#303a31;
+  background:#fff;
+  border:1px solid #dfe3da;
+  border-radius:5px;
+  font:12px var(--sans);
+}
+input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):focus,
+select:focus,textarea:focus{
+  border-color:#8ca78d;
+  outline:none;
+}
+button{transition:background-color .16s ease,border-color .16s ease,color .16s ease}
+a{transition:color .16s ease}
+.nav-link:focus-visible,.button:focus-visible{outline-offset:2px}
+[hidden]{display:none!important}
+@media(max-width:760px){
+  .sidebar{
+    height:auto;
+    min-height:0;
+    inset:0 0 auto;
+    padding:10px 14px 8px;
+    display:flex;
+    flex-direction:column;
+    align-items:stretch;
+    gap:0;
+    z-index:20;
+  }
+  .brand{padding:0 2px}
+  .side-label,.sidebar-bottom{display:none}
+  .nav-list{
+    display:flex;
+    gap:4px;
+    width:100%;
+    margin-top:9px;
+    padding:0 0 2px;
+    overflow-x:auto;
+    overscroll-behavior-x:contain;
+    scrollbar-width:none;
+  }
+  .nav-list::-webkit-scrollbar{display:none}
+  .nav-link{
+    flex:0 0 auto;
+    height:31px;
+    padding:0 9px;
+    gap:6px;
+    white-space:nowrap;
+    font-size:11px;
+  }
+  .nav-icon{font-size:12px;width:auto}
+  .main-content{margin:99px 0 0;padding:0 16px}
+  .topbar{height:49px}
+  .hero{padding-top:32px}
+}
+@media(max-width:420px){
+  .sidebar{padding-left:11px;padding-right:11px}
+  .main-content{padding-left:12px;padding-right:12px;margin-top:96px}
+  .breadcrumb{font-size:10px}
+  .mode-pill{font-size:8px}
+  .hero h1{font-size:35px;letter-spacing:-1.5px}
+  .hero-actions{flex-wrap:wrap}
+  .section-heading h2{font-size:21px}
+  .panel{padding:15px}
+  .explorer-panel{padding:14px}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{
+    scroll-behavior:auto!important;
+    animation-duration:.01ms!important;
+    animation-iteration-count:1!important;
+    transition-duration:.01ms!important;
+  }
+}
