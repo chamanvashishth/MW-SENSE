@@ -395,14 +395,15 @@ def revoke_device_credential(
 
 
 def list_device_credential_events(
-    node_id: str, database_path: str | Path | None = None
+    node_id: str, database_path: str | Path | None = None, limit: int = 100
 ) -> list[dict[str, Any]]:
+    """Return the newest credential events without loading an unbounded history."""
     with connect(database_path) as connection:
         rows = connection.execute(
             """SELECT id, node_id, event, created_at
             FROM device_credential_events WHERE node_id = ?
-            ORDER BY id DESC""",
-            (node_id,),
+            ORDER BY id DESC LIMIT ?""",
+            (node_id, limit),
         ).fetchall()
     return [dict(row) for row in rows]
 
