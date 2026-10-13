@@ -186,7 +186,7 @@ def get_devices():
             warnings.append(f"Device has retried delivery {device['retry_count']} times since boot.")
         if device.get("wifi_rssi_dbm") is not None and device["wifi_rssi_dbm"] <= weak_signal:
             warnings.append(f"Wi-Fi signal is weak ({device['wifi_rssi_dbm']} dBm).")
-        if device.get("mqtt_connected") is False:
+        if device.get("mqtt_connected") is not None and not bool(device["mqtt_connected"]):
             warnings.append("MQTT is disconnected.")
         pending_timestamp = device.get("oldest_pending_timestamp")
         if pending_timestamp:
