@@ -119,7 +119,7 @@
     }
     return {
       kind: "http-api",
-      list: () => send("/telemetry", { method: "GET" }),
+      list: async () => { const result = await send("/telemetry", { method: "GET" }); return result.items; },
       append: (record) => send("/telemetry", { method: "POST", body: JSON.stringify(record) }),
       clear: () => send("/telemetry", { method: "DELETE" })
     };
