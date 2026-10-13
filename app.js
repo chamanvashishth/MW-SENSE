@@ -11,7 +11,7 @@ const toast = document.querySelector("#toast");
 const recordsBody = document.querySelector("#records-body");
 const storageNotice = document.querySelector("#storage-status");
 let recordStore;
-try { recordStore = window.MWSenseTelemetry.createRecordStore(window.localStorage, "mw-sense.telemetry.v1", 5000); }
+try { recordStore = window.MWSenseTelemetry.createTelemetryRepository(window.MWSenseTelemetry.createLocalAdapter(window.localStorage, "mw-sense.telemetry.v1", 5000)); }
 catch (error) { recordStore = null; }
 let records = [];
 try { records = recordStore.load(); if (storageNotice) storageNotice.textContent = "Saved in this browser"; }
@@ -167,7 +167,7 @@ async function transmit() {
       setStage(index, "done");
       if (index === stages.length - 1) {
         records.push(payload);
-        try { recordStore.save(payload); if (storageNotice) storageNotice.textContent = "Saved in this browser"; }
+        try { recordStore.append(payload); if (storageNotice) storageNotice.textContent = "Saved in this browser"; }
         catch (error) { if (storageNotice) storageNotice.textContent = "Storage unavailable · current session only"; showToast("Reading delivered, but browser storage could not save it."); }
         updateNodeHealth(payload);
         checkThresholds(payload);
