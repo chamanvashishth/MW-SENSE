@@ -10,12 +10,78 @@ const networkStatus = document.querySelector("#network-status");
 const toast = document.querySelector("#toast");
 const recordsBody = document.querySelector("#records-body");
 const storageNotice = document.querySelector("#storage-status");
-let recordStore;
-try { recordStore = window.MWSenseTelemetry.createTelemetryRepository(window.MWSenseTelemetry.createLocalAdapter(window.localStorage, "mw-sense.telemetry.v1", 5000)); }
-catch (error) { recordStore = null; }
+const storageMode = document.querySelector("#storage-mode");
+const apiBaseUrl = document.querySelector("#api-base-url");
+const connectServerButton = document.querySelector("#connect-server");
+let localRepository = null;
+let activeRepository = null;
 let records = [];
-try { records = recordStore.load(); if (storageNotice) storageNotice.textContent = "Saved in this browser"; }
-catch (error) { records = []; if (storageNotice) storageNotice.textContent = "Storage unavailable · session only"; }
+try {
+  localRepository = window.MWSenseTelemetry.createTelemetryRepository(
+    window.MWSenseTelemetry.createLocalAdapter(window.localStorage, "mw-sense.telemetry.v1", 5000)
+  );
+  activeRepository = localRepository;
+  records = localRepository.list();
+  if (storageNotice) storageNotice.textContent = "Saved in this browser";
+} catch (error) {
+  if (storageNotice) storageNotice.textContent = "Browser storage unavailable · session only";
+}
+function setStorageControls(mode) {
+  const serverMode = mode === "server";
+  apiBaseUrl.disabled = !serverMode;
+  connectServerButton.disabled = !serverMode;
+}
+async function loadRepository(repository, label) {
+  const loaded = await repository.list();
+  records = Array.isArray(loaded) ? loaded : [];
+  activeRepository = repository;
+  renderRecords();
+  renderTrend();
+  if (storageNotice) storageNotice.textContent = label;
+  readingCount.textContent = String(records.length).padStart(3, "0");
+  showToast("Loaded " + records.length + " readings from " + label.toLowerCase() + ".");
+}
+storageMode.addEventListener("change", () => {
+  setStorageControls(storageMode.value);
+  if (storageMode.value === "local") {
+    if (!localRepository) {
+      showToast("Browser storage is unavailable in this session.");
+      storageMode.value = "server";
+      setStorageControls("server");
+      return;
+    }
+    loadRepository(localRepository, "Saved in this browser").catch(() => {
+      if (storageNotice) storageNotice.textContent = "Browser storage unavailable";
+      showToast("Could not read browser storage.");
+    });
+  } else {
+    records = [];
+    renderRecords();
+    renderTrend();
+    if (storageNotice) storageNotice.textContent = "Server not connected";
+  }
+});
+connectServerButton.addEventListener("click", async () => {
+  if (storageMode.value !== "server") return;
+  connectServerButton.disabled = true;
+  if (storageNotice) storageNotice.textContent = "Connecting to API…";
+  try {
+    const health = await fetch(apiBaseUrl.value.replace(/\\/$/, "") + "/health");
+    if (!health.ok) throw new Error("API health check returned " + health.status);
+    const serverRepository = window.MWSenseTelemetry.createTelemetryRepository(
+      window.MWSenseTelemetry.createHttpAdapter(apiBaseUrl.value.trim())
+    );
+    await loadRepository(serverRepository, "Connected to API server");
+    showToast("API connection established.");
+  } catch (error) {
+    activeRepository = null;
+    if (storageNotice) storageNotice.textContent = "API unavailable · check URL and server";
+    showToast("Could not connect to the API. Check the server URL and try again.");
+  } finally {
+    connectServerButton.disabled = false;
+  }
+});
+setStorageControls(storageMode.value);
 let transmitted = 0;
 let runId = 0;
 let selectedSensor = "temperature";
@@ -90,14 +156,20 @@ function renderRecords() {
   document.querySelector("#record-summary").textContent = records.length + " saved record" + (records.length === 1 ? "" : "s");
 }
 document.querySelector("#record-filter").addEventListener("change", renderRecords);
-document.querySelector("#clear-records").addEventListener("click", () => {
-  records = [];
-  try { recordStore.clear(); if (storageNotice) storageNotice.textContent = "Saved in this browser"; }
-  catch (error) { if (storageNotice) storageNotice.textContent = "Storage unavailable · session only"; }
-  transmitted = 0;
-  readingCount.textContent = "000";
-  renderRecords();
-  showToast("Session data cleared.");
+document.querySelector("#clear-records").addEventListener("click", async () => {
+  if (!activeRepository) { showToast("Connect to a storage destination before clearing records."); return; }
+  try {
+    await activeRepository.clear();
+    records = [];
+    transmitted = 0;
+    readingCount.textContent = "000";
+    renderRecords();
+    renderTrend();
+    if (storageNotice) storageNotice.textContent = storageMode.value === "server" ? "Connected to API server" : "Saved in this browser";
+    showToast("Records cleared from the selected storage destination.");
+  } catch (error) {
+    showToast("Could not clear records. Check the storage connection and try again.");
+  }
 });
 document.querySelector("#export-csv").addEventListener("click", () => {
   if (!records.length) { showToast("There are no records to export yet."); return; }
@@ -166,9 +238,20 @@ async function transmit() {
       }
       setStage(index, "done");
       if (index === stages.length - 1) {
-        records.push(payload);
-        try { recordStore.append(payload); if (storageNotice) storageNotice.textContent = "Saved in this browser"; }
-        catch (error) { if (storageNotice) storageNotice.textContent = "Storage unavailable · current session only"; showToast("Reading delivered, but browser storage could not save it."); }
+        try {
+          if (!activeRepository) throw new Error("No storage destination is connected.");
+          await activeRepository.append(payload);
+          records.push(payload);
+          if (storageNotice) storageNotice.textContent = storageMode.value === "server" ? "Connected to API server" : "Saved in this browser";
+        } catch (error) {
+          pipelineState.textContent = "STORAGE FAILED";
+          packetStatus.textContent = "NOT STORED";
+          setStage(index, "error");
+          if (storageNotice) storageNotice.textContent = "Storage error · reading not saved";
+          showToast("Reading was not stored. Check the selected storage destination.");
+          outcome = "failed";
+          break;
+        }
         updateNodeHealth(payload);
         checkThresholds(payload);
         transmitted++;
