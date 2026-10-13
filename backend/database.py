@@ -1,6 +1,9 @@
 """Small SQLite repository for validated telemetry records."""
+import hashlib
+import hmac
 import json
 import os
+import secrets
 import sqlite3
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -67,9 +70,16 @@ def initialize_database(database_path: str | Path | None = None) -> None:
             "INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (?, ?)",
             (1, datetime.now(timezone.utc).isoformat()),
         )
+        device_columns = {row["name"] for row in connection.execute("PRAGMA table_info(devices)")}
+        if "credential_hash" not in device_columns:
+            connection.execute("ALTER TABLE devices ADD COLUMN credential_hash TEXT")
         connection.execute(
             "INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (?, ?)",
             (2, datetime.now(timezone.utc).isoformat()),
+        )
+        connection.execute(
+            "INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (?, ?)",
+            (3, datetime.now(timezone.utc).isoformat()),
         )
 
 
@@ -228,3 +238,33 @@ def list_devices(database_path: str | Path | None = None) -> list[dict[str, Any]
     with connect(database_path) as connection:
         rows = connection.execute("SELECT * FROM devices ORDER BY node_id").fetchall()
     return [dict(row) for row in rows]
+
+
+
+def provision_device_credential(node_id: str, database_path: str | Path | None = None) -> str | None:
+    """Rotate a node credential and return its plaintext value exactly once."""
+    token = secrets.token_urlsafe(32)
+    digest = hashlib.sha256(token.encode("utf-8")).hexdigest()
+    with connect(database_path) as connection:
+        cursor = connection.execute(
+            "UPDATE devices SET credential_hash = ? WHERE node_id = ?",
+            (digest, node_id),
+        )
+        if not cursor.rowcount:
+            return None
+    return token
+
+
+def verify_device_credential(node_id: str, token: str | None, database_path: str | Path | None = None) -> bool:
+    """Compare a presented node token against its stored one-way digest."""
+    if not isinstance(token, str) or not token:
+        return False
+    with connect(database_path) as connection:
+        row = connection.execute(
+            "SELECT credential_hash FROM devices WHERE node_id = ?",
+            (node_id,),
+        ).fetchone()
+    if not row or not row["credential_hash"]:
+        return False
+    supplied = hashlib.sha256(token.encode("utf-8")).hexdigest()
+    return hmac.compare_digest(row["credential_hash"], supplied)
