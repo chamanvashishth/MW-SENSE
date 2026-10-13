@@ -41,6 +41,10 @@ MW-SENSE/
 ├── index.html       # Application layout and sections
 ├── styles.css       # Responsive visual system
 ├── app.js           # Browser-side virtual telemetry simulation
+├── telemetry-core.js # Payload validation and gateway contract
+├── tests/            # Unit and end-to-end pipeline tests
+├── .github/workflows/ci.yml # Automated Node.js checks
+├── package.json      # Dependency-free test command
 ├── README.md        # Project overview and setup
 └── LICENSE
 ```
@@ -80,10 +84,14 @@ Repository: https://github.com/chamanvashishth/MW-SENSE
 
 The virtual node validates each payload before the wireless stage. It checks the registered node/sensor pairing, parameter, unit, numeric reading range, timestamp, and explicit simulation marker. Invalid samples stop at the validation stage and are not added to the session dataset.
 
-The validation rules and packet-loss decision live in a small dependency-free module that can be tested with Node.js:
+The validation rules, versioned gateway envelope, and in-memory gateway storage contract live in a small dependency-free module. A version 1.0 envelope contains `schema_version`, `message_type`, `received_at`, and the validated `payload`. This is an application contract for the virtual lab; it is not an MQTT broker, HTTP gateway, or remote database.
+
+The pipeline tests exercise validation → transmission decision → gateway envelope → storage using an in-memory collection. GitHub Actions runs the Node.js suite for pushes and pull requests to `main`.
+
+Run the checks locally with Node.js:
 
 ```bash
 npm test
 ```
 
-These tests cover software rules only. They do not demonstrate physical sensor accuracy, wireless range, electrical reliability, or a deployed gateway/database.
+The browser app still keeps its readings in memory for the active page session. The tested gateway storage helper is an in-memory contract used for software verification; it is not durable persistence. These tests do not demonstrate physical sensor accuracy, wireless range, electrical reliability, or a deployed gateway/database.
