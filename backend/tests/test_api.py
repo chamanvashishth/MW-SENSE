@@ -133,3 +133,32 @@ def test_database_initialization_records_schema_version(client, tmp_path):
         columns = {row["name"] for row in connection.execute("PRAGMA table_info(telemetry)")}
     assert [row["version"] for row in versions] == [1]
     assert "request_id" in columns
+
+
+
+def test_startup_adds_request_id_to_an_existing_database(tmp_path):
+    import sqlite3
+    from backend.database import initialize_database, connect
+
+    path = tmp_path / "legacy.sqlite3"
+    with sqlite3.connect(path) as connection:
+        connection.execute("""
+            CREATE TABLE telemetry (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                node_id TEXT NOT NULL,
+                sensor_id TEXT NOT NULL,
+                parameter TEXT NOT NULL,
+                timestamp TEXT NOT NULL,
+                value REAL NOT NULL,
+                unit TEXT NOT NULL,
+                simulation INTEGER NOT NULL,
+                received_at TEXT NOT NULL,
+                payload_json TEXT NOT NULL
+            )
+        """)
+    initialize_database(path)
+    with connect(path) as connection:
+        columns = {row["name"] for row in connection.execute("PRAGMA table_info(telemetry)")}
+        version = connection.execute("SELECT version FROM schema_migrations").fetchone()["version"]
+    assert "request_id" in columns
+    assert version == 1
