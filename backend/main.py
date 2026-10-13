@@ -97,7 +97,9 @@ def register_device(payload: DeviceRegistration):
     supported_nodes = {rule["node"] for rule in SENSOR_RULES.values()}
     if payload.node_id not in supported_nodes:
         raise HTTPException(status_code=422, detail="Node ID is not part of the configured sensor catalogue.")
-    return database.register_device(payload.node_id, payload.label, DB_PATH)
+    device = database.register_device(payload.node_id, payload.label, DB_PATH)
+    device["credential_active"] = bool(device.get("credential_hash"))
+    return device
 
 
 @app.post("/devices/{node_id}/credentials", dependencies=[Depends(require_api_token)])
@@ -154,6 +156,7 @@ def device_heartbeat(node_id: str, payload: DeviceHeartbeat):
     device = database.update_device_heartbeat(node_id, payload.firmware_version, DB_PATH)
     if not device:
         raise HTTPException(status_code=404, detail="Device node is not registered.")
+    device["credential_active"] = bool(device.get("credential_hash"))
     return device
 
 
