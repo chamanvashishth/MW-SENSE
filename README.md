@@ -137,7 +137,7 @@ When authentication is enabled, enter the same token in the dashboard **API toke
 
 ### Telemetry reliability
 
-- SQLite schema version 2 is recorded in `schema_migrations`. Startup creates the current schema, adds the `request_id` column when opening an earlier database, and creates the registered-device table.
+- SQLite schema version 4 is recorded in `schema_migrations`. Startup upgrades earlier databases, adds the idempotency column and device registry when needed, and creates a credential-event audit table.
 - Each browser-generated sample carries a request ID. Repeating the same POST with that ID returns the existing record rather than inserting a duplicate.
 - `GET /telemetry` accepts `limit` (1–5000) and `offset` (0 or greater). The response includes the total matching `count`, current `offset`, and `next_offset` when another page exists.
 - The dashboard HTTP adapter retrieves up to the latest 5,000 server records for its in-memory views. The API can also be queried directly one page at a time.
@@ -188,9 +188,9 @@ curl -X POST http://127.0.0.1:8001/devices/NODE-01/credentials \
   -H "Authorization: Bearer $MW_SENSE_API_TOKEN"
 ```
 
-The response contains a random credential **once**. Copy it into that node's private `firmware/esp32/include/config.h` as `MW_SENSE_DEVICE_TOKEN`. Do not commit or share it. If it is lost, call the endpoint again to rotate it; the previous value stops working immediately.
+The response contains a random credential **once**. Copy it into that node's private `firmware/esp32/include/config.h` as `MW_SENSE_DEVICE_TOKEN`. Do not commit or share it. If it is lost, call the endpoint again to rotate it; the previous value stops working immediately. To revoke a credential without issuing a replacement, call `DELETE /devices/NODE-01/credentials`. The node will no longer authenticate until a new credential is issued.
 
-The database stores only a SHA-256 digest of each credential. The MQTT bridge checks the token against the node ID in the topic and payload before accepting telemetry or heartbeats. The token is removed before a reading is validated or stored, so it is never included in telemetry records or API responses. The admin bearer token is required to issue or rotate credentials.
+The database stores only a SHA-256 digest of each credential. The MQTT bridge checks the token against the node ID in the topic and payload before accepting telemetry or heartbeats. The token is removed before a reading is validated or stored, so it is never included in telemetry records or API responses. The admin bearer token is required to issue, rotate, revoke, and inspect credential history. `GET /devices/NODE-01/credential-events` returns the last 50 issue/rotate/revoke events without secret material. The device list reports whether a credential is active.
 
 This is application-level device authentication over the TLS connection. Keep broker TLS enabled and configure broker-side per-topic ACLs as an additional boundary. It does not replace broker authentication, certificate verification, or network isolation.
 
@@ -203,7 +203,7 @@ curl -X POST http://127.0.0.1:8001/devices/NODE-01/heartbeat \
   -d '{"firmware_version":"1.0.0"}'
 ```
 
-A physical telemetry POST (`simulation: false`) is accepted only for a registered node. Successful physical readings also update that node's last-seen time and firmware version. Simulated readings remain available without device registration. This registry currently uses the fixed node IDs in the educational sensor catalogue; arbitrary node provisioning and per-device credentials are not implemented yet.
+A physical telemetry POST (`simulation: false`) is accepted only for a registered node. Successful physical readings also update that node's last-seen time and firmware version. Simulated readings remain available without device registration. This registry currently uses the fixed node IDs in the educational sensor catalogue. Per-device credential issue, rotation, revocation, and audit history are available; arbitrary node provisioning is not implemented yet.
 
 ### Firmware telemetry contract
 
@@ -265,7 +265,7 @@ Start it in a separate terminal:
 python -m backend.mqtt_bridge
 ```
 
-MQTT topic format is `mw-sense/{node_id}/{sensor_id}/telemetry`. The topic identity must match the JSON body. The bridge rejects simulated payloads, unknown sensor definitions, missing request IDs, unregistered nodes, and messages without that node's valid device credential. Use broker-side authentication, TLS, and per-topic publish ACLs so each device can publish only to its own node topic. The bridge currently uses broker credentials supplied through environment variables; it does not issue individual device credentials or configure the broker for you.
+MQTT topic format is `mw-sense/{node_id}/{sensor_id}/telemetry`. The topic identity must match the JSON body. The bridge rejects simulated payloads, unknown sensor definitions, missing request IDs, unregistered nodes, and messages without that node's valid device credential. Use broker-side authentication, TLS, and per-topic publish ACLs so each device can publish only to its own node topic. The bridge process uses its own broker credentials from environment variables; per-device application credentials are checked after messages arrive. This API does not configure broker users or ACLs for you.
 
 The MQTT parser, heartbeat handler and database ingestion path are covered by automated tests. A live broker, physical node, Wi-Fi reconnect, firmware build, and sensor calibration have not been tested by CI and must be verified in the target lab.
 
