@@ -134,10 +134,12 @@ def revoke_device_credential(node_id: str):
 
 
 @app.get("/devices/{node_id}/credential-events", dependencies=[Depends(require_api_token)])
-def get_device_credential_events(node_id: str):
+def get_device_credential_events(
+    node_id: str, limit: int = Query(default=100, ge=1, le=500)
+):
     if not any(device["node_id"] == node_id for device in database.list_devices(DB_PATH)):
         raise HTTPException(status_code=404, detail="Device node is not registered.")
-    return database.list_device_credential_events(node_id, DB_PATH)
+    return database.list_device_credential_events(node_id, DB_PATH, limit)
 
 
 @app.get("/devices/{node_id}/lifecycle-events", dependencies=[Depends(require_api_token)])
