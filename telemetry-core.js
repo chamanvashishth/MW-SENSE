@@ -81,7 +81,7 @@
       return valid.slice(-maxRecords);
     }
     function save(record) {
-      if (!validatePayload(record).valid || record.status !== "VALID" {
+      if (!validatePayload(record).valid || record.status !== "VALID") {
         throw new TypeError("Only validated telemetry readings can be saved.");
       }
       const next = load().concat(record).slice(-maxRecords);
