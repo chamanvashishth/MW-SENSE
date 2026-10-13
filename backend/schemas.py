@@ -97,9 +97,11 @@ class DeviceHeartbeat(BaseModel):
         if value is None:
             return value
         try:
-            datetime.fromisoformat(value.replace("Z", "+00:00"))
+            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
         except ValueError as exc:
             raise ValueError("oldest_pending_timestamp must be a valid ISO 8601 date-time") from exc
+        if parsed.tzinfo is None or parsed.utcoffset() is None:
+            raise ValueError("oldest_pending_timestamp must include a timezone.")
         return value
 
 
