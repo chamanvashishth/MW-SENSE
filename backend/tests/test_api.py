@@ -377,6 +377,10 @@ def test_device_heartbeat_rejects_invalid_boot_count_and_pending_timestamp(clien
         "/devices/NODE-02/heartbeat",
         json={"oldest_pending_timestamp": "not-a-timestamp"},
     ).status_code == 422
+    assert client.post(
+        "/devices/NODE-02/heartbeat",
+        json={"oldest_pending_timestamp": "2026-10-13T10:00:00"},
+    ).status_code == 422
 
 
 def test_device_health_warnings_cover_queue_retries_wifi_and_mqtt(client, monkeypatch):
