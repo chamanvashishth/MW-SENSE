@@ -137,7 +137,7 @@ When authentication is enabled, enter the same token in the dashboard **API toke
 
 ### Telemetry reliability
 
-- SQLite schema version 1 is recorded in `schema_migrations`. Startup creates the current schema and adds the `request_id` column when opening an earlier database.
+- SQLite schema version 2 is recorded in `schema_migrations`. Startup creates the current schema, adds the `request_id` column when opening an earlier database, and creates the registered-device table.
 - Each browser-generated sample carries a request ID. Repeating the same POST with that ID returns the existing record rather than inserting a duplicate.
 - `GET /telemetry` accepts `limit` (1–5000) and `offset` (0 or greater). The response includes the total matching `count`, current `offset`, and `next_offset` when another page exists.
 - The dashboard HTTP adapter retrieves up to the latest 5,000 server records for its in-memory views. The API can also be queried directly one page at a time.
@@ -164,6 +164,84 @@ The public `/health` endpoint remains a lightweight connection check. The token-
 
 API request logs include the HTTP method, route path, response status, and elapsed time. Request bodies, bearer tokens, and query strings are deliberately excluded. Telemetry POST requests may be retried once after a network failure or server-side 5xx response; request IDs make that retry safe against duplicate inserts. Client-side 4xx validation/authentication errors are not retried. If a server write fails, the dashboard marks the API connection as lost and requires an explicit reconnect before further server-backed samples.
 
+### Device registration and heartbeat
+
+The API now keeps a small registry for the three node IDs in the current sensor catalogue (`NODE-01`, `NODE-02`, and `NODE-03`). Registration and heartbeat routes require the configured API bearer token when authentication is enabled.
+
+Register a node:
+
+```bash
+curl -X POST http://127.0.0.1:8001/devices \
+  -H "Authorization: Bearer $MW_SENSE_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"node_id":"NODE-01","label":"North wing sensor node"}'
+```
+
+List registered nodes with `GET /devices`. A node without a heartbeat remains `registered`; a node whose last heartbeat is older than `MW_SENSE_DEVICE_OFFLINE_SECONDS` (default 120 seconds) is reported as `offline`. Set a different positive whole number to adjust the window.
+
+Send a heartbeat:
+
+```bash
+curl -X POST http://127.0.0.1:8001/devices/NODE-01/heartbeat \
+  -H "Authorization: Bearer $MW_SENSE_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"firmware_version":"1.0.0"}'
+```
+
+A physical telemetry POST (`simulation: false`) is accepted only for a registered node. Successful physical readings also update that node's last-seen time and firmware version. Simulated readings remain available without device registration. This registry currently uses the fixed node IDs in the educational sensor catalogue; arbitrary node provisioning and per-device credentials are not implemented yet.
+
+### Firmware telemetry contract
+
+Use ISO 8601 UTC timestamps and include a unique `request_id` so a reconnect or QoS 1 redelivery cannot create duplicate readings. The payload shape is:
+
+```json
+{
+  "node_id": "NODE-01",
+  "sensor_id": "TEMP-01",
+  "parameter": "temperature",
+  "timestamp": "2026-10-13T10:30:00Z",
+  "value": 27.8,
+  "unit": "°C",
+  "simulation": false,
+  "request_id": "node-01-boot-42-sequence-108",
+  "firmware_version": "1.0.0"
+}
+```
+
+The `request_id` should be stable across retries of the same sample and unique for each new sample. The sensor/node pairing, unit, range, timestamp, and payload shape are validated by the same Pydantic contract used by HTTP ingestion. The current sensor catalogue still has fixed example ranges; calibrate and update them against the selected physical sensor before relying on the values.
+
+### Optional MQTT bridge
+
+MQTT is an independent ingestion process, not a broker bundled into this repository. The bridge subscribes to QoS 1 topic `mw-sense/+/+/telemetry` and writes validated physical readings to the same SQLite database as the HTTP API.
+
+Install its optional dependency:
+
+```bash
+python -m pip install -r backend/requirements-mqtt.txt
+```
+
+Configure the broker connection using environment variables:
+
+| Variable | Purpose | Default |
+|---|---|---|
+| `MW_SENSE_MQTT_HOST` | Broker hostname (required) | — |
+| `MW_SENSE_MQTT_PORT` | Broker port | `8883` |
+| `MW_SENSE_MQTT_CLIENT_ID` | Bridge client ID | `mw-sense-ingest` |
+| `MW_SENSE_MQTT_USERNAME` | Broker username | unset |
+| `MW_SENSE_MQTT_PASSWORD` | Broker password | unset |
+| `MW_SENSE_MQTT_TLS` | Enable TLS | `true` |
+| `MW_SENSE_DB_PATH` | SQLite database path | `backend/mw_sense.db` |
+
+Start it in a separate terminal:
+
+```bash
+python -m backend.mqtt_bridge
+```
+
+MQTT topic format is `mw-sense/{node_id}/{sensor_id}/telemetry`. The topic identity must match the JSON body. The bridge rejects simulated payloads, unknown sensor definitions, missing request IDs, and unregistered physical nodes. Use broker-side authentication, TLS, and per-topic publish ACLs so each device can publish only to its own node topic. The bridge currently uses broker credentials supplied through environment variables; it does not issue individual device credentials or configure the broker for you.
+
+The MQTT parser and database ingestion path are covered by automated tests. A live broker, physical node, Wi-Fi reconnect, and sensor calibration have not been tested by CI and must be verified in the target lab.
+
 ### API routes
 
 | Method | Route | Purpose |
@@ -174,7 +252,7 @@ API request logs include the HTTP method, route path, response status, and elaps
 | POST | `/telemetry` | Validate and store a reading |
 | DELETE | `/telemetry` | Clear the local development dataset |
 
-The service validates the node/sensor pairing, parameter, unit, ISO 8601 timestamp, numeric range, and payload shape before SQLite accepts a reading. The API assigns the `VALID` status; clients cannot supply it. The `simulation` field is retained so simulated and future device-originated readings remain distinguishable.
+The service validates the node/sensor pairing, parameter, unit, ISO 8601 timestamp, numeric range, and payload shape before SQLite accepts a reading. The API assigns the `VALID` status; clients cannot supply it. The `simulation` field distinguishes virtual samples from physical device readings. Physical readings require a registered node.
 
 ### Backup and recovery
 
