@@ -133,7 +133,7 @@ def test_database_initialization_records_schema_version(client, tmp_path):
     with connect(path) as connection:
         versions = connection.execute("SELECT version FROM schema_migrations").fetchall()
         columns = {row["name"] for row in connection.execute("PRAGMA table_info(telemetry)")}
-    assert [row["version"] for row in versions] == [1]
+    assert [row["version"] for row in versions] == [1, 2]
     assert "request_id" in columns
 
 
@@ -163,7 +163,7 @@ def test_startup_adds_request_id_to_an_existing_database(tmp_path):
         columns = {row["name"] for row in connection.execute("PRAGMA table_info(telemetry)")}
         version = connection.execute("SELECT version FROM schema_migrations").fetchone()["version"]
     assert "request_id" in columns
-    assert version == 1
+    assert version == 2
 
 
 
@@ -220,3 +220,69 @@ def test_invalid_retention_configuration_is_rejected(monkeypatch):
     monkeypatch.setenv("MW_SENSE_RETENTION_DAYS", "one-week")
     with pytest.raises(RuntimeError, match="whole number"):
         main.retention_days()
+
+
+
+def test_device_registration_and_heartbeat_lifecycle(client, monkeypatch):
+    monkeypatch.setenv("MW_SENSE_API_TOKEN", "device-admin")
+    headers = {"Authorization": "Bearer device-admin"}
+    registered = client.post(
+        "/devices",
+        json={"node_id": "NODE-01", "label": "North wing sensor node"},
+        headers=headers,
+    )
+    assert registered.status_code == 201
+    assert registered.json()["last_status"] == "registered"
+    assert client.get("/devices", headers=headers).json()[0]["node_id"] == "NODE-01"
+
+    heartbeat = client.post(
+        "/devices/NODE-01/heartbeat",
+        json={"firmware_version": "1.2.0"},
+        headers=headers,
+    )
+    assert heartbeat.status_code == 200
+    assert heartbeat.json()["last_status"] == "online"
+    assert heartbeat.json()["firmware_version"] == "1.2.0"
+    assert heartbeat.json()["last_seen_at"]
+
+
+def test_device_registration_rejects_unknown_node(client):
+    response = client.post(
+        "/devices",
+        json={"node_id": "NODE-99", "label": "Unknown node"},
+    )
+    assert response.status_code == 422
+
+
+def test_heartbeat_requires_registered_device(client):
+    response = client.post(
+        "/devices/NODE-03/heartbeat",
+        json={"firmware_version": "0.1"},
+    )
+    assert response.status_code == 404
+
+
+def test_physical_telemetry_requires_registration_and_updates_heartbeat(client):
+    physical = valid_reading(simulation=False, request_id="physical-reading-01", firmware_version="0.9.1")
+    rejected = client.post("/telemetry", json=physical)
+    assert rejected.status_code == 409
+
+    client.post("/devices", json={"node_id": "NODE-01", "label": "Lab node"})
+    accepted = client.post("/telemetry", json=physical)
+    assert accepted.status_code == 201
+    assert accepted.json()["simulation"] is False
+    assert accepted.json()["firmware_version"] == "0.9.1"
+
+    device = client.get("/devices").json()[0]
+    assert device["last_status"] == "online"
+    assert device["firmware_version"] == "0.9.1"
+    assert device["last_seen_at"]
+
+
+def test_device_routes_require_configured_api_token(client, monkeypatch):
+    monkeypatch.setenv("MW_SENSE_API_TOKEN", "private")
+    assert client.get("/devices").status_code == 401
+    assert client.post(
+        "/devices",
+        json={"node_id": "NODE-01", "label": "Lab node"},
+    ).status_code == 401
