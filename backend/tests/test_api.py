@@ -205,7 +205,7 @@ def test_health_diagnostics_are_protected_when_token_is_configured(client, monke
     assert response.status_code == 200
     report = response.json()
     assert report["integrity"] == "ok"
-    assert report["schema_version"] == 3
+    assert report["schema_version"] == 4
     assert report["telemetry_records"] == 0
     assert report["device_records"] == 0
 
