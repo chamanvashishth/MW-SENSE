@@ -22,3 +22,20 @@ jobs:
           node-version: 22
       - name: Run telemetry tests
         run: npm test
+
+  backend:
+    name: Python API tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements-dev.txt
+      - name: Install backend test dependencies
+        run: python -m pip install -r backend/requirements-dev.txt
+      - name: Run API tests
+        run: python -m pytest backend/tests -q
