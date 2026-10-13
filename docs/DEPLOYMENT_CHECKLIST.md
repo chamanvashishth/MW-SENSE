@@ -29,6 +29,8 @@ This checklist is a gate for a controlled pilot, not a claim that MW-SENSE is pr
 - [ ] Allow the bridge identity to publish acknowledgement messages at QoS 1.
 - [ ] Test bridge startup when the broker is unavailable, then restore the broker and confirm reconnect and resubscription.
 - [ ] Test malformed, unauthorized, duplicate, and out-of-order messages.
+- [ ] Confirm authenticated heartbeats report uptime, queue depth, retry count, Wi-Fi RSSI, and MQTT state; compare dashboard values with node serial output.
+- [ ] Confirm older firmware that omits optional runtime fields displays them as not reported.
 - [ ] Confirm broker persistence and delivery settings match the pilot's loss tolerance.
 
 ## 4. Physical node and firmware
