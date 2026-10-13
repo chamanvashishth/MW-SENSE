@@ -63,10 +63,11 @@ test("HTTP adapter sends the documented telemetry resource requests", async () =
   const calls = [];
   const fakeFetch = async (url, options) => {
     calls.push({ url, options });
-    return { ok: true, status: 200, json: async () => ({ ok: true }) };
+    return { ok: true, status: 200, json: async () => ({ items: [reading], count: 1, limit: 500 }) };
   };
   const adapter = createHttpAdapter("https://example.test/api/", fakeFetch);
-  await adapter.list();
+  const listed = await adapter.list();
+  assert.deepEqual(listed, [reading]);
   await adapter.append(reading);
   await adapter.clear();
   assert.deepEqual(calls.map((call) => call.options.method), ["GET", "POST", "DELETE"]);
