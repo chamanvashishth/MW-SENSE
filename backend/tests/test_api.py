@@ -161,7 +161,7 @@ def test_startup_adds_request_id_to_an_existing_database(tmp_path):
     initialize_database(path)
     with connect(path) as connection:
         columns = {row["name"] for row in connection.execute("PRAGMA table_info(telemetry)")}
-        version = connection.execute("SELECT version FROM schema_migrations").fetchone()["version"]
+        version = connection.execute("SELECT MAX(version) FROM schema_migrations").fetchone()[0]
     assert "request_id" in columns
     assert version == 2
 
