@@ -92,6 +92,11 @@
 .device-status.online:before{background:#5ed0a4;box-shadow:0 0 8px #5ed0a455}
 .device-status.offline:before{background:#f0a16e}
 .device-status.registered:before{background:#7895b4}
+.device-status.healthy:before{background:#4f9b72}
+.device-status.warning:before{background:#c18a38}
+.device-status.critical:before{background:#bd554b}
+.device-status.unknown:before{background:#89939b}
+.device-status.warning,.device-status.critical{cursor:help}
 .credential-state{font:9px var(--mono);color:#9eb1c2}
 .device-actions{display:flex;gap:6px;flex-wrap:wrap}
 .device-actions button{padding:6px 8px;font-size:8px}
