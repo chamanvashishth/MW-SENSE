@@ -135,6 +135,13 @@ uvicorn backend.main:app --reload --port 8001
 
 When authentication is enabled, enter the same token in the dashboard **API token** field. The browser sends it as a bearer token for sensor and telemetry requests. The `/health` endpoint remains public for connection checks. CORS permits the `Authorization` header. Use HTTPS and a proper secrets manager before deploying beyond localhost; a token entered in a browser is available to that browser session and is not a substitute for user-specific authorization.
 
+### Telemetry reliability
+
+- SQLite schema version 1 is recorded in `schema_migrations`. Startup creates the current schema and adds the `request_id` column when opening an earlier database.
+- Each browser-generated sample carries a request ID. Repeating the same POST with that ID returns the existing record rather than inserting a duplicate.
+- `GET /telemetry` accepts `limit` (1–5000) and `offset` (0 or greater). The response includes the total matching `count`, current `offset`, and `next_offset` when another page exists.
+- The dashboard HTTP adapter retrieves up to the latest 5,000 server records for its in-memory views. The API can also be queried directly one page at a time.
+
 ### API routes
 
 | Method | Route | Purpose |
@@ -158,4 +165,4 @@ python -m pip install -r backend/requirements-dev.txt
 python -m pytest backend/tests -q
 ```
 
-GitHub Actions now runs the existing Node.js suite and the Python API tests independently. The HTTP adapter in `telemetry-core.js` speaks the API's `{ items, count, limit }` list response format. In the dashboard, select **API server**, confirm the server URL, and choose **Connect**. The dashboard checks `/health` and loads server readings before enabling server-backed transmissions. If the connection fails, readings are not silently written to browser storage. Without `MW_SENSE_API_TOKEN`, data routes are unauthenticated and intended only for local development. A shared bearer token is a basic development safeguard, not full user identity or role-based authorization. Do not expose this service directly to the public internet.
+GitHub Actions now runs the existing Node.js suite and the Python API tests independently. The HTTP adapter in `telemetry-core.js` follows the API's paginated response and loads up to the latest 5,000 records. In the dashboard, select **API server**, confirm the server URL, and choose **Connect**. The dashboard checks `/health` and loads server readings before enabling server-backed transmissions. If the connection fails, readings are not silently written to browser storage. Without `MW_SENSE_API_TOKEN`, data routes are unauthenticated and intended only for local development. A shared bearer token is a basic development safeguard, not full user identity or role-based authorization. Do not expose this service directly to the public internet.
