@@ -42,7 +42,7 @@ def main():
                 saved = page.evaluate("JSON.parse(localStorage.getItem('mw-sense.telemetry.v1'))")
                 assert len(saved) == 1 and saved[0]["simulation"] is True
 
-                page.locator("#network-toggle").uncheck()
+                page.locator("label.toggle-label").click()\n                assert page.locator("#network-toggle").is_checked() is False
                 page.locator("#transmit-button").click()
                 page.locator("#pipeline-state").filter(has_text="TRANSMISSION FAILED").wait_for(timeout=10000)
                 assert page.locator("#reading-count").inner_text().strip() == "001"
