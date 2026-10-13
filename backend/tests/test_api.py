@@ -296,6 +296,37 @@ def test_device_registration_and_heartbeat_lifecycle(client, monkeypatch):
     assert heartbeat.json()["last_seen_at"]
 
 
+def test_device_heartbeat_accepts_and_returns_runtime_metrics(client):
+    client.post("/devices", json={"node_id": "NODE-02", "label": "Air node"})
+    response = client.post(
+        "/devices/NODE-02/heartbeat",
+        json={
+            "firmware_version": "1.3.0",
+            "uptime_seconds": 7200,
+            "queue_depth": 4,
+            "retry_count": 9,
+            "wifi_rssi_dbm": -58,
+            "mqtt_connected": True,
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["uptime_seconds"] == 7200
+    assert body["queue_depth"] == 4
+    assert body["retry_count"] == 9
+    assert body["wifi_rssi_dbm"] == -58
+    assert body["mqtt_connected"] is True
+
+
+def test_device_heartbeat_rejects_out_of_range_runtime_metrics(client):
+    client.post("/devices", json={"node_id": "NODE-03", "label": "Soil node"})
+    response = client.post(
+        "/devices/NODE-03/heartbeat",
+        json={"queue_depth": -1},
+    )
+    assert response.status_code == 422
+
+
 def test_device_registration_rejects_unknown_node(client):
     response = client.post(
         "/devices",
