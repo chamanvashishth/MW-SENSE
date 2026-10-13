@@ -26,6 +26,8 @@
         <a class="nav-link" href="#data-flow"><span class="nav-icon">⇢</span> Data pipeline</a>
         <a class="nav-link" href="#network-lab"><span class="nav-icon">⌁</span> Network lab</a>
         <a class="nav-link" href="#data-explorer"><span class="nav-icon">▤</span> Data explorer</a>
+        <a class="nav-link" href="#monitoring"><span class="nav-icon">⌁</span> Monitoring</a>
+        <a class="nav-link" href="#testing-centre"><span class="nav-icon">✓</span> Testing centre</a>
         <a class="nav-link" href="#applications"><span class="nav-icon">▦</span> Applications</a>
       </nav>
       <div class="sidebar-bottom">
@@ -139,8 +141,51 @@
         </div>
       </section>
 
+
+      <section class="section section-block" id="monitoring">
+        <div class="section-heading"><div><div class="eyebrow">05 / LIVE MONITORING</div><h2>Readings over <em>time.</em></h2></div><p>Start the local sampler to create a steady stream of virtual readings. Trends, node status, and alerts update as samples arrive.</p></div>
+        <div class="monitoring-grid">
+          <div class="panel chart-panel">
+            <div class="panel-heading"><div><span class="panel-kicker">SESSION TREND</span><h3 id="chart-title">Temperature history</h3></div><label class="chart-select-label" for="chart-parameter">VIEW <select id="chart-parameter"><option value="temperature">Temperature</option><option value="humidity">Humidity</option><option value="air_quality">Air quality</option><option value="soil_moisture">Soil moisture</option></select></label></div>
+            <div class="chart-summary"><strong id="chart-latest">—</strong><span id="chart-unit">°C</span><small id="chart-caption">No samples collected yet</small></div>
+            <svg id="trend-chart" class="trend-chart" viewBox="0 0 640 190" role="img" aria-label="Simulated sensor readings over time"><line x1="36" y1="20" x2="36" y2="158" class="chart-axis"/><line x1="36" y1="158" x2="620" y2="158" class="chart-axis"/><text x="36" y="180" class="chart-label">Waiting for samples</text></svg>
+            <div class="sampler-controls"><label for="sampling-interval">Sample every</label><select id="sampling-interval"><option value="2">2 seconds</option><option value="5" selected>5 seconds</option><option value="10">10 seconds</option><option value="30">30 seconds</option></select><button class="button primary" id="sampler-start">Start sampling</button><button class="button secondary" id="sampler-stop" disabled>Stop</button></div>
+            <p class="microcopy">Sampling uses the current virtual sensor values and stores successful samples in this browser session only.</p>
+          </div>
+          <div class="panel health-panel">
+            <div class="panel-heading"><div><span class="panel-kicker">NODE HEALTH</span><h3>Connection overview</h3></div><span class="pipeline-state" id="health-summary">3 NODES READY</span></div>
+            <div class="health-list">
+              <div class="health-row" data-node="NODE-01"><span class="health-indicator"></span><div><b>NODE-01</b><small>Temperature and humidity</small></div><strong>READY</strong><small class="health-last">No samples yet</small></div>
+              <div class="health-row" data-node="NODE-02"><span class="health-indicator"></span><div><b>NODE-02</b><small>Air quality</small></div><strong>READY</strong><small class="health-last">No samples yet</small></div>
+              <div class="health-row" data-node="NODE-03"><span class="health-indicator"></span><div><b>NODE-03</b><small>Soil moisture</small></div><strong>READY</strong><small class="health-last">No samples yet</small></div>
+            </div>
+            <div class="threshold-settings"><div class="threshold-heading"><b>Alert thresholds</b><small>Illustrative limits for this demo</small></div>
+              <label>Temperature upper limit <span><input id="temperature-threshold" type="number" min="0" max="50" step="0.5" value="40"> °C</span></label>
+              <label>Humidity upper limit <span><input id="humidity-threshold" type="number" min="0" max="100" step="1" value="85"> %</span></label>
+              <label>Soil moisture lower limit <span><input id="soil-threshold" type="number" min="0" max="100" step="1" value="20"> %</span></label>
+            </div>
+            <div class="alert-feed" aria-live="polite"><div class="alert-feed-heading"><b>Recent alerts</b><span id="alert-count">0</span></div><div id="alert-list" class="alert-list"><p class="empty-alert">No alerts. Threshold checks run when a sample is delivered.</p></div></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section section-block" id="testing-centre">
+        <div class="section-heading"><div><div class="eyebrow">06 / REPEATABLE TESTS</div><h2>Try a network <em>scenario.</em></h2></div><p>Choose a preset to see how the virtual telemetry path behaves under common link conditions. These are repeatable teaching scenarios, not measured radio tests.</p></div>
+        <div class="panel test-panel">
+          <div class="scenario-grid">
+            <button class="scenario-card" data-scenario="normal"><span>01 / BASELINE</span><b>Normal delivery</b><small>Low delay, no packet loss</small></button>
+            <button class="scenario-card" data-scenario="congested"><span>02 / CONGESTION</span><b>Slow network</b><small>Higher delay and occasional loss</small></button>
+            <button class="scenario-card" data-scenario="unstable"><span>03 / INSTABILITY</span><b>Unstable link</b><small>Frequent packet drops</small></button>
+            <button class="scenario-card" data-scenario="outage"><span>04 / OUTAGE</span><b>Link unavailable</b><small>Transmission cannot complete</small></button>
+          </div>
+          <div class="test-result" id="test-result"><span class="test-result-mark">—</span><div><b>Choose a scenario to begin</b><p>Each run applies its network settings and sends one sample through the six-stage pipeline.</p></div></div>
+          <div class="guide-row"><div><span class="panel-kicker">LEARN THE SYSTEM</span><b>Guided experiment</b><small>Follow the data from sensor input to the dashboard.</small></div><button class="button secondary" id="guide-next">Start guided walkthrough →</button></div>
+          <div class="guide-progress" id="guide-progress" hidden><div><span id="guide-step-label">STEP 1 OF 6</span><b id="guide-step-title">Acquisition</b></div><p id="guide-step-copy"></p><div class="guide-actions"><button class="button secondary" id="guide-prev" disabled>Back</button><button class="button primary" id="guide-advance">Next step</button></div></div>
+        </div>
+      </section>
+
       <section class="section section-block" id="applications">
-        <div class="section-heading"><div><div class="eyebrow">03 / WHERE IT FITS</div><h2>Designed for <em>many environments.</em></h2></div><p>A modular monitoring approach can be adapted to different settings by selecting the relevant sensors and deployment design.</p></div>
+        <div class="section-heading"><div><div class="eyebrow">07 / WHERE IT FITS</div><h2>Designed for <em>many environments.</em></h2></div><p>A modular monitoring approach can be adapted to different settings by selecting the relevant sensors and deployment design.</p></div>
         <div class="application-grid">
           <article class="application-card"><span>01</span><div class="application-icon">⌂</div><h3>Smart buildings</h3><p>Observe indoor environmental conditions and building spaces.</p></article>
           <article class="application-card"><span>02</span><div class="application-icon">♧</div><h3>Agriculture</h3><p>Track soil and local environmental parameters for field insight.</p></article>
