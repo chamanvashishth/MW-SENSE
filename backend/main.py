@@ -100,6 +100,20 @@ def register_device(payload: DeviceRegistration):
     return database.register_device(payload.node_id, payload.label, DB_PATH)
 
 
+@app.post("/devices/{node_id}/credentials", dependencies=[Depends(require_api_token)])
+def rotate_device_credential(node_id: str):
+    """Issue a new MQTT credential; the plaintext value is returned only once."""
+    token = database.provision_device_credential(node_id, DB_PATH)
+    if not token:
+        raise HTTPException(status_code=404, detail="Device node is not registered.")
+    logger.info("device_credential_rotated node_id=%s", node_id)
+    return {
+        "node_id": node_id,
+        "credential": token,
+        "note": "Copy this value into the node's private firmware config. It will not be shown again.",
+    }
+
+
 @app.get("/devices", response_model=list[DeviceOut], dependencies=[Depends(require_api_token)])
 def get_devices():
     from datetime import datetime, timedelta, timezone
