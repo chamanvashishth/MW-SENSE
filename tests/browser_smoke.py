@@ -119,7 +119,7 @@ def main():
                           boot_count: 1,
                           uptime_seconds: 42,
                           queue_depth: 2,
-                          oldest_pending_timestamp: "2026-10-13T10:00:00Z",
+                          oldest_pending_timestamp: new Date().toISOString(),
                           retry_count: 3,
                           wifi_rssi_dbm: -62,
                           mqtt_connected: true
