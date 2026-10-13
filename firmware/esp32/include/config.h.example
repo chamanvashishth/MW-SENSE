@@ -20,6 +20,8 @@
 // Development-only escape hatch. Keep this disabled for real deployments.
 #define MQTT_ALLOW_INSECURE_TLS 0
 #define MW_SENSE_NODE_ID "NODE-01"
+// Generate this through POST /devices/{node_id}/credentials and keep it private.
+#define MW_SENSE_DEVICE_TOKEN "paste-provisioned-device-credential-here"
 #define MW_SENSE_FIRMWARE_VERSION "0.1.0"
 #define DHT_DATA_PIN 4
 #define SAMPLE_INTERVAL_MS 10000UL
