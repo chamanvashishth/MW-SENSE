@@ -97,9 +97,9 @@
     const store = createRecordStore(storage, key, limit);
     return {
       kind: "browser-local",
-      list: () => Promise.resolve(store.load()),
-      append: (record) => Promise.resolve(store.save(record)),
-      clear: () => Promise.resolve(store.clear())
+      list: () => store.load(),
+      append: (record) => store.save(record),
+      clear: () => store.clear()
     };
   }
 
