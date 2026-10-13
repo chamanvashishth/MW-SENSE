@@ -155,8 +155,10 @@ def test_database_initialization_records_schema_version(client, tmp_path):
     with connect(path) as connection:
         versions = connection.execute("SELECT version FROM schema_migrations").fetchall()
         columns = {row["name"] for row in connection.execute("PRAGMA table_info(telemetry)")}
+        device_columns = {row["name"] for row in connection.execute("PRAGMA table_info(devices)")}
     assert [row["version"] for row in versions] == [1, 2, 3, 4, 5]
     assert "request_id" in columns
+    assert {"uptime_seconds", "queue_depth", "retry_count", "wifi_rssi_dbm", "mqtt_connected"} <= device_columns
 
 
 
