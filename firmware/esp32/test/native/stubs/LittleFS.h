@@ -17,7 +17,7 @@ class File {
   size_t println(const String& value) {
     if (!data_) return 0;
     data_->append(value);
-    data_->push_back('\\n');
+    data_->push_back('\n');
     return value.length() + 1;
   }
   size_t print(const String& value) {
