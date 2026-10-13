@@ -72,3 +72,27 @@ def test_delete_clears_database(client):
     response = client.delete("/telemetry")
     assert response.status_code == 204
     assert client.get("/telemetry").json()["count"] == 0
+
+
+def test_api_token_is_optional_for_local_development(client, monkeypatch):
+    monkeypatch.delenv("MW_SENSE_API_TOKEN", raising=False)
+    assert client.get("/sensors").status_code == 200
+    assert client.post("/telemetry", json=valid_reading()).status_code == 201
+
+
+def test_configured_api_token_protects_data_routes(client, monkeypatch):
+    monkeypatch.setenv("MW_SENSE_API_TOKEN", "test-secret-token")
+    assert client.get("/health").status_code == 200
+    assert client.get("/sensors").status_code == 401
+    assert client.get("/telemetry").status_code == 401
+    assert client.post("/telemetry", json=valid_reading()).status_code == 401
+    assert client.delete("/telemetry").status_code == 401
+
+
+def test_valid_bearer_token_allows_data_access(client, monkeypatch):
+    monkeypatch.setenv("MW_SENSE_API_TOKEN", "test-secret-token")
+    headers = {"Authorization": "Bearer test-secret-token"}
+    assert client.get("/sensors", headers=headers).status_code == 200
+    assert client.post("/telemetry", json=valid_reading(), headers=headers).status_code == 201
+    assert client.get("/telemetry", headers=headers).json()["count"] == 1
+    assert client.delete("/telemetry", headers=headers).status_code == 204
