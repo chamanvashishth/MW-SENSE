@@ -14,3 +14,8 @@ backend/*.db-wal
 .env
 .env.*
 !.env.example
+
+# Local database exports and recovery copies
+backend/backups/
+*.sqlite3
+*.sqlite3-*
