@@ -41,3 +41,20 @@ jobs:
         run: python -m pip install -r backend/requirements-dev.txt
       - name: Run API tests
         run: python -m pytest backend/tests -q
+
+  firmware:
+    name: ESP32 firmware build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install PlatformIO
+        run: python -m pip install platformio
+      - name: Prepare example firmware configuration
+        run: cp firmware/esp32/include/config.h.example firmware/esp32/include/config.h
+      - name: Compile ESP32 reference firmware
+        run: pio run -d firmware/esp32
