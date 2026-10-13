@@ -74,3 +74,16 @@ A browser simulation can explain data flow and test application behavior. It can
 ## Project
 
 Repository: https://github.com/chamanvashishth/MW-SENSE
+
+
+## Telemetry validation and tests
+
+The virtual node validates each payload before the wireless stage. It checks the registered node/sensor pairing, parameter, unit, numeric reading range, timestamp, and explicit simulation marker. Invalid samples stop at the validation stage and are not added to the session dataset.
+
+The validation rules and packet-loss decision live in a small dependency-free module that can be tested with Node.js:
+
+```bash
+npm test
+```
+
+These tests cover software rules only. They do not demonstrate physical sensor accuracy, wireless range, electrical reliability, or a deployed gateway/database.
