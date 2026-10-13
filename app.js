@@ -168,44 +168,57 @@ async function showCredentialHistory(nodeId) {
       credentialResponse.json(),
       lifecycleResponse.json()
     ]);
+    const timeline = [
+      ...credentials.map((event) => ({ ...event, category: "credential" })),
+      ...lifecycle.map((event) => ({ ...event, category: "device" }))
+    ].sort((left, right) => new Date(right.created_at) - new Date(left.created_at));
+
     deviceEvents.replaceChildren();
+    const heading = document.createElement("b");
+    heading.textContent = nodeId + " · Recent activity";
+    deviceEvents.append(heading);
 
-    const credentialHeading = document.createElement("b");
-    credentialHeading.textContent = nodeId + " · Credential history";
-    deviceEvents.append(credentialHeading);
-    if (!credentials.length) {
+    if (!timeline.length) {
       const empty = document.createElement("p");
-      empty.textContent = "No credential events recorded.";
+      empty.textContent = "No device or credential events have been recorded yet.";
       deviceEvents.append(empty);
+      return;
     }
-    credentials.forEach((event) => {
+
+    const labels = {
+      issued: "Credential issued",
+      rotated: "Credential rotated",
+      revoked: "Credential revoked",
+      boot: "Device restarted",
+      online: "Device back online",
+      offline: "Device went offline"
+    };
+
+    timeline.forEach((event) => {
       const line = document.createElement("div");
       line.className = "device-event-row";
-      const action = document.createElement("span");
-      action.textContent = event.event.toUpperCase();
+      const description = document.createElement("span");
+      description.textContent = labels[event.event] || event.event;
       const date = document.createElement("time");
+      date.dateTime = event.created_at;
       date.textContent = new Date(event.created_at).toLocaleString();
-      line.append(action, date);
-      deviceEvents.append(line);
-    });
+      line.append(description, date);
 
-    const lifecycleHeading = document.createElement("b");
-    lifecycleHeading.textContent = "Boot history";
-    deviceEvents.append(lifecycleHeading);
-    if (!lifecycle.length) {
-      const empty = document.createElement("p");
-      empty.textContent = "No boot events reported by this device yet.";
-      deviceEvents.append(empty);
-    }
-    lifecycle.forEach((event) => {
-      const line = document.createElement("div");
-      line.className = "device-event-row";
-      const action = document.createElement("span");
-      action.textContent = event.event.toUpperCase() +
-        (event.boot_count ? " · boot " + event.boot_count : "");
-      const date = document.createElement("time");
-      date.textContent = new Date(event.created_at).toLocaleString();
-      line.append(action, date);
+      const details = [];
+      if (event.event === "boot" && event.boot_count !== null && event.boot_count !== undefined) {
+        details.push("Boot count " + event.boot_count);
+      }
+      if (event.event === "offline" && event.details?.last_seen_at) {
+        details.push("Last heartbeat " + new Date(event.details.last_seen_at).toLocaleString());
+      }
+      if (event.event === "online" && event.details?.reason === "heartbeat_received_after_offline") {
+        details.push("A new heartbeat restored contact");
+      }
+      if (details.length) {
+        const note = document.createElement("small");
+        note.textContent = details.join(" · ");
+        line.append(note);
+      }
       deviceEvents.append(line);
     });
   } catch (error) {
