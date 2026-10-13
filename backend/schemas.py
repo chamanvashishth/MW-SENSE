@@ -98,3 +98,8 @@ class DeviceOut(BaseModel):
     last_seen_at: str | None = None
     last_status: str
     credential_active: bool = False
+    uptime_seconds: int | None = None
+    queue_depth: int | None = None
+    retry_count: int | None = None
+    wifi_rssi_dbm: int | None = None
+    mqtt_connected: bool | None = None
