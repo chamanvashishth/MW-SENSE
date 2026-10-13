@@ -104,6 +104,10 @@ Each authenticated MQTT heartbeat includes the current firmware uptime in second
 
 These values describe what the node reported at its most recent heartbeat; they are not a continuous stream or independent network measurements. Retry count resets after reboot, and RSSI is a radio signal-strength indicator rather than a link-quality guarantee. Older firmware and API heartbeats may omit these optional fields, in which case the dashboard shows "Not reported".
 
+## Persistent boot count and pending sample age
+
+The firmware uses the ESP32 Preferences/NVS store to increment a boot counter at startup. The value is included in authenticated heartbeats and the API records a boot event when it sees a new count. The heartbeat also includes the timestamp on the oldest queued reading, so the dashboard can estimate its pending age. If NVS is erased, replaced, or unavailable, the count may restart or be omitted. The pending age relies on the UTC timestamp captured when the reading was queued; it should not be treated as reliable when the device clock has not synchronized.
+
 ## Reliability notes
 
 - The offline queue is bounded. When it is full, the firmware does not overwrite older unsent readings.
