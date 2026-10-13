@@ -3,11 +3,18 @@ import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Query, Response, status
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import database
 from .schemas import SENSOR_RULES, TelemetryIn, TelemetryList, TelemetryOut
+
+
+def require_api_token(authorization: str | None = Header(default=None)):
+    """Require a bearer token when MW_SENSE_API_TOKEN is configured."""
+    expected = os.getenv("MW_SENSE_API_TOKEN")
+    if expected and authorization != f"Bearer {expected}":
+        raise HTTPException(status_code=401, detail="A valid API bearer token is required.")
 
 DB_PATH = Path(os.getenv("MW_SENSE_DB_PATH", database.DEFAULT_DB_PATH))
 
@@ -37,7 +44,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
     allow_methods=["GET", "POST", "DELETE"],
-    allow_headers=["Content-Type"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 
@@ -46,7 +53,7 @@ def health():
     return {"status": "ok", "service": "mw-sense-api"}
 
 
-@app.get("/sensors")
+@app.get("/sensors", dependencies=[Depends(require_api_token)])
 def sensors():
     return {
         key: {
@@ -60,7 +67,7 @@ def sensors():
     }
 
 
-@app.get("/telemetry", response_model=TelemetryList)
+@app.get("/telemetry", response_model=TelemetryList, dependencies=[__import__("fastapi").Depends(require_api_token)])
 def get_telemetry(
     parameter: str | None = Query(default=None),
     limit: int = Query(default=500, ge=1, le=5000),
@@ -71,12 +78,12 @@ def get_telemetry(
     return {"items": items, "count": len(items), "limit": limit}
 
 
-@app.post("/telemetry", response_model=TelemetryOut, status_code=status.HTTP_201_CREATED)
+@app.post("/telemetry", response_model=TelemetryOut, status_code=status.HTTP_201_CREATED, dependencies=[__import__("fastapi").Depends(require_api_token)])
 def post_telemetry(payload: TelemetryIn):
     return database.insert_reading(payload.model_dump(), DB_PATH)
 
 
-@app.delete("/telemetry", status_code=status.HTTP_204_NO_CONTENT)
+@app.delete("/telemetry", status_code=status.HTTP_204_NO_CONTENT, dependencies=[__import__("fastapi").Depends(require_api_token)])
 def delete_telemetry():
     database.clear_readings(DB_PATH)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
