@@ -30,6 +30,9 @@ This checklist is a gate for a controlled pilot, not a claim that MW-SENSE is pr
 - [ ] Test bridge startup when the broker is unavailable, then restore the broker and confirm reconnect and resubscription.
 - [ ] Test malformed, unauthorized, duplicate, and out-of-order messages.
 - [ ] Confirm authenticated heartbeats report uptime, queue depth, retry count, Wi-Fi RSSI, and MQTT state; compare dashboard values with node serial output.
+- [ ] Confirm boot count increases across controlled restarts and appears in protected lifecycle history.
+- [ ] Queue a timestamped sample while disconnected; verify the dashboard's oldest-pending age is consistent with the node's UTC clock.
+- [ ] Confirm a device with erased/unavailable NVS reports no boot count rather than presenting a fabricated value.
 - [ ] Confirm older firmware that omits optional runtime fields displays them as not reported.
 - [ ] Confirm broker persistence and delivery settings match the pilot's loss tolerance.
 
