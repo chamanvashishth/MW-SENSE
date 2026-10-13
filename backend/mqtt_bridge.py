@@ -9,7 +9,7 @@ import os
 
 from pydantic import ValidationError
 
-from .database import DEFAULT_DB_PATH, initialize_database, insert_reading
+from .database import DEFAULT_DB_PATH, initialize_database, insert_reading, update_device_heartbeat
 from .schemas import TelemetryIn
 
 logger = logging.getLogger("mw_sense.mqtt")
@@ -43,6 +43,27 @@ def ingest_mqtt_message(topic: str, body: bytes | str, database_path=DEFAULT_DB_
     return insert_reading(payload, database_path)
 
 
+def ingest_mqtt_heartbeat(topic: str, body: bytes | str, database_path=DEFAULT_DB_PATH) -> dict:
+    parts = topic.split("/")
+    if len(parts) != 3 or parts[0] != "mw-sense" or parts[2] != "status":
+        raise ValueError("MQTT heartbeat topic must be mw-sense/{node_id}/status.")
+    try:
+        payload = json.loads(body.decode("utf-8") if isinstance(body, bytes) else body)
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError("MQTT heartbeat must contain valid UTF-8 JSON.") from exc
+    if not isinstance(payload, dict):
+        raise ValueError("MQTT heartbeat must be a JSON object.")
+    if payload.get("node_id") != parts[1] or payload.get("event") != "heartbeat":
+        raise ValueError("MQTT heartbeat identity or event does not match its topic.")
+    firmware = payload.get("firmware_version")
+    if firmware is not None and (not isinstance(firmware, str) or not 1 <= len(firmware) <= 64):
+        raise ValueError("MQTT heartbeat firmware_version must be 1 to 64 characters.")
+    device = update_device_heartbeat(parts[1], firmware, database_path)
+    if not device:
+        raise ValueError("MQTT heartbeat came from an unregistered node.")
+    return device
+
+
 def main():
     try:
         import paho.mqtt.client as mqtt
@@ -71,18 +92,22 @@ def main():
         if reason_code.is_failure:
             logger.error("mqtt_connection_rejected reason=%s", reason_code)
             return
-        connection.subscribe("mw-sense/+/+/telemetry", qos=1)
-        logger.info("mqtt_bridge_connected topic=mw-sense/+/+/telemetry")
+        connection.subscribe([("mw-sense/+/+/telemetry", 1), ("mw-sense/+/status", 1)])
+        logger.info("mqtt_bridge_connected topics=mw-sense/+/+/telemetry,mw-sense/+/status")
 
     def on_message(connection, userdata, message):
         try:
+            if message.topic.count("/") == 2 and message.topic.endswith("/status"):
+                device = ingest_mqtt_heartbeat(message.topic, message.payload, database_path)
+                logger.info("mqtt_heartbeat_received node_id=%s", device["node_id"])
+                return
             record = ingest_mqtt_message(message.topic, message.payload, database_path)
             logger.info(
                 "mqtt_reading_stored node_id=%s sensor_id=%s record_id=%s",
                 record["node_id"], record["sensor_id"], record["id"],
             )
         except (ValueError, KeyError) as exc:
-            logger.warning("mqtt_reading_rejected topic=%s reason=%s", message.topic, exc)
+            logger.warning("mqtt_message_rejected topic=%s reason=%s", message.topic, exc)
 
     client.on_connect = on_connect
     client.on_message = on_message
