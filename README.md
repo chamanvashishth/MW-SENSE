@@ -210,9 +210,21 @@ Use ISO 8601 UTC timestamps and include a unique `request_id` so a reconnect or 
 
 The `request_id` should be stable across retries of the same sample and unique for each new sample. The sensor/node pairing, unit, range, timestamp, and payload shape are validated by the same Pydantic contract used by HTTP ingestion. The current sensor catalogue still has fixed example ranges; calibrate and update them against the selected physical sensor before relying on the values.
 
+### ESP32 firmware reference
+
+A PlatformIO reference implementation now lives in `firmware/esp32`. It demonstrates an ESP32 Arduino application with a DHT22 temperature adapter, Wi-Fi and MQTT reconnect attempts, MQTT heartbeat messages, NTP-based timestamps, and a bounded LittleFS queue for readings that could not be published.
+
+The DHT22 is an example sensor only. The exact controller, sensor model, wiring, power supply, pinout and calibration have not been confirmed for the project. The reference currently publishes temperature only; it does not pretend that humidity, air-quality or soil-moisture drivers are implemented.
+
+Build instructions, the firmware payload contract, credential setup and limitations are in [firmware/esp32/README.md](firmware/esp32/README.md). Install PlatformIO, copy `firmware/esp32/include/config.h.example` to `config.h`, configure the network and broker, then run `pio run` from the firmware directory. The local config file is ignored by Git.
+
+The firmware sends telemetry on `mw-sense/{node_id}/{sensor_id}/telemetry` and heartbeat messages on `mw-sense/{node_id}/status`. The MQTT bridge consumes both topics: telemetry updates the stored reading, while heartbeat messages update the registered node's last-seen time and firmware version. Register the node through the API before connecting it.
+
+The example uses PubSubClient, which publishes at QoS 0. A QoS 1 subscription on the bridge does not upgrade the publisher's delivery guarantee. The example also uses an insecure TLS shortcut for development; replace it with broker CA certificate validation before connecting to a real deployment. No live broker, physical board, sensor calibration or radio test is claimed.
+
 ### Optional MQTT bridge
 
-MQTT is an independent ingestion process, not a broker bundled into this repository. The bridge subscribes to QoS 1 topic `mw-sense/+/+/telemetry` and writes validated physical readings to the same SQLite database as the HTTP API.
+MQTT is an independent ingestion process, not a broker bundled into this repository. The bridge subscribes to QoS 1 topics `mw-sense/+/+/telemetry` and `mw-sense/+/status`. It writes validated physical readings to the same SQLite database as the HTTP API and applies registered-device heartbeats to the device registry.
 
 Install its optional dependency:
 
@@ -240,7 +252,7 @@ python -m backend.mqtt_bridge
 
 MQTT topic format is `mw-sense/{node_id}/{sensor_id}/telemetry`. The topic identity must match the JSON body. The bridge rejects simulated payloads, unknown sensor definitions, missing request IDs, and unregistered physical nodes. Use broker-side authentication, TLS, and per-topic publish ACLs so each device can publish only to its own node topic. The bridge currently uses broker credentials supplied through environment variables; it does not issue individual device credentials or configure the broker for you.
 
-The MQTT parser and database ingestion path are covered by automated tests. A live broker, physical node, Wi-Fi reconnect, and sensor calibration have not been tested by CI and must be verified in the target lab.
+The MQTT parser, heartbeat handler and database ingestion path are covered by automated tests. A live broker, physical node, Wi-Fi reconnect, firmware build, and sensor calibration have not been tested by CI and must be verified in the target lab.
 
 ### API routes
 
