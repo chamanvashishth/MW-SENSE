@@ -115,7 +115,7 @@ Use the [deployment readiness checklist](docs/DEPLOYMENT_CHECKLIST.md) before a 
 
 ## MQTT bridge reliability
 
-The optional MQTT bridge uses Paho's network loop for initial connection and reconnection. It applies an increasing reconnect delay (1–60 seconds), resubscribes to telemetry and heartbeat topics after each successful connection, and logs connection loss and rejected messages without logging message bodies or device credentials. Message callbacks are isolated so a malformed payload does not terminate the bridge process.
+The optional MQTT bridge uses Paho's network loop for initial connection and reconnection. It applies an increasing reconnect delay (1–60 seconds), resubscribes to telemetry and heartbeat topics after each successful connection, and logs connection loss and rejected messages without logging message bodies or device credentials. Message callbacks are isolated so a malformed payload does not terminate the bridge process. Incoming telemetry and heartbeat payloads are limited to 4,096 bytes, and wildcard or malformed node/sensor identifiers are rejected before validation.
 
 The ESP32 reference firmware saves each sample in a bounded LittleFS queue and keeps it until the bridge acknowledges successful database ingestion. PubSubClient telemetry publishes use QoS 0, so MW-SENSE adds an application-level acknowledgement topic published by the bridge at QoS 1. If an acknowledgement is lost, the node retries with the same request ID; the backend recognizes the duplicate and sends the acknowledgement again. This is an at-least-once retry pattern, not an exactly-once guarantee. Test broker restarts, lost acknowledgements, queue recovery, TLS, and reconnect behavior with the target board and broker before field use.
 
