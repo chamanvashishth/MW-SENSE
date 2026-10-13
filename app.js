@@ -71,10 +71,21 @@ async function loadDeviceRegistry() {
     }
     devices.forEach((device) => {
       const row = document.createElement("tr");
+      const formatUptime = (seconds) => {
+        if (seconds === null || seconds === undefined) return "Not reported";
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        return hours ? hours + "h " + minutes + "m" : minutes + "m " + (seconds % 60) + "s";
+      };
       const values = [
         device.node_id,
         device.last_status,
         device.firmware_version || "Not reported",
+        formatUptime(device.uptime_seconds),
+        device.queue_depth ?? "Not reported",
+        device.retry_count ?? "Not reported",
+        device.wifi_rssi_dbm === null || device.wifi_rssi_dbm === undefined ? "Not reported" : device.wifi_rssi_dbm + " dBm",
+        device.mqtt_connected === null || device.mqtt_connected === undefined ? "Not reported" : device.mqtt_connected ? "Connected" : "Disconnected",
         device.last_seen_at ? new Date(device.last_seen_at).toLocaleString() : "No heartbeat yet",
         device.credential_active ? "Active" : "Not issued"
       ];
