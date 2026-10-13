@@ -1,0 +1,66 @@
+"""MW-SENSE telemetry API."""
+import os
+from contextlib import asynccontextmanager
+from pathlib import Path
+
+from fastapi import FastAPI, HTTPException, Query, Response, status
+
+from . import database
+from .schemas import SENSOR_RULES, TelemetryIn, TelemetryList, TelemetryOut
+
+DB_PATH = Path(os.getenv("MW_SENSE_DB_PATH", database.DEFAULT_DB_PATH))
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    database.initialize_database(DB_PATH)
+    yield
+
+
+app = FastAPI(
+    title="MW-SENSE Telemetry API",
+    description="Validated telemetry ingestion and retrieval for the MW-SENSE virtual lab.",
+    version="1.0.0",
+    lifespan=lifespan,
+)
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok", "service": "mw-sense-api"}
+
+
+@app.get("/sensors")
+def sensors():
+    return {
+        key: {
+            "node_id": rule["node"],
+            "sensor_id": rule["sensor"],
+            "unit": rule["unit"],
+            "minimum": rule["min"],
+            "maximum": rule["max"],
+        }
+        for key, rule in SENSOR_RULES.items()
+    }
+
+
+@app.get("/telemetry", response_model=TelemetryList)
+def get_telemetry(
+    parameter: str | None = Query(default=None),
+    limit: int = Query(default=500, ge=1, le=5000),
+):
+    if parameter is not None and parameter not in SENSOR_RULES:
+        raise HTTPException(status_code=422, detail="Unknown telemetry parameter.")
+    items = database.list_readings(DB_PATH, parameter, limit)
+    return {"items": items, "count": len(items), "limit": limit}
+
+
+@app.post("/telemetry", response_model=TelemetryOut, status_code=status.HTTP_201_CREATED)
+def post_telemetry(payload: TelemetryIn):
+    return database.insert_reading(payload.model_dump(), DB_PATH)
+
+
+@app.delete("/telemetry", status_code=status.HTTP_204_NO_CONTENT)
+def delete_telemetry():
+    database.clear_readings(DB_PATH)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
