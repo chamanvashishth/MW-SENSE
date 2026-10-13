@@ -9,6 +9,7 @@
 #include "config.h"
 #include "sensor_source.h"
 #include "offline_queue.h"
+#include "acknowledgement.h"
 
 namespace {
 WiFiClientSecure secureClient;
@@ -63,19 +64,11 @@ void onMqttMessage(char* rawTopic, byte* rawPayload, unsigned int length) {
   const bool accepted = acknowledgement["accepted"] | false;
   if (!accepted || requestId.isEmpty() || requestId.length() > 96) return;
 
-  // Match the complete topic to the queue head. A valid request ID alone is
-  // not enough: the acknowledgement must name this node and queued sensor.
+  // A request ID alone is not enough: bind the acknowledgement to the
+  // exact node, sensor and queue-head record.
   String oldest;
   if (!offlineQueue.peekOldest(oldest)) return;
-  JsonDocument queuedReading;
-  if (deserializeJson(queuedReading, oldest)) return;
-  const String queuedRequestId = queuedReading["request_id"] | "";
-  const String sensorId = queuedReading["sensor_id"] | "";
-  if (queuedRequestId != requestId || sensorId.isEmpty()) return;
-
-  const String expectedTopic =
-      String("mw-sense/") + MW_SENSE_NODE_ID + "/" + sensorId + "/ack/" + requestId;
-  if (topic != expectedTopic) return;
+  if (!matchesQueuedAcknowledgement(MW_SENSE_NODE_ID, topic, requestId, oldest)) return;
 
   if (offlineQueue.acknowledgeOldest(requestId)) {
     Serial.println("Backend acknowledged and removed a queued reading.");
