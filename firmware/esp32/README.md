@@ -42,7 +42,7 @@ curl -X POST http://127.0.0.1:8001/devices/NODE-01/credentials \
   -H "Authorization: Bearer $MW_SENSE_API_TOKEN"
 ```
 
-Copy the returned one-time `credential` into `MW_SENSE_DEVICE_TOKEN` in the node's private `config.h`. The API stores only a SHA-256 digest. Rotating the credential invalidates the previous value; update the firmware configuration before reconnecting the node.
+Copy the returned one-time `credential` into `MW_SENSE_DEVICE_TOKEN` in the node's private `config.h`. The API stores only a SHA-256 digest. Rotating the credential invalidates the previous value; update the firmware configuration before reconnecting the node. To revoke without replacement, use `DELETE /devices/NODE-01/credentials`; the node cannot authenticate again until a new credential is issued.
 
 ## MQTT security
 
