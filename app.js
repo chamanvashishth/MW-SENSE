@@ -12,6 +12,7 @@ const recordsBody = document.querySelector("#records-body");
 const storageNotice = document.querySelector("#storage-status");
 const storageMode = document.querySelector("#storage-mode");
 const apiBaseUrl = document.querySelector("#api-base-url");
+const apiToken = document.querySelector("#api-token");
 const connectServerButton = document.querySelector("#connect-server");
 let localRepository = null;
 let activeRepository = null;
@@ -29,6 +30,7 @@ try {
 function setStorageControls(mode) {
   const serverMode = mode === "server";
   apiBaseUrl.disabled = !serverMode;
+  apiToken.disabled = !serverMode;
   connectServerButton.disabled = !serverMode;
 }
 async function loadRepository(repository, label) {
@@ -67,10 +69,13 @@ connectServerButton.addEventListener("click", async () => {
   connectServerButton.disabled = true;
   if (storageNotice) storageNotice.textContent = "Connecting to API…";
   try {
-    const health = await fetch(apiBaseUrl.value.replace(/\\/$/, "") + "/health");
+    const baseUrl = apiBaseUrl.value.trim().replace(/\/$/, "");
+    const token = apiToken.value.trim();
+    const headers = token ? { Authorization: "Bearer " + token } : {};
+    const health = await fetch(baseUrl + "/health", { headers });
     if (!health.ok) throw new Error("API health check returned " + health.status);
     const serverRepository = window.MWSenseTelemetry.createTelemetryRepository(
-      window.MWSenseTelemetry.createHttpAdapter(apiBaseUrl.value.trim())
+      window.MWSenseTelemetry.createHttpAdapter(baseUrl, undefined, { token })
     );
     await loadRepository(serverRepository, "Connected to API server");
     showToast("API connection established.");
