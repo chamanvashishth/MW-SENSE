@@ -96,3 +96,40 @@ def test_valid_bearer_token_allows_data_access(client, monkeypatch):
     assert client.post("/telemetry", json=valid_reading(), headers=headers).status_code == 201
     assert client.get("/telemetry", headers=headers).json()["count"] == 1
     assert client.delete("/telemetry", headers=headers).status_code == 204
+
+
+
+def test_duplicate_request_id_is_idempotent(client):
+    reading = valid_reading(request_id="node-01-reading-0001")
+    first = client.post("/telemetry", json=reading)
+    retry = client.post("/telemetry", json=reading)
+    assert first.status_code == retry.status_code == 201
+    assert first.json()["id"] == retry.json()["id"]
+    assert client.get("/telemetry").json()["count"] == 1
+
+
+def test_pagination_returns_total_and_next_offset(client):
+    for value in (25.1, 26.2, 27.3):
+        response = client.post("/telemetry", json=valid_reading(value=value))
+        assert response.status_code == 201
+
+    first_page = client.get("/telemetry?limit=2&offset=0").json()
+    second_page = client.get("/telemetry?limit=2&offset=2").json()
+    assert first_page["count"] == 3
+    assert first_page["next_offset"] == 2
+    assert [item["value"] for item in first_page["items"]] == [27.3, 26.2]
+    assert second_page["next_offset"] is None
+    assert [item["value"] for item in second_page["items"]] == [25.1]
+
+
+def test_database_initialization_records_schema_version(client, tmp_path):
+    from backend.database import initialize_database, connect
+
+    path = tmp_path / "migration-check.sqlite3"
+    initialize_database(path)
+    initialize_database(path)
+    with connect(path) as connection:
+        versions = connection.execute("SELECT version FROM schema_migrations").fetchall()
+        columns = {row["name"] for row in connection.execute("PRAGMA table_info(telemetry)")}
+    assert [row["version"] for row in versions] == [1]
+    assert "request_id" in columns
