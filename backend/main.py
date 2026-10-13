@@ -158,12 +158,47 @@ def get_devices():
     if offline_after < 1:
         raise HTTPException(status_code=500, detail="MW_SENSE_DEVICE_OFFLINE_SECONDS must be positive.")
     cutoff = datetime.now(timezone.utc) - timedelta(seconds=offline_after)
+    database.mark_stale_devices_offline(cutoff, DB_PATH)
     devices = database.list_devices(DB_PATH)
+
+    def threshold(name: str, default: int, minimum: int = 1) -> int:
+        try:
+            value = int(os.getenv(name, str(default)))
+        except ValueError as exc:
+            raise HTTPException(status_code=500, detail=f"{name} must be a whole number.") from exc
+        if value < minimum:
+            raise HTTPException(status_code=500, detail=f"{name} must be at least {minimum}.")
+        return value
+
+    queue_warning = threshold("MW_SENSE_QUEUE_WARNING_DEPTH", 10)
+    retry_warning = threshold("MW_SENSE_RETRY_WARNING_COUNT", 5)
+    weak_signal = -threshold("MW_SENSE_WEAK_WIFI_RSSI_DBM", 85)
+    pending_warning = threshold("MW_SENSE_PENDING_WARNING_SECONDS", 900)
+
     for device in devices:
         device["credential_active"] = bool(device.get("credential_hash"))
-        seen = device["last_seen_at"]
-        if seen and datetime.fromisoformat(seen.replace("Z", "+00:00")) < cutoff:
-            device["last_status"] = "offline"
+        warnings = []
+        if device["last_status"] == "offline":
+            warnings.append("No heartbeat within the configured offline window.")
+        if device.get("queue_depth") is not None and device["queue_depth"] >= queue_warning:
+            warnings.append(f"Offline queue has reached {device['queue_depth']} readings.")
+        if device.get("retry_count") is not None and device["retry_count"] >= retry_warning:
+            warnings.append(f"Device has retried delivery {device['retry_count']} times since boot.")
+        if device.get("wifi_rssi_dbm") is not None and device["wifi_rssi_dbm"] <= weak_signal:
+            warnings.append(f"Wi-Fi signal is weak ({device['wifi_rssi_dbm']} dBm).")
+        if device.get("mqtt_connected") is False:
+            warnings.append("MQTT is disconnected.")
+        pending_timestamp = device.get("oldest_pending_timestamp")
+        if pending_timestamp:
+            pending_at = datetime.fromisoformat(pending_timestamp.replace("Z", "+00:00"))
+            age = (datetime.now(timezone.utc) - pending_at.astimezone(timezone.utc)).total_seconds()
+            if age >= pending_warning:
+                warnings.append(f"Oldest queued reading has been waiting for {int(age // 60)} minutes.")
+        device["health_warnings"] = warnings
+        device["health_state"] = (
+            "critical" if device["last_status"] == "offline"
+            else "warning" if warnings else "healthy"
+        )
     return devices
 
 
