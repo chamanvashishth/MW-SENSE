@@ -379,6 +379,55 @@ def test_device_heartbeat_rejects_invalid_boot_count_and_pending_timestamp(clien
     ).status_code == 422
 
 
+def test_device_health_warnings_cover_queue_retries_wifi_and_mqtt(client, monkeypatch):
+    monkeypatch.setenv("MW_SENSE_QUEUE_WARNING_DEPTH", "4")
+    monkeypatch.setenv("MW_SENSE_RETRY_WARNING_COUNT", "3")
+    monkeypatch.setenv("MW_SENSE_WEAK_WIFI_RSSI_DBM", "80")
+    client.post("/devices", json={"node_id": "NODE-01", "label": "North wing"})
+    heartbeat = client.post(
+        "/devices/NODE-01/heartbeat",
+        json={
+            "queue_depth": 4,
+            "retry_count": 3,
+            "wifi_rssi_dbm": -86,
+            "mqtt_connected": False,
+        },
+    )
+    assert heartbeat.status_code == 200
+    device = client.get("/devices").json()[0]
+    assert device["health_state"] == "warning"
+    assert len(device["health_warnings"]) == 4
+    assert any("Offline queue" in warning for warning in device["health_warnings"])
+    assert any("retried delivery" in warning for warning in device["health_warnings"])
+    assert any("Wi-Fi signal is weak" in warning for warning in device["health_warnings"])
+    assert any("MQTT is disconnected" in warning for warning in device["health_warnings"])
+
+
+def test_offline_and_recovery_transitions_are_recorded_once(client):
+    from datetime import datetime, timedelta, timezone
+
+    client.post("/devices", json={"node_id": "NODE-01", "label": "North wing"})
+    client.post("/devices/NODE-01/heartbeat", json={"boot_count": 1})
+    stale_time = (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat()
+    with main.database.connect(main.DB_PATH) as connection:
+        connection.execute(
+            "UPDATE devices SET last_seen_at = ? WHERE node_id = ?",
+            (stale_time, "NODE-01"),
+        )
+
+    offline = client.get("/devices").json()[0]
+    assert offline["last_status"] == "offline"
+    assert offline["health_state"] == "critical"
+    assert any("No heartbeat" in warning for warning in offline["health_warnings"])
+
+    # Repeated registry reads must not create duplicate offline events.
+    client.get("/devices")
+    client.post("/devices/NODE-01/heartbeat", json={"boot_count": 1})
+    events = client.get("/devices/NODE-01/lifecycle-events").json()
+    transitions = [event["event"] for event in events if event["event"] in {"offline", "online"}]
+    assert transitions == ["online", "offline"]
+
+
 def test_device_registration_rejects_unknown_node(client):
     response = client.post(
         "/devices",
