@@ -156,7 +156,7 @@ def test_database_initialization_records_schema_version(client, tmp_path):
         versions = connection.execute("SELECT version FROM schema_migrations").fetchall()
         columns = {row["name"] for row in connection.execute("PRAGMA table_info(telemetry)")}
         device_columns = {row["name"] for row in connection.execute("PRAGMA table_info(devices)")}
-    assert [row["version"] for row in versions] == [1, 2, 3, 4, 5]
+    assert [row["version"] for row in versions] == [1, 2, 3, 4, 5, 6]
     assert "request_id" in columns
     assert {"uptime_seconds", "queue_depth", "retry_count", "wifi_rssi_dbm", "mqtt_connected"} <= device_columns
 
@@ -187,7 +187,7 @@ def test_startup_adds_request_id_to_an_existing_database(tmp_path):
         columns = {row["name"] for row in connection.execute("PRAGMA table_info(telemetry)")}
         version = connection.execute("SELECT MAX(version) FROM schema_migrations").fetchone()[0]
     assert "request_id" in columns
-    assert version == 5
+    assert version == 6
 
 
 
@@ -229,7 +229,7 @@ def test_health_diagnostics_are_protected_when_token_is_configured(client, monke
     assert response.status_code == 200
     report = response.json()
     assert report["integrity"] == "ok"
-    assert report["schema_version"] == 5
+    assert report["schema_version"] == 6
     assert report["telemetry_records"] == 0
     assert report["simulated_records"] == 0
     assert report["physical_records"] == 0
@@ -327,6 +327,56 @@ def test_device_heartbeat_rejects_out_of_range_runtime_metrics(client):
         json={"queue_depth": -1},
     )
     assert response.status_code == 422
+
+
+def test_device_heartbeat_records_boot_history_and_pending_age(client, monkeypatch):
+    monkeypatch.setenv("MW_SENSE_API_TOKEN", "device-admin")
+    headers = {"Authorization": "Bearer device-admin"}
+    client.post("/devices", json={"node_id": "NODE-01", "label": "North wing"}, headers=headers)
+
+    first = client.post(
+        "/devices/NODE-01/heartbeat",
+        headers=headers,
+        json={
+            "boot_count": 1,
+            "oldest_pending_timestamp": "2026-10-13T10:00:00Z",
+        },
+    )
+    assert first.status_code == 200
+    assert first.json()["boot_count"] == 1
+    assert first.json()["oldest_pending_timestamp"] == "2026-10-13T10:00:00Z"
+
+    second = client.post(
+        "/devices/NODE-01/heartbeat",
+        headers=headers,
+        json={"boot_count": 2, "oldest_pending_timestamp": None},
+    )
+    assert second.status_code == 200
+    events = client.get("/devices/NODE-01/lifecycle-events", headers=headers)
+    assert events.status_code == 200
+    assert [event["event"] for event in events.json()] == ["boot", "boot"]
+    assert [event["boot_count"] for event in events.json()] == [2, 1]
+
+
+def test_lifecycle_events_require_admin_and_known_node(client, monkeypatch):
+    monkeypatch.setenv("MW_SENSE_API_TOKEN", "device-admin")
+    assert client.get("/devices/NODE-01/lifecycle-events").status_code == 401
+    response = client.get(
+        "/devices/NODE-99/lifecycle-events",
+        headers={"Authorization": "Bearer device-admin"},
+    )
+    assert response.status_code == 404
+
+
+def test_device_heartbeat_rejects_invalid_boot_count_and_pending_timestamp(client):
+    client.post("/devices", json={"node_id": "NODE-02", "label": "Air node"})
+    assert client.post(
+        "/devices/NODE-02/heartbeat", json={"boot_count": 0}
+    ).status_code == 422
+    assert client.post(
+        "/devices/NODE-02/heartbeat",
+        json={"oldest_pending_timestamp": "not-a-timestamp"},
+    ).status_code == 422
 
 
 def test_device_registration_rejects_unknown_node(client):
