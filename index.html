@@ -139,6 +139,13 @@
           <div class="table-wrap"><table class="data-table"><thead><tr><th>TIME</th><th>NODE</th><th>SENSOR</th><th>PARAMETER</th><th>VALUE</th><th>STATUS</th></tr></thead><tbody id="records-body"><tr><td colspan="6" class="empty-state">No readings yet. Transmit a sample from the virtual sensor lab.</td></tr></tbody></table></div>
           <div class="explorer-foot"><span id="record-summary">0 saved records</span><span class="storage-status" id="storage-status">Checking browser storage…</span><button class="clear-button" id="clear-records">Clear session data</button></div>
         </div>
+        <div class="panel device-admin-panel" id="device-admin-panel">
+          <div class="panel-heading"><div><span class="panel-kicker">DEVICE OPERATIONS</span><h3>Registered nodes</h3></div><button class="button secondary" id="refresh-devices" type="button" disabled>Refresh nodes</button></div>
+          <p class="device-admin-copy">Connect to the API server to inspect physical-node heartbeats and manage per-device credentials. Virtual samples do not change physical device status.</p>
+          <div class="table-wrap"><table class="data-table device-table"><thead><tr><th>NODE</th><th>STATUS</th><th>FIRMWARE</th><th>LAST SEEN</th><th>CREDENTIAL</th><th>ACTIONS</th></tr></thead><tbody id="device-rows"><tr><td colspan="6" class="empty-state">Connect to the API server to load registered nodes.</td></tr></tbody></table></div>
+          <div class="credential-reveal" id="credential-reveal" hidden><div><b>Copy this credential now</b><small>It is shown once. Rotating it again will invalidate this value.</small></div><input id="issued-device-token" type="password" readonly aria-label="New device credential"><button class="button secondary" id="toggle-device-token" type="button">Show</button><button class="button secondary" id="copy-device-token" type="button">Copy</button><button class="clear-button" id="dismiss-device-token" type="button">Dismiss</button></div>
+          <div class="device-events" id="device-events" aria-live="polite"><span>Select a node's history to inspect credential events.</span></div>
+        </div>
       </section>
 
 
