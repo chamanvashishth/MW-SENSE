@@ -53,7 +53,7 @@ function deviceRequest(path, options = {}) {
 async function loadDeviceRegistry() {
   if (!connectedApiBase) return;
   refreshDevicesButton.disabled = true;
-  deviceRows.innerHTML = '<tr><td colspan="11" class="empty-state">Loading registered nodes…</td></tr>';
+  deviceRows.innerHTML = '<tr><td colspan="13" class="empty-state">Loading registered nodes…</td></tr>';
   try {
     const response = await deviceRequest("/devices");
     if (!response.ok) throw new Error("Device list returned " + response.status);
@@ -62,7 +62,7 @@ async function loadDeviceRegistry() {
     if (!devices.length) {
       const row = document.createElement("tr");
       const cell = document.createElement("td");
-      cell.colSpan = 11;
+      cell.colSpan = 13;
       cell.className = "empty-state";
       cell.textContent = "No nodes have been registered yet.";
       row.append(cell);
@@ -77,12 +77,23 @@ async function loadDeviceRegistry() {
         const minutes = Math.floor((seconds % 3600) / 60);
         return hours ? hours + "h " + minutes + "m" : minutes + "m " + (seconds % 60) + "s";
       };
+      const formatPendingAge = (timestamp) => {
+        if (!timestamp) return "No pending sample";
+        const ageSeconds = Math.max(0, Math.floor((Date.now() - new Date(timestamp).getTime()) / 1000));
+        if (!Number.isFinite(ageSeconds)) return "Invalid timestamp";
+        if (ageSeconds < 60) return ageSeconds + "s";
+        if (ageSeconds < 3600) return Math.floor(ageSeconds / 60) + "m";
+        if (ageSeconds < 86400) return Math.floor(ageSeconds / 3600) + "h " + Math.floor((ageSeconds % 3600) / 60) + "m";
+        return Math.floor(ageSeconds / 86400) + "d " + Math.floor((ageSeconds % 86400) / 3600) + "h";
+      };
       const values = [
         device.node_id,
         device.last_status,
         device.firmware_version || "Not reported",
+        device.boot_count ?? "Not reported",
         formatUptime(device.uptime_seconds),
         device.queue_depth ?? "Not reported",
+        formatPendingAge(device.oldest_pending_timestamp),
         device.retry_count ?? "Not reported",
         device.wifi_rssi_dbm === null || device.wifi_rssi_dbm === undefined ? "Not reported" : device.wifi_rssi_dbm + " dBm",
         device.mqtt_connected === null || device.mqtt_connected === undefined ? "Not reported" : device.mqtt_connected ? "Connected" : "Disconnected",
@@ -132,7 +143,7 @@ async function loadDeviceRegistry() {
       deviceRows.append(row);
     });
   } catch (error) {
-    deviceRows.innerHTML = '<tr><td colspan="11" class="empty-state">Could not load devices. Check API access and reconnect.</td></tr>';
+    deviceRows.innerHTML = '<tr><td colspan="13" class="empty-state">Could not load devices. Check API access and reconnect.</td></tr>';
   } finally {
     refreshDevicesButton.disabled = false;
   }
