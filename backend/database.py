@@ -109,6 +109,29 @@ def initialize_database(database_path: str | Path | None = None) -> None:
             "INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (?, ?)",
             (5, datetime.now(timezone.utc).isoformat()),
         )
+        device_columns = {row["name"] for row in connection.execute("PRAGMA table_info(devices)")}
+        lifecycle_columns = {
+            "boot_count": "INTEGER",
+            "oldest_pending_timestamp": "TEXT",
+        }
+        for column, column_type in lifecycle_columns.items():
+            if column not in device_columns:
+                connection.execute(f"ALTER TABLE devices ADD COLUMN {column} {column_type}")
+        connection.execute("""
+            CREATE TABLE IF NOT EXISTS device_lifecycle_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                node_id TEXT NOT NULL,
+                event TEXT NOT NULL CHECK (event IN ('boot', 'online', 'offline')),
+                boot_count INTEGER,
+                created_at TEXT NOT NULL,
+                details_json TEXT NOT NULL DEFAULT '{}',
+                FOREIGN KEY(node_id) REFERENCES devices(node_id)
+            )
+        """)
+        connection.execute(
+            "INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (?, ?)",
+            (6, datetime.now(timezone.utc).isoformat()),
+        )
 
 
 def insert_reading(payload: dict[str, Any], database_path: str | Path | None = None) -> dict[str, Any]:
@@ -262,7 +285,26 @@ def update_device_heartbeat(
     now = datetime.now(timezone.utc).isoformat()
     runtime = runtime or {}
     with connect(database_path) as connection:
-        cursor = connection.execute(
+        previous = connection.execute(
+            "SELECT boot_count, last_status FROM devices WHERE node_id = ?",
+            (node_id,),
+        ).fetchone()
+        if not previous:
+            return None
+        reported_boot = runtime.get("boot_count")
+        previous_boot = previous["boot_count"]
+        if reported_boot is not None and reported_boot != previous_boot:
+            event = "boot" if previous_boot is None or reported_boot > previous_boot else "online"
+            connection.execute(
+                """INSERT INTO device_lifecycle_events
+                (node_id, event, boot_count, created_at, details_json)
+                VALUES (?, ?, ?, ?, ?)""",
+                (node_id, event, reported_boot, now, json.dumps({
+                    "previous_boot_count": previous_boot,
+                    "reported_boot_count": reported_boot,
+                })),
+            )
+        connection.execute(
             """UPDATE devices SET
                 last_seen_at = ?, last_status = 'online',
                 firmware_version = COALESCE(?, firmware_version),
@@ -270,95 +312,34 @@ def update_device_heartbeat(
                 queue_depth = COALESCE(?, queue_depth),
                 retry_count = COALESCE(?, retry_count),
                 wifi_rssi_dbm = COALESCE(?, wifi_rssi_dbm),
-                mqtt_connected = COALESCE(?, mqtt_connected)
+                mqtt_connected = COALESCE(?, mqtt_connected),
+                boot_count = COALESCE(?, boot_count),
+                oldest_pending_timestamp = ?
             WHERE node_id = ?""",
             (
                 now, firmware_version, runtime.get("uptime_seconds"),
                 runtime.get("queue_depth"), runtime.get("retry_count"),
                 runtime.get("wifi_rssi_dbm"),
                 int(runtime["mqtt_connected"]) if runtime.get("mqtt_connected") is not None else None,
-                node_id,
+                reported_boot, runtime.get("oldest_pending_timestamp"), node_id,
             ),
         )
-        if not cursor.rowcount:
-            return None
         row = connection.execute("SELECT * FROM devices WHERE node_id = ?", (node_id,)).fetchone()
     return dict(row)
 
 
-def list_devices(database_path: str | Path | None = None) -> list[dict[str, Any]]:
-    with connect(database_path) as connection:
-        rows = connection.execute("SELECT * FROM devices ORDER BY node_id").fetchall()
-    return [dict(row) for row in rows]
-
-
-
-def provision_device_credential(node_id: str, database_path: str | Path | None = None) -> str | None:
-    """Issue or rotate a node credential and return its plaintext value once."""
-    token = secrets.token_urlsafe(32)
-    digest = hashlib.sha256(token.encode("utf-8")).hexdigest()
-    now = datetime.now(timezone.utc).isoformat()
-    with connect(database_path) as connection:
-        row = connection.execute(
-            "SELECT credential_hash FROM devices WHERE node_id = ?",
-            (node_id,),
-        ).fetchone()
-        if not row:
-            return None
-        event = "rotated" if row["credential_hash"] else "issued"
-        connection.execute(
-            "UPDATE devices SET credential_hash = ? WHERE node_id = ?",
-            (digest, node_id),
-        )
-        connection.execute(
-            "INSERT INTO device_credential_events (node_id, event, created_at) VALUES (?, ?, ?)",
-            (node_id, event, now),
-        )
-    return token
-
-
-def revoke_device_credential(node_id: str, database_path: str | Path | None = None) -> bool:
-    """Disable the current credential and record the revocation."""
-    now = datetime.now(timezone.utc).isoformat()
-    with connect(database_path) as connection:
-        row = connection.execute(
-            "SELECT credential_hash FROM devices WHERE node_id = ?",
-            (node_id,),
-        ).fetchone()
-        if not row:
-            return False
-        if not row["credential_hash"]:
-            return True
-        connection.execute(
-            "UPDATE devices SET credential_hash = NULL WHERE node_id = ?",
-            (node_id,),
-        )
-        connection.execute(
-            "INSERT INTO device_credential_events (node_id, event, created_at) VALUES (?, 'revoked', ?)",
-            (node_id, now),
-        )
-    return True
-
-
-def list_device_credential_events(node_id: str, database_path: str | Path | None = None) -> list[dict[str, Any]]:
+def list_device_lifecycle_events(
+    node_id: str, database_path: str | Path | None = None, limit: int = 100
+) -> list[dict[str, Any]]:
     with connect(database_path) as connection:
         rows = connection.execute(
-            "SELECT id, node_id, event, created_at FROM device_credential_events WHERE node_id = ? ORDER BY id DESC LIMIT 50",
-            (node_id,),
+            """SELECT id, node_id, event, boot_count, created_at, details_json
+            FROM device_lifecycle_events WHERE node_id = ?
+            ORDER BY id DESC LIMIT ?""",
+            (node_id, limit),
         ).fetchall()
-    return [dict(row) for row in rows]
+    return [
+        {**dict(row), "details": json.loads(row["details_json"])}
+        for row in rows
+    ]
 
-
-def verify_device_credential(node_id: str, token: str | None, database_path: str | Path | None = None) -> bool:
-    """Compare a presented node token against its stored one-way digest."""
-    if not isinstance(token, str) or not token:
-        return False
-    with connect(database_path) as connection:
-        row = connection.execute(
-            "SELECT credential_hash FROM devices WHERE node_id = ?",
-            (node_id,),
-        ).fetchone()
-    if not row or not row["credential_hash"]:
-        return False
-    supplied = hashlib.sha256(token.encode("utf-8")).hexdigest()
-    return hmac.compare_digest(row["credential_hash"], supplied)
