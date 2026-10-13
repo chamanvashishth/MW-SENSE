@@ -55,6 +55,7 @@ def main():
         api_env = os.environ.copy()
         api_env["MW_SENSE_DB_PATH"] = str(database_path)
         api_env["MW_SENSE_ALLOWED_ORIGINS"] = base_url
+        api_env["MW_SENSE_API_TOKEN"] = "browser-test-admin-token"
         api_process = subprocess.Popen(
             [sys.executable, "-m", "uvicorn", "backend.main:app", "--host", "127.0.0.1", "--port", str(api_port)],
             cwd=ROOT,
@@ -94,14 +95,60 @@ def main():
 
                 page.locator("#storage-mode").select_option("server")
                 page.locator("#api-base-url").fill(api_url)
+                page.locator("#api-token").fill("browser-test-admin-token")
                 page.locator("#connect-server").click()
                 page.locator("#storage-status").filter(has_text="Connected to API server").wait_for(timeout=10000)
+                registration = page.evaluate(
+                    """async ({url, token}) => {
+                      const response = await fetch(url + "/devices", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+                        body: JSON.stringify({ node_id: "NODE-01", label: "Browser test node" })
+                      });
+                      return { status: response.status, body: await response.json() };
+                    }""",
+                    {"url": api_url, "token": "browser-test-admin-token"},
+                )
+                assert registration["status"] == 201
+                page.locator("#refresh-devices").click()
+                device_row = page.locator("#device-rows tr").filter(has_text="NODE-01")
+                device_row.wait_for(timeout=10000)
+                assert "Not issued" in device_row.inner_text()
+                device_row.locator('button[data-device-action="issue"]').click()
+                page.locator("#credential-reveal").wait_for(state="visible", timeout=10000)
+                issued_token = page.locator("#issued-device-token").input_value()
+                assert len(issued_token) >= 32
+                assert page.locator("#issued-device-token").get_attribute("type") == "password"
+                page.locator("#toggle-device-token").click()
+                assert page.locator("#issued-device-token").get_attribute("type") == "text"
+                page.locator("#dismiss-device-token").click()
+                assert page.locator("#credential-reveal").is_hidden()
+                device_row = page.locator("#device-rows tr").filter(has_text="NODE-01")
+                assert "Active" in device_row.inner_text()
+                device_row.locator('button[data-device-action="history"]').click()
+                page.locator("#device-events").filter(has_text="ISSUED").wait_for(timeout=10000)
+                page.on("dialog", lambda dialog: dialog.accept())
+                device_row.locator('button[data-device-action="revoke"]').click()
+                device_row = page.locator("#device-rows tr").filter(has_text="NODE-01")
+                assert "Not issued" in device_row.inner_text()
+                device_row.locator('button[data-device-action="history"]').click()
+                page.locator("#device-events").filter(has_text="REVOKED").wait_for(timeout=10000)
+                credential_check = page.evaluate(
+                    """async ({url, token}) => {
+                      const response = await fetch(url + "/devices/NODE-01/credential-events", {
+                        headers: { Authorization: "Bearer " + token }
+                      });
+                      return response.json();
+                    }""",
+                    {"url": api_url, "token": "browser-test-admin-token"},
+                )
+                assert [event["event"] for event in credential_check] == ["revoked", "issued"]
                 page.locator("#transmit-button").click()
                 page.locator("#pipeline-state").filter(has_text="SAMPLE DELIVERED").wait_for(timeout=10000)
                 assert page.locator("#records-body tr").count() == 1
                 server_records = page.evaluate(
-                    "(url) => fetch(url + '/telemetry').then(response => response.json())",
-                    api_url,
+                    "({url, token}) => fetch(url + '/telemetry', {headers: {Authorization: 'Bearer ' + token}}).then(response => response.json())",
+                    {"url": api_url, "token": "browser-test-admin-token"},
                 )
                 assert server_records["count"] == 1
                 assert server_records["items"][0]["simulation"] is True
@@ -118,7 +165,8 @@ def main():
 
                 page.locator("#clear-records").click()
                 page.locator("#record-summary").filter(has_text="0 saved records").wait_for(timeout=10000)
-                assert page.evaluate("(url) => fetch(url + '/telemetry').then(r => r.json())", api_url)["count"] == 0
+                assert page.evaluate("({url, token}) => fetch(url + '/telemetry', {headers: {Authorization: 'Bearer ' + token}}).then(r => r.json())",
+                    {"url": api_url, "token": "browser-test-admin-token"})["count"] == 0
 
                 mobile = context.new_page()
                 mobile.set_viewport_size({"width": 390, "height": 844})
