@@ -41,7 +41,7 @@ MW-SENSE/
 ├── index.html       # Application layout and sections
 ├── styles.css       # Responsive visual system
 ├── app.js           # Browser-side virtual telemetry simulation
-├── telemetry-core.js # Payload validation and gateway contract
+├── telemetry-core.js # Payload validation, repository adapters and gateway contract
 ├── tests/            # Unit and end-to-end pipeline tests
 ├── .github/workflows/ci.yml # Automated Node.js checks
 ├── package.json      # Dependency-free test command
@@ -93,3 +93,49 @@ npm test
 The dashboard accesses readings through a small repository interface (`list`, `append`, and `clear`). The current browser adapter uses `localStorage`; a separate HTTP adapter defines a future `/telemetry` API boundary (`GET`, `POST`, and `DELETE`) but does not imply that a server exists. The repository can create and import version 1.0 JSON snapshots and validates every imported reading before appending it. The local adapter is synchronous; the HTTP adapter is asynchronous, so callers can use either through the same returned interface.
 
 Browser records remain on the current device. If storage is blocked or unavailable, the app continues with session-only data and reports the limitation. This is not a central database, server backup, or cross-device sync. The HTTP API adapter is a contract only; no backend service has been deployed. These tests do not demonstrate physical sensor accuracy, wireless range, electrical reliability, or a deployed gateway/database.
+
+
+## Python telemetry API
+
+The repository now includes a working FastAPI service backed by SQLite. It is a separate backend from the browser-only virtual lab; the dashboard continues to use browser-local storage until remote mode is explicitly wired into the UI.
+
+### Start the API
+
+From the repository root:
+
+```bash
+python -m venv .venv
+# Windows PowerShell:
+.venv\\Scripts\\Activate.ps1
+# macOS / Linux:
+source .venv/bin/activate
+python -m pip install -r backend/requirements-dev.txt
+uvicorn backend.main:app --reload --port 8001
+```
+
+The API starts at `http://127.0.0.1:8001`. Interactive endpoint documentation is available at `/docs`.
+
+### API routes
+
+| Method | Route | Purpose |
+|---|---|---|
+| GET | `/health` | Service health |
+| GET | `/sensors` | Registered sensor definitions |
+| GET | `/telemetry` | Read newest records; optional `parameter` and `limit` |
+| POST | `/telemetry` | Validate and store a reading |
+| DELETE | `/telemetry` | Clear the local development dataset |
+
+The service validates the node/sensor pairing, parameter, unit, ISO 8601 timestamp, numeric range, and payload shape before SQLite accepts a reading. The API assigns the `VALID` status; clients cannot supply it. The `simulation` field is retained so simulated and future device-originated readings remain distinguishable.
+
+### Database location
+
+By default, SQLite creates `backend/mw_sense.db`. Set `MW_SENSE_DB_PATH` to use another path. The database is local development storage, not a hosted production database. The local CORS allowlist can be changed with `MW_SENSE_ALLOWED_ORIGINS` (comma-separated origins).
+
+### Run backend tests
+
+```bash
+python -m pip install -r backend/requirements-dev.txt
+python -m pytest backend/tests -q
+```
+
+GitHub Actions now runs the existing Node.js suite and the Python API tests independently. The HTTP adapter in `telemetry-core.js` speaks the API's `{ items, count, limit }` list response format. The browser UI has not yet been switched to remote mode; that integration is the next milestone. Do not expose the unauthenticated development API directly to the public internet.
