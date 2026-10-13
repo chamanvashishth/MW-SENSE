@@ -33,6 +33,188 @@ function setStorageControls(mode) {
   apiToken.disabled = !serverMode;
   connectServerButton.disabled = !serverMode;
 }
+
+const devicePanel = document.querySelector("#device-admin-panel");
+const deviceRows = document.querySelector("#device-rows");
+const refreshDevicesButton = document.querySelector("#refresh-devices");
+const credentialReveal = document.querySelector("#credential-reveal");
+const issuedDeviceToken = document.querySelector("#issued-device-token");
+const deviceEvents = document.querySelector("#device-events");
+let connectedApiBase = "";
+let connectedApiToken = "";
+
+function deviceRequest(path, options = {}) {
+  const headers = { ...(options.headers || {}) };
+  if (connectedApiToken) headers.Authorization = "Bearer " + connectedApiToken;
+  if (options.body) headers["Content-Type"] = "application/json";
+  return fetch(connectedApiBase + path, { ...options, headers });
+}
+
+async function loadDeviceRegistry() {
+  if (!connectedApiBase) return;
+  refreshDevicesButton.disabled = true;
+  deviceRows.innerHTML = '<tr><td colspan="6" class="empty-state">Loading registered nodes…</td></tr>';
+  try {
+    const response = await deviceRequest("/devices");
+    if (!response.ok) throw new Error("Device list returned " + response.status);
+    const devices = await response.json();
+    deviceRows.replaceChildren();
+    if (!devices.length) {
+      const row = document.createElement("tr");
+      const cell = document.createElement("td");
+      cell.colSpan = 6;
+      cell.className = "empty-state";
+      cell.textContent = "No nodes have been registered yet.";
+      row.append(cell);
+      deviceRows.append(row);
+      return;
+    }
+    devices.forEach((device) => {
+      const row = document.createElement("tr");
+      const values = [
+        device.node_id,
+        device.last_status,
+        device.firmware_version || "Not reported",
+        device.last_seen_at ? new Date(device.last_seen_at).toLocaleString() : "No heartbeat yet",
+        device.credential_active ? "Active" : "Not issued"
+      ];
+      values.forEach((value, index) => {
+        const cell = document.createElement("td");
+        if (index === 1) {
+          const status = document.createElement("span");
+          status.className = "device-status " + String(value).toLowerCase();
+          status.textContent = value;
+          cell.append(status);
+        } else {
+          cell.textContent = value;
+        }
+        row.append(cell);
+      });
+      const actionCell = document.createElement("td");
+      const actions = document.createElement("div");
+      actions.className = "device-actions";
+      const issue = document.createElement("button");
+      issue.type = "button";
+      issue.className = "button secondary";
+      issue.dataset.deviceAction = "issue";
+      issue.dataset.nodeId = device.node_id;
+      issue.textContent = device.credential_active ? "Rotate" : "Issue";
+      actions.append(issue);
+      if (device.credential_active) {
+        const revoke = document.createElement("button");
+        revoke.type = "button";
+        revoke.className = "button secondary";
+        revoke.dataset.deviceAction = "revoke";
+        revoke.dataset.nodeId = device.node_id;
+        revoke.textContent = "Revoke";
+        actions.append(revoke);
+      }
+      const history = document.createElement("button");
+      history.type = "button";
+      history.className = "button secondary";
+      history.dataset.deviceAction = "history";
+      history.dataset.nodeId = device.node_id;
+      history.textContent = "History";
+      actions.append(history);
+      actionCell.append(actions);
+      row.append(actionCell);
+      deviceRows.append(row);
+    });
+  } catch (error) {
+    deviceRows.innerHTML = '<tr><td colspan="6" class="empty-state">Could not load devices. Check API access and reconnect.</td></tr>';
+  } finally {
+    refreshDevicesButton.disabled = false;
+  }
+}
+
+async function showCredentialHistory(nodeId) {
+  deviceEvents.textContent = "Loading credential history…";
+  try {
+    const response = await deviceRequest("/devices/" + encodeURIComponent(nodeId) + "/credential-events");
+    if (!response.ok) throw new Error("History request returned " + response.status);
+    const events = await response.json();
+    deviceEvents.replaceChildren();
+    const heading = document.createElement("b");
+    heading.textContent = nodeId + " · Credential history";
+    deviceEvents.append(heading);
+    if (!events.length) {
+      const empty = document.createElement("p");
+      empty.textContent = "No credential events recorded.";
+      deviceEvents.append(empty);
+      return;
+    }
+    events.forEach((event) => {
+      const line = document.createElement("div");
+      line.className = "device-event-row";
+      const action = document.createElement("span");
+      action.textContent = event.event.toUpperCase();
+      const date = document.createElement("time");
+      date.textContent = new Date(event.created_at).toLocaleString();
+      line.append(action, date);
+      deviceEvents.append(line);
+    });
+  } catch (error) {
+    deviceEvents.textContent = "Could not load credential history. Reconnect and try again.";
+  }
+}
+
+refreshDevicesButton.addEventListener("click", loadDeviceRegistry);
+deviceRows.addEventListener("click", async (event) => {
+  const button = event.target.closest("button[data-device-action]");
+  if (!button || !connectedApiBase) return;
+  const nodeId = button.dataset.nodeId;
+  const action = button.dataset.deviceAction;
+  if (action === "history") {
+    await showCredentialHistory(nodeId);
+    return;
+  }
+  if (action === "revoke" && !window.confirm("Revoke the MQTT credential for " + nodeId + "? The node will stop authenticating until a new credential is issued.")) return;
+  button.disabled = true;
+  try {
+    const response = action === "issue"
+      ? await deviceRequest("/devices/" + encodeURIComponent(nodeId) + "/credentials", { method: "POST" })
+      : await deviceRequest("/devices/" + encodeURIComponent(nodeId) + "/credentials", { method: "DELETE" });
+    if (!response.ok) throw new Error("Credential action returned " + response.status);
+    if (action === "issue") {
+      const result = await response.json();
+      issuedDeviceToken.value = result.credential;
+      issuedDeviceToken.type = "password";
+      credentialReveal.hidden = false;
+      showToast("Credential issued for " + nodeId + ". Copy it now; it will not be shown again.");
+    } else {
+      credentialReveal.hidden = true;
+      issuedDeviceToken.value = "";
+      showToast("Credential revoked for " + nodeId + ".");
+    }
+    await loadDeviceRegistry();
+    await showCredentialHistory(nodeId);
+  } catch (error) {
+    showToast("Could not update the device credential. Check admin access and try again.");
+  } finally {
+    button.disabled = false;
+  }
+});
+
+document.querySelector("#toggle-device-token").addEventListener("click", () => {
+  issuedDeviceToken.type = issuedDeviceToken.type === "password" ? "text" : "password";
+  document.querySelector("#toggle-device-token").textContent = issuedDeviceToken.type === "password" ? "Show" : "Hide";
+});
+document.querySelector("#copy-device-token").addEventListener("click", async () => {
+  try {
+    await navigator.clipboard.writeText(issuedDeviceToken.value);
+    showToast("Device credential copied.");
+  } catch (error) {
+    issuedDeviceToken.focus();
+    issuedDeviceToken.select();
+    showToast("Select and copy the credential manually.");
+  }
+});
+document.querySelector("#dismiss-device-token").addEventListener("click", () => {
+  issuedDeviceToken.value = "";
+  issuedDeviceToken.type = "password";
+  credentialReveal.hidden = true;
+});
+
 async function loadRepository(repository, label) {
   const loaded = await repository.list();
   records = (Array.isArray(loaded) ? loaded : []).slice().sort((a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp));
@@ -62,6 +244,9 @@ storageMode.addEventListener("change", () => {
     records = [];
     renderRecords();
     renderTrend();
+    connectedApiBase = "";
+    connectedApiToken = "";
+    devicePanel.hidden = true;
     if (storageNotice) storageNotice.textContent = "Server not connected";
   }
 });
@@ -78,10 +263,17 @@ connectServerButton.addEventListener("click", async () => {
     const serverRepository = window.MWSenseTelemetry.createTelemetryRepository(
       window.MWSenseTelemetry.createHttpAdapter(baseUrl, undefined, { token })
     );
+    connectedApiBase = baseUrl;
+    connectedApiToken = token;
     await loadRepository(serverRepository, "Connected to API server");
+    devicePanel.hidden = false;
+    await loadDeviceRegistry();
     showToast("API connection established.");
   } catch (error) {
     activeRepository = null;
+    connectedApiBase = "";
+    connectedApiToken = "";
+    devicePanel.hidden = true;
     if (storageNotice) storageNotice.textContent = "API unavailable · check URL and server";
     showToast("Could not connect to the API. Check the server URL and try again.");
   } finally {
@@ -89,6 +281,7 @@ connectServerButton.addEventListener("click", async () => {
   }
 });
 setStorageControls(storageMode.value);
+devicePanel.hidden = true;
 let transmitted = records.length;
 let runId = 0;
 let selectedSensor = "temperature";
