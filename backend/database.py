@@ -200,6 +200,10 @@ def get_database_diagnostics(database_path: str | Path | None = None) -> dict[st
         simulated = connection.execute(
             "SELECT COUNT(*) FROM telemetry WHERE simulation = 1"
         ).fetchone()[0]
+        physical = total - simulated
+        registered_devices = connection.execute(
+            "SELECT COUNT(*) FROM devices"
+        ).fetchone()[0]
         latest = connection.execute(
             "SELECT MAX(received_at) FROM telemetry"
         ).fetchone()[0]
@@ -214,7 +218,8 @@ def get_database_diagnostics(database_path: str | Path | None = None) -> dict[st
         "schema_version": version,
         "telemetry_records": total,
         "simulated_records": simulated,
-        "device_records": total - simulated,
+        "physical_records": physical,
+        "registered_devices": registered_devices,
         "latest_received_at": latest,
     }
 
