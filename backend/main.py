@@ -12,7 +12,19 @@ from . import database
 from .schemas import SENSOR_RULES, TelemetryIn, TelemetryList, TelemetryOut
 
 
-logger = logging.getLogger("mw_sense.api")\n\ndef retention_days() -> int:\n    try:\n        value = int(os.getenv("MW_SENSE_RETENTION_DAYS", "0"))\n    except ValueError as exc:\n        raise RuntimeError("MW_SENSE_RETENTION_DAYS must be a whole number.") from exc\n    if value < 0:\n        raise RuntimeError("MW_SENSE_RETENTION_DAYS cannot be negative.")\n    return value\n\n\ndef require_api_token(authorization: str | None = Header(default=None)):
+logger = logging.getLogger("mw_sense.api")
+
+def retention_days() -> int:
+    try:
+        value = int(os.getenv("MW_SENSE_RETENTION_DAYS", "0"))
+    except ValueError as exc:
+        raise RuntimeError("MW_SENSE_RETENTION_DAYS must be a whole number.") from exc
+    if value < 0:
+        raise RuntimeError("MW_SENSE_RETENTION_DAYS cannot be negative.")
+    return value
+
+
+def require_api_token(authorization: str | None = Header(default=None)):
     """Require a bearer token when MW_SENSE_API_TOKEN is configured."""
     expected = os.getenv("MW_SENSE_API_TOKEN")
     if expected and authorization != f"Bearer {expected}":
@@ -25,7 +37,8 @@ DB_PATH = Path(os.getenv("MW_SENSE_DB_PATH", database.DEFAULT_DB_PATH))
 async def lifespan(_: FastAPI):
     database.initialize_database(DB_PATH)
     removed = database.prune_expired_readings(DB_PATH, retention_days())
-    if removed:\n        logger.info("startup_retention_cleanup removed=%s", removed)
+    if removed:
+        logger.info("startup_retention_cleanup removed=%s", removed)
     yield
 
 
@@ -53,7 +66,16 @@ app.add_middleware(
 
 
 @app.get("/health")
-def health():\n    return {"status": "ok", "service": "mw-sense-api"}\n\n\n@app.get("/health/diagnostics", dependencies=[Depends(require_api_token)])\ndef health_diagnostics():\n    diagnostics = database.get_database_diagnostics(DB_PATH)\n    diagnostics["retention_days"] = retention_days()\n    diagnostics["status"] = "ok" if diagnostics["integrity"] == "ok" else "degraded"\n    return diagnostics
+def health():
+    return {"status": "ok", "service": "mw-sense-api"}
+
+
+@app.get("/health/diagnostics", dependencies=[Depends(require_api_token)])
+def health_diagnostics():
+    diagnostics = database.get_database_diagnostics(DB_PATH)
+    diagnostics["retention_days"] = retention_days()
+    diagnostics["status"] = "ok" if diagnostics["integrity"] == "ok" else "degraded"
+    return diagnostics
 
 
 @app.get("/sensors", dependencies=[Depends(require_api_token)])
@@ -85,10 +107,14 @@ def get_telemetry(
 
 @app.post("/telemetry", response_model=TelemetryOut, status_code=status.HTTP_201_CREATED, dependencies=[Depends(require_api_token)])
 def post_telemetry(payload: TelemetryIn):
-    record = database.insert_reading(payload.model_dump(), DB_PATH)\n    removed = database.prune_expired_readings(DB_PATH, retention_days())\n    if removed:\n        logger.info("ingest_retention_cleanup removed=%s", removed)\n    return record
+    record = database.insert_reading(payload.model_dump(), DB_PATH)
+    removed = database.prune_expired_readings(DB_PATH, retention_days())
+    if removed:
+        logger.info("ingest_retention_cleanup removed=%s", removed)
+    return record
 
 
-@app.delete("/telemetry", status_code=status.HTTP_204_NO_CONTENT, dependencies=[__import__("fastapi").Depends(require_api_token)])
+@app.delete("/telemetry", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_api_token)])
 def delete_telemetry():
     database.clear_readings(DB_PATH)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
