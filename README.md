@@ -109,6 +109,12 @@ The dashboard accesses readings through a small repository interface (`list`, `a
 Browser records remain on the current device. If storage is blocked or unavailable, the app continues with session-only data and reports the limitation. This is not a central database, server backup, or cross-device sync. The FastAPI service is implemented for local development and is not a production deployment. The browser-to-server path is exercised by the API and adapter tests, but a manual browser session should still be performed in the target environment. These tests do not demonstrate physical sensor accuracy, wireless range, electrical reliability, or hardware deployment.
 
 
+## MQTT bridge reliability
+
+The optional MQTT bridge uses Paho's network loop for initial connection and reconnection. It applies an increasing reconnect delay (1–60 seconds), resubscribes to telemetry and heartbeat topics after each successful connection, and logs connection loss and rejected messages without logging message bodies or device credentials. Message callbacks are isolated so a malformed payload does not terminate the bridge process.
+
+The ESP32 reference firmware keeps a bounded LittleFS queue for samples that could not be published and retries queued messages after MQTT reconnects. Its current PubSubClient publisher uses QoS 0; application request IDs make repeated deliveries idempotent at the database, but they do not provide broker-level QoS 1 delivery guarantees. Test the broker, TLS certificate, queue behavior, and reconnect behavior with the target board and broker before field use.
+
 ## Python telemetry API
 
 The repository includes a FastAPI service backed by SQLite. The dashboard can use either browser-local storage or this API through the storage selector in the data explorer.
@@ -174,7 +180,7 @@ export MW_SENSE_RETENTION_DAYS=90
 uvicorn backend.main:app --reload --port 8001
 ```
 
-The public `/health` endpoint remains a lightweight connection check. The token-protected `/health/diagnostics` endpoint reports SQLite integrity, schema version, database file size, total/simulated/device record counts, latest receipt time, and the configured retention period. It does not return telemetry values or credentials.
+The public `/health` endpoint remains a lightweight connection check. The token-protected `/health/diagnostics` endpoint reports SQLite integrity, schema version, database file size, total, simulated, and physical reading counts, registered device count, latest receipt time, and the configured retention period. Physical readings and registered devices are separate metrics. It does not return telemetry values or credentials.
 
 API request logs include the HTTP method, route path, response status, and elapsed time. Request bodies, bearer tokens, and query strings are deliberately excluded. Telemetry POST requests may be retried once after a network failure or server-side 5xx response; request IDs make that retry safe against duplicate inserts. Client-side 4xx validation/authentication errors are not retried. If a server write fails, the dashboard marks the API connection as lost and requires an explicit reconnect before further server-backed samples.
 
