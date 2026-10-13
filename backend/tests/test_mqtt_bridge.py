@@ -287,3 +287,42 @@ def test_broker_does_not_claim_acknowledgement_when_publish_fails(tmp_path):
     )
     assert len(connection.publications) == 1
     assert list_readings(path)[1] == 1
+
+
+
+def test_mqtt_rejects_oversized_payloads_before_json_parsing(tmp_path):
+    path, token = registered_node(tmp_path)
+    topic = "mw-sense/NODE-01/TEMP-01/telemetry"
+    oversized = b" " * 4097
+    with pytest.raises(ValueError, match="4096-byte limit"):
+        parse_mqtt_message(topic, oversized, path)
+
+
+def test_mqtt_accepts_payload_at_configured_size_limit(tmp_path):
+    from backend.mqtt_bridge import MAX_MQTT_PAYLOAD_BYTES
+
+    path, token = registered_node(tmp_path)
+    topic = "mw-sense/NODE-01/TEMP-01/telemetry"
+    body = json.dumps(valid_payload(device_token=token), separators=(",", ":"))
+    body = body + (" " * (MAX_MQTT_PAYLOAD_BYTES - len(body.encode("utf-8"))))
+    assert len(body.encode("utf-8")) == MAX_MQTT_PAYLOAD_BYTES
+    parsed = parse_mqtt_message(topic, body, path)
+    assert parsed["node_id"] == "NODE-01"
+
+
+@pytest.mark.parametrize("topic", [
+    "mw-sense/+/TEMP-01/telemetry",
+    "mw-sense/NODE-01/#/telemetry",
+    "mw-sense/NODE.01/TEMP-01/telemetry",
+    "mw-sense//TEMP-01/telemetry",
+])
+def test_mqtt_rejects_wildcards_and_invalid_topic_identifiers(topic, tmp_path):
+    path, token = registered_node(tmp_path)
+    with pytest.raises(ValueError, match="topic"):
+        parse_mqtt_message(topic, json.dumps(valid_payload(device_token=token)), path)
+
+
+def test_mqtt_heartbeat_rejects_oversized_payload(tmp_path):
+    path, token = registered_node(tmp_path)
+    with pytest.raises(ValueError, match="4096-byte limit"):
+        ingest_mqtt_heartbeat("mw-sense/NODE-01/status", b" " * 4097, path)
