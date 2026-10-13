@@ -10,7 +10,7 @@ import os
 from pydantic import ValidationError
 
 from .database import DEFAULT_DB_PATH, initialize_database, insert_reading, update_device_heartbeat, verify_device_credential
-from .schemas import TelemetryIn
+from .schemas import DeviceHeartbeat, TelemetryIn
 
 logger = logging.getLogger("mw_sense.mqtt")
 
@@ -89,10 +89,18 @@ def ingest_mqtt_heartbeat(topic: str, body: bytes | str, database_path=DEFAULT_D
     credential = payload.pop("device_token", None)
     if not verify_device_credential(parts[1], credential, database_path):
         raise ValueError("MQTT heartbeat authentication failed.")
-    firmware = payload.get("firmware_version")
-    if firmware is not None and (not isinstance(firmware, str) or not 1 <= len(firmware) <= 64):
-        raise ValueError("MQTT heartbeat firmware_version must be 1 to 64 characters.")
-    device = update_device_heartbeat(parts[1], firmware, database_path)
+    heartbeat_fields = {
+        key: value for key, value in payload.items()
+        if key not in {"node_id", "event"}
+    }
+    try:
+        heartbeat = DeviceHeartbeat.model_validate(heartbeat_fields)
+    except ValidationError as exc:
+        raise ValueError("MQTT heartbeat failed runtime metric validation.") from exc
+    runtime = heartbeat.model_dump(exclude={"firmware_version"}, exclude_none=True)
+    device = update_device_heartbeat(
+        parts[1], heartbeat.firmware_version, database_path, runtime
+    )
     if not device:
         raise ValueError("MQTT heartbeat came from an unregistered node.")
     return device
