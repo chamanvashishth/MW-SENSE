@@ -99,7 +99,10 @@ class OfflineQueue {
       return false;
     }
     if (!LittleFS.rename(QUEUE_TEMP_FILE, OFFLINE_QUEUE_FILE)) {
+      // Restore the previous queue and discard the incomplete replacement.
+      // If restoration also fails, begin() can recover from the backup.
       LittleFS.rename(QUEUE_BACKUP_FILE, OFFLINE_QUEUE_FILE);
+      LittleFS.remove(QUEUE_TEMP_FILE);
       return false;
     }
     LittleFS.remove(QUEUE_BACKUP_FILE);
