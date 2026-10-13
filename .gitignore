@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# Local SQLite data
+backend/*.db
+backend/*.db-shm
+backend/*.db-wal
+
+# Environment configuration
+.env
+.env.*
+!.env.example
