@@ -154,6 +154,36 @@ When authentication is enabled, enter the same token in the dashboard **API toke
 
 The service validates the node/sensor pairing, parameter, unit, ISO 8601 timestamp, numeric range, and payload shape before SQLite accepts a reading. The API assigns the `VALID` status; clients cannot supply it. The `simulation` field is retained so simulated and future device-originated readings remain distinguishable.
 
+### Backup and recovery
+
+The API includes a small SQLite backup utility. It uses SQLite's online backup API, so committed data is copied consistently even when the database uses WAL mode. Backups are verified for SQLite integrity and the required MW-SENSE tables before they are accepted.
+
+Create a timestamped backup:
+
+```bash
+python -m backend.backup create
+```
+
+Choose a destination:
+
+```bash
+python -m backend.backup create --output ./private-backups/mw-sense.sqlite3
+```
+
+Verify a backup before storing or restoring it:
+
+```bash
+python -m backend.backup verify ./private-backups/mw-sense.sqlite3
+```
+
+Restore into a new database path:
+
+```bash
+python -m backend.backup restore ./private-backups/mw-sense.sqlite3 --database ./recovered/mw_sense.db
+```
+
+Restore deliberately refuses to replace an existing database. Move the current database aside first, and keep a separate copy before recovery. Backups contain telemetry data and should be stored securely; do not commit them to Git or expose them through the web server. These commands are local operator tools, not public API endpoints.
+
 ### Database location
 
 By default, SQLite creates `backend/mw_sense.db`. Set `MW_SENSE_DB_PATH` to use another path. The database is local development storage, not a hosted production database. The local CORS allowlist can be changed with `MW_SENSE_ALLOWED_ORIGINS` (comma-separated origins).
