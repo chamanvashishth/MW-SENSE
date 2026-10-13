@@ -179,6 +179,21 @@ curl -X POST http://127.0.0.1:8001/devices \
 
 List registered nodes with `GET /devices`. A node without a heartbeat remains `registered`; a node whose last heartbeat is older than `MW_SENSE_DEVICE_OFFLINE_SECONDS` (default 120 seconds) is reported as `offline`. Set a different positive whole number to adjust the window.
 
+#### Per-device MQTT credentials
+
+After registering a node, issue its own MQTT credential using the admin-protected endpoint:
+
+```bash
+curl -X POST http://127.0.0.1:8001/devices/NODE-01/credentials \
+  -H "Authorization: Bearer $MW_SENSE_API_TOKEN"
+```
+
+The response contains a random credential **once**. Copy it into that node's private `firmware/esp32/include/config.h` as `MW_SENSE_DEVICE_TOKEN`. Do not commit or share it. If it is lost, call the endpoint again to rotate it; the previous value stops working immediately.
+
+The database stores only a SHA-256 digest of each credential. The MQTT bridge checks the token against the node ID in the topic and payload before accepting telemetry or heartbeats. The token is removed before a reading is validated or stored, so it is never included in telemetry records or API responses. The admin bearer token is required to issue or rotate credentials.
+
+This is application-level device authentication over the TLS connection. Keep broker TLS enabled and configure broker-side per-topic ACLs as an additional boundary. It does not replace broker authentication, certificate verification, or network isolation.
+
 Send a heartbeat:
 
 ```bash
@@ -250,7 +265,7 @@ Start it in a separate terminal:
 python -m backend.mqtt_bridge
 ```
 
-MQTT topic format is `mw-sense/{node_id}/{sensor_id}/telemetry`. The topic identity must match the JSON body. The bridge rejects simulated payloads, unknown sensor definitions, missing request IDs, and unregistered physical nodes. Use broker-side authentication, TLS, and per-topic publish ACLs so each device can publish only to its own node topic. The bridge currently uses broker credentials supplied through environment variables; it does not issue individual device credentials or configure the broker for you.
+MQTT topic format is `mw-sense/{node_id}/{sensor_id}/telemetry`. The topic identity must match the JSON body. The bridge rejects simulated payloads, unknown sensor definitions, missing request IDs, unregistered nodes, and messages without that node's valid device credential. Use broker-side authentication, TLS, and per-topic publish ACLs so each device can publish only to its own node topic. The bridge currently uses broker credentials supplied through environment variables; it does not issue individual device credentials or configure the broker for you.
 
 The MQTT parser, heartbeat handler and database ingestion path are covered by automated tests. A live broker, physical node, Wi-Fi reconnect, firmware build, and sensor calibration have not been tested by CI and must be verified in the target lab.
 
