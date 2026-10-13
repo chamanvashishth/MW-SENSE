@@ -109,6 +109,10 @@ The dashboard accesses readings through a small repository interface (`list`, `a
 Browser records remain on the current device. If storage is blocked or unavailable, the app continues with session-only data and reports the limitation. This is not a central database, server backup, or cross-device sync. The FastAPI service is implemented for local development and is not a production deployment. The browser-to-server path is exercised by the API and adapter tests, but a manual browser session should still be performed in the target environment. These tests do not demonstrate physical sensor accuracy, wireless range, electrical reliability, or hardware deployment.
 
 
+## Deployment readiness
+
+Use the [deployment readiness checklist](docs/DEPLOYMENT_CHECKLIST.md) before a controlled pilot. It separates software checks from physical validation and asks for recorded evidence rather than treating a successful CI run as proof of field readiness.
+
 ## MQTT bridge reliability
 
 The optional MQTT bridge uses Paho's network loop for initial connection and reconnection. It applies an increasing reconnect delay (1–60 seconds), resubscribes to telemetry and heartbeat topics after each successful connection, and logs connection loss and rejected messages without logging message bodies or device credentials. Message callbacks are isolated so a malformed payload does not terminate the bridge process.
