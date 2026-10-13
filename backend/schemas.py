@@ -83,6 +83,11 @@ class DeviceHeartbeat(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     firmware_version: str | None = Field(default=None, min_length=1, max_length=64)
+    uptime_seconds: int | None = Field(default=None, ge=0, le=2_147_483_647)
+    queue_depth: int | None = Field(default=None, ge=0, le=100_000)
+    retry_count: int | None = Field(default=None, ge=0, le=2_147_483_647)
+    wifi_rssi_dbm: int | None = Field(default=None, ge=-127, le=0)
+    mqtt_connected: bool | None = None
 
 
 class DeviceOut(BaseModel):
