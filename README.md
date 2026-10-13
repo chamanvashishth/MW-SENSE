@@ -161,7 +161,7 @@ When authentication is enabled, enter the same token in the dashboard **API toke
 
 ### Telemetry reliability
 
-- SQLite schema version 4 is recorded in `schema_migrations`. Startup upgrades earlier databases, adds the idempotency column and device registry when needed, and creates a credential-event audit table.
+- SQLite schema version 5 is recorded in `schema_migrations`. Startup upgrades earlier databases, adds the idempotency column and device registry when needed, creates a credential-event audit table, and adds optional physical-node runtime diagnostic fields.
 - Each browser-generated sample carries a request ID. Repeating the same POST with that ID returns the existing record rather than inserting a duplicate.
 - `GET /telemetry` accepts `limit` (1–5000) and `offset` (0 or greater). The response includes the total matching `count`, current `offset`, and `next_offset` when another page exists.
 - The dashboard HTTP adapter retrieves up to the latest 5,000 server records for its in-memory views. The API can also be queried directly one page at a time.
