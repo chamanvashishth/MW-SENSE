@@ -162,7 +162,10 @@ def get_devices():
 
 @app.post("/devices/{node_id}/heartbeat", response_model=DeviceOut, dependencies=[Depends(require_api_token)])
 def device_heartbeat(node_id: str, payload: DeviceHeartbeat):
-    device = database.update_device_heartbeat(node_id, payload.firmware_version, DB_PATH)
+    runtime = payload.model_dump(exclude={"firmware_version"}, exclude_unset=True)
+    device = database.update_device_heartbeat(
+        node_id, payload.firmware_version, DB_PATH, runtime
+    )
     if not device:
         raise HTTPException(status_code=404, detail="Device node is not registered.")
     device["credential_active"] = bool(device.get("credential_hash"))
