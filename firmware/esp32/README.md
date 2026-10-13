@@ -98,6 +98,12 @@ The request ID remains stable when the same queued message is retried. After val
 
 Heartbeat messages use `mw-sense/{node_id}/status` and include the node ID, firmware version, `event: "heartbeat"`, and the same per-device token. The bridge validates the credential for both telemetry and heartbeat messages and removes it before storage.
 
+## Device runtime diagnostics
+
+Each authenticated MQTT heartbeat includes the current firmware uptime in seconds, offline queue depth, retry count for the current boot, Wi-Fi RSSI in dBm, and MQTT connection state. The bridge validates these fields and stores the latest reported values with the registered device. The protected device list exposes them to the dashboard.
+
+These values describe what the node reported at its most recent heartbeat; they are not a continuous stream or independent network measurements. Retry count resets after reboot, and RSSI is a radio signal-strength indicator rather than a link-quality guarantee. Older firmware and API heartbeats may omit these optional fields, in which case the dashboard shows "Not reported".
+
 ## Reliability notes
 
 - The offline queue is bounded. When it is full, the firmware does not overwrite older unsent readings.
