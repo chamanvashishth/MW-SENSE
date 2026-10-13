@@ -23,6 +23,7 @@ class TelemetryIn(BaseModel):
     unit: str = Field(min_length=1, max_length=32)
     simulation: bool
     request_id: str | None = Field(default=None, min_length=1, max_length=64)
+    firmware_version: str | None = Field(default=None, min_length=1, max_length=64)
 
     @field_validator("timestamp")
     @classmethod
@@ -67,3 +68,26 @@ class TelemetryList(BaseModel):
     limit: int
     offset: int = 0
     next_offset: int | None = None
+
+
+
+class DeviceRegistration(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    node_id: str = Field(min_length=1, max_length=64)
+    label: str = Field(min_length=1, max_length=100)
+
+
+class DeviceHeartbeat(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    firmware_version: str | None = Field(default=None, min_length=1, max_length=64)
+
+
+class DeviceOut(BaseModel):
+    node_id: str
+    label: str
+    firmware_version: str | None = None
+    registered_at: str
+    last_seen_at: str | None = None
+    last_status: str
