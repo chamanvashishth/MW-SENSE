@@ -2,6 +2,7 @@
 import json
 import os
 import sqlite3
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -118,3 +119,50 @@ def clear_readings(database_path: str | Path | None = None) -> int:
     with connect(database_path) as connection:
         cursor = connection.execute("DELETE FROM telemetry")
         return cursor.rowcount
+
+
+
+def prune_expired_readings(
+    database_path: str | Path | None = None,
+    retention_days: int = 0,
+) -> int:
+    """Remove readings older than the configured age; zero disables retention cleanup."""
+    if retention_days < 0:
+        raise ValueError("retention_days cannot be negative")
+    if retention_days == 0:
+        return 0
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=retention_days)).isoformat()
+    with connect(database_path) as connection:
+        cursor = connection.execute(
+            "DELETE FROM telemetry WHERE received_at < ?",
+            (cutoff,),
+        )
+        return cursor.rowcount
+
+
+def get_database_diagnostics(database_path: str | Path | None = None) -> dict[str, Any]:
+    """Return operational metrics without exposing reading contents or credentials."""
+    path = Path(database_path or os.getenv("MW_SENSE_DB_PATH", DEFAULT_DB_PATH))
+    with connect(path) as connection:
+        integrity = connection.execute("PRAGMA integrity_check").fetchone()[0]
+        total = connection.execute("SELECT COUNT(*) FROM telemetry").fetchone()[0]
+        simulated = connection.execute(
+            "SELECT COUNT(*) FROM telemetry WHERE simulation = 1"
+        ).fetchone()[0]
+        latest = connection.execute(
+            "SELECT MAX(received_at) FROM telemetry"
+        ).fetchone()[0]
+        version = connection.execute(
+            "SELECT MAX(version) FROM schema_migrations"
+        ).fetchone()[0]
+    return {
+        "database": path.name,
+        "database_exists": path.is_file(),
+        "database_size_bytes": path.stat().st_size if path.is_file() else 0,
+        "integrity": integrity,
+        "schema_version": version,
+        "telemetry_records": total,
+        "simulated_records": simulated,
+        "device_records": total - simulated,
+        "latest_received_at": latest,
+    }
