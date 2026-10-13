@@ -1,6 +1,7 @@
 #pragma once
 #include <Arduino.h>
 #include <LittleFS.h>
+#include <ArduinoJson.h>
 #include "config.h"
 
 namespace {
@@ -35,18 +36,30 @@ class OfflineQueue {
     return written == expected;
   }
 
-  bool publishOldest(bool (*publisher)(const String&)) {
-    if (publisher == nullptr) return false;
+  bool peekOldest(String& payload) const {
     File input = LittleFS.open(OFFLINE_QUEUE_FILE, FILE_READ);
     if (!input) return false;
-    String first = input.readStringUntil('\n');
+    payload = input.readStringUntil('\\n');
+    input.close();
+    return !payload.isEmpty();
+  }
+
+  bool acknowledgeOldest(const String& requestId) {
+    if (requestId.isEmpty()) return false;
+    File input = LittleFS.open(OFFLINE_QUEUE_FILE, FILE_READ);
+    if (!input) return false;
+    String first = input.readStringUntil('\\n');
     String remainder = input.readString();
     input.close();
+    if (first.isEmpty()) return false;
 
-    // Keep the original record until the replacement queue is safely written.
-    if (first.isEmpty() || !publisher(first)) return false;
-    if (!writeReplacement(remainder)) return false;
-    return true;
+    JsonDocument document;
+    if (deserializeJson(document, first)) return false;
+    const String queuedRequestId = document["request_id"] | "";
+    if (queuedRequestId != requestId) return false;
+
+    // Only a matching application acknowledgement may remove the head item.
+    return writeReplacement(remainder);
   }
 
   size_t count() const {
