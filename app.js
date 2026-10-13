@@ -35,7 +35,8 @@ function setStorageControls(mode) {
 }
 async function loadRepository(repository, label) {
   const loaded = await repository.list();
-  records = Array.isArray(loaded) ? loaded : [];
+  records = (Array.isArray(loaded) ? loaded : []).slice().sort((a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp));
+  transmitted = records.length;
   activeRepository = repository;
   renderRecords();
   renderTrend();
@@ -88,7 +89,7 @@ connectServerButton.addEventListener("click", async () => {
   }
 });
 setStorageControls(storageMode.value);
-let transmitted = 0;
+let transmitted = records.length;
 let runId = 0;
 let selectedSensor = "temperature";
 let transmissionInProgress = false;
@@ -433,7 +434,7 @@ const guide = [
   ["Validation", "Before sending data, firmware should check that the reading is present, numeric, and within the expected range. The current demo uses bounded inputs."],
   ["Transmission", "The node packages its reading and sends it over a wireless link. Latency, packet loss, and link availability can be changed in the network lab."],
   ["Gateway", "A gateway receives messages from nodes and routes them to the next service. This browser model represents that step locally."],
-  ["Storage", "A delivered sample is saved in this browser when local storage is available. It stays on this device and is not sent to a server or shared database."],
+  ["Storage", "A delivered sample is saved to the destination selected in the data explorer. Browser mode keeps it on this device; API mode sends it to the configured server."],
   ["Visualization", "The dashboard turns stored readings into a trend and checks the configured alert thresholds. Try changing a sensor value and sampling again."]
 ];
 function renderGuide() {
