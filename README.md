@@ -142,13 +142,35 @@ When authentication is enabled, enter the same token in the dashboard **API toke
 - `GET /telemetry` accepts `limit` (1–5000) and `offset` (0 or greater). The response includes the total matching `count`, current `offset`, and `next_offset` when another page exists.
 - The dashboard HTTP adapter retrieves up to the latest 5,000 server records for its in-memory views. The API can also be queried directly one page at a time.
 
+### Retention, diagnostics, and request logs
+
+Retention is off unless explicitly configured. Set `MW_SENSE_RETENTION_DAYS` to a positive whole number to delete readings older than that many days, based on the server's `received_at` timestamp. Cleanup runs during API startup and after successful ingestion. Set it to `0` (the default) to keep all readings. Choose a period that matches your data policy and keep independent backups before enabling deletion.
+
+Windows PowerShell:
+
+```powershell
+$env:MW_SENSE_RETENTION_DAYS = "90"
+uvicorn backend.main:app --reload --port 8001
+```
+
+macOS / Linux:
+
+```bash
+export MW_SENSE_RETENTION_DAYS=90
+uvicorn backend.main:app --reload --port 8001
+```
+
+The public `/health` endpoint remains a lightweight connection check. The token-protected `/health/diagnostics` endpoint reports SQLite integrity, schema version, database file size, total/simulated/device record counts, latest receipt time, and the configured retention period. It does not return telemetry values or credentials.
+
+API request logs include the HTTP method, route path, response status, and elapsed time. Request bodies, bearer tokens, and query strings are deliberately excluded. Telemetry POST requests may be retried once after a network failure or server-side 5xx response; request IDs make that retry safe against duplicate inserts. Client-side 4xx validation/authentication errors are not retried. If a server write fails, the dashboard marks the API connection as lost and requires an explicit reconnect before further server-backed samples.
+
 ### API routes
 
 | Method | Route | Purpose |
 |---|---|---|
-| GET | `/health` | Service health |
+| GET | `/health` | Public service connection check |\n| GET | `/health/diagnostics` | Protected database and retention diagnostics |
 | GET | `/sensors` | Registered sensor definitions |
-| GET | `/telemetry` | Read newest records; optional `parameter` and `limit` |
+| GET | `/telemetry` | Read newest records; optional `parameter`, `limit`, and `offset` |
 | POST | `/telemetry` | Validate and store a reading |
 | DELETE | `/telemetry` | Clear the local development dataset |
 
