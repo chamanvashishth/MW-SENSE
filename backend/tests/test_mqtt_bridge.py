@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from backend.mqtt_bridge import ingest_mqtt_message, parse_mqtt_message
+from backend.mqtt_bridge import ingest_mqtt_heartbeat, ingest_mqtt_message, parse_mqtt_message
 from backend.database import initialize_database, list_readings, register_device
 
 
@@ -85,3 +85,37 @@ def test_mqtt_ingestion_requires_registered_device_and_is_idempotent(tmp_path):
     assert first["id"] == second["id"]
     assert count == 1
     assert records[0]["simulation"] is False
+
+
+
+def test_mqtt_heartbeat_updates_registered_node(tmp_path):
+    path = tmp_path / "heartbeat.sqlite3"
+    initialize_database(path)
+    register_device("NODE-01", "ESP32 lab node", path)
+    heartbeat = {
+        "node_id": "NODE-01",
+        "firmware_version": "0.1.0",
+        "event": "heartbeat",
+    }
+    device = ingest_mqtt_heartbeat(
+        "mw-sense/NODE-01/status",
+        json.dumps(heartbeat),
+        path,
+    )
+    assert device["last_status"] == "online"
+    assert device["firmware_version"] == "0.1.0"
+    assert device["last_seen_at"]
+
+
+def test_mqtt_heartbeat_rejects_wrong_topic_or_unregistered_node(tmp_path):
+    path = tmp_path / "heartbeat.sqlite3"
+    initialize_database(path)
+    heartbeat = {
+        "node_id": "NODE-01",
+        "firmware_version": "0.1.0",
+        "event": "heartbeat",
+    }
+    with pytest.raises(ValueError, match="topic"):
+        ingest_mqtt_heartbeat("mw-sense/NODE-01/telemetry", json.dumps(heartbeat), path)
+    with pytest.raises(ValueError, match="unregistered"):
+        ingest_mqtt_heartbeat("mw-sense/NODE-01/status", json.dumps(heartbeat), path)
