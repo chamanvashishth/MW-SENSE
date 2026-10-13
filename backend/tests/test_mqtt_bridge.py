@@ -139,7 +139,7 @@ def test_mqtt_heartbeat_rejects_bad_credentials_topics_and_unknown_nodes(tmp_pat
         ingest_mqtt_heartbeat("mw-sense/NODE-01/telemetry", json.dumps(heartbeat), path)
     with pytest.raises(ValueError, match="authentication"):
         ingest_mqtt_heartbeat("mw-sense/NODE-01/status", json.dumps(heartbeat), path)
-    with pytest.raises(ValueError, match="unregistered"):
+    with pytest.raises(ValueError, match="authentication"):
         ingest_mqtt_heartbeat(
             "mw-sense/NODE-02/status",
             json.dumps({**heartbeat, "node_id": "NODE-02", "device_token": token}),
