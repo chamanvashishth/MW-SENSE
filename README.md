@@ -161,7 +161,7 @@ When authentication is enabled, enter the same token in the dashboard **API toke
 
 ### Telemetry reliability
 
-- SQLite schema version 5 is recorded in `schema_migrations`. Startup upgrades earlier databases, adds the idempotency column and device registry when needed, creates a credential-event audit table, and adds optional physical-node runtime diagnostic fields.
+- SQLite schema version 6 is recorded in `schema_migrations`. Startup upgrades earlier databases, adds the idempotency column and device registry when needed, creates a credential-event audit table, and adds optional physical-node runtime diagnostic fields, persistent boot counts, oldest pending sample timestamps, and a protected device lifecycle event log.
 - Each browser-generated sample carries a request ID. Repeating the same POST with that ID returns the existing record rather than inserting a duplicate.
 - `GET /telemetry` accepts `limit` (1–5000) and `offset` (0 or greater). The response includes the total matching `count`, current `offset`, and `next_offset` when another page exists.
 - The dashboard HTTP adapter retrieves up to the latest 5,000 server records for its in-memory views. The API can also be queried directly one page at a time.
@@ -228,6 +228,10 @@ curl -X POST http://127.0.0.1:8001/devices/NODE-01/heartbeat \
 ```
 
 A physical telemetry POST (`simulation: false`) is accepted only for a registered node. Successful physical readings also update that node's last-seen time and firmware version. Simulated readings remain available without device registration. This registry currently uses the fixed node IDs in the educational sensor catalogue. Per-device credential issue, rotation, revocation, and audit history are available; arbitrary node provisioning is not implemented yet.
+
+### Device lifecycle and queue visibility
+
+The ESP32 reference stores a monotonically increasing boot count in its NVS preferences namespace and reports it with the next authenticated heartbeat. The API records a lifecycle event when it observes a new boot count. Heartbeats also report the timestamp of the oldest queued reading, allowing the dashboard to estimate how long the oldest unsent sample has been waiting. The protected `GET /devices/{node_id}/lifecycle-events` endpoint returns recent boot events. The boot counter depends on intact NVS storage; erasing or replacing NVS resets the count. Queue age is calculated from the sample's UTC timestamp and is only as trustworthy as the node's synchronized clock.
 
 ### Physical node runtime diagnostics
 
