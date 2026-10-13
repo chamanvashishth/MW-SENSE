@@ -62,7 +62,37 @@
     return records.concat(envelope);
   }
 
-  const api = { validatePayload, isPacketDropped, createGatewayEnvelope, storeGatewayRecord };
+
+  function createRecordStore(storage, key, limit) {
+    if (!storage || typeof storage.getItem !== "function" || typeof storage.setItem !== "function" || typeof storage.removeItem !== "function") {
+      throw new TypeError("A browser-compatible storage object is required.");
+    }
+    const storageKey = key || "mw-sense.telemetry.v1";
+    const maxRecords = Number.isInteger(limit) && limit > 0 ? limit : 5000;
+    function load() {
+      const raw = storage.getItem(storageKey);
+      if (raw === null) return [];
+      let parsed;
+      try { parsed = JSON.parse(raw); }
+      catch (error) { storage.removeItem(storageKey); return []; }
+      if (!Array.isArray(parsed)) { storage.removeItem(storageKey); return []; }
+      const valid = parsed.filter((record) => validatePayload(record).valid && record.status === "VALID");
+      if (valid.length !== parsed.length) storage.setItem(storageKey, JSON.stringify(valid.slice(-maxRecords)));
+      return valid.slice(-maxRecords);
+    }
+    function save(record) {
+      if (!validatePayload(record).valid || record.status !== "VALID) {
+        throw new TypeError("Only validated telemetry readings can be saved.");
+      }
+      const next = load().concat(record).slice(-maxRecords);
+      storage.setItem(storageKey, JSON.stringify(next));
+      return next;
+    }
+    function clear() { storage.removeItem(storageKey); }
+    return { load, save, clear, key: storageKey, limit: maxRecords };
+  }
+
+  const api = { validatePayload, isPacketDropped, createGatewayEnvelope, storeGatewayRecord, createRecordStore };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   root.MWSenseTelemetry = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);
