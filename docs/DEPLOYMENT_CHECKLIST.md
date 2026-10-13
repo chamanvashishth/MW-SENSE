@@ -70,6 +70,16 @@ Software tests validate queue logic and acknowledgement matching. They do not em
 - [ ] Review threshold values with the domain owner. Educational defaults are not safety alarms.
 - [ ] Confirm diagnostics access is restricted and does not disclose credentials or reading contents.
 
+### Device health and lifecycle verification
+
+- [ ] Set the offline window and queue, retry, RSSI, and pending-age warning thresholds for the actual deployment; document why each value is appropriate.
+- [ ] Confirm the device registry reports healthy, warning, and critical states from the latest authenticated heartbeat.
+- [ ] Disconnect a node and refresh the device registry; confirm one offline lifecycle event is recorded, not one event per refresh.
+- [ ] Restore connectivity and confirm an online recovery event appears in lifecycle history.
+- [ ] Confirm warning details identify queue growth, repeated retries, weak RSSI, disconnected MQTT, and old pending samples when the corresponding reports are present.
+- [ ] Confirm pending-age warnings are disabled when no queued sample is reported and only use timezone-aware timestamps from a synchronized device clock.
+- [ ] Remember offline transitions are detected when the registry is polled; this is not a continuous event listener or guaranteed instant alert.
+
 ## 6. Pilot acceptance and operations
 - [ ] Define measurable acceptance criteria before the pilot (availability, data completeness, latency, and acceptable loss).
 - [ ] Run an agreed-duration pilot and preserve the test configuration and raw evidence.
