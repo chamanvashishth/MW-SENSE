@@ -24,6 +24,8 @@
         <a class="nav-link" href="#architecture"><span class="nav-icon">⌘</span> Architecture</a>
         <a class="nav-link" href="#virtual-lab"><span class="nav-icon">⌁</span> Virtual lab</a>
         <a class="nav-link" href="#data-flow"><span class="nav-icon">⇢</span> Data pipeline</a>
+        <a class="nav-link" href="#network-lab"><span class="nav-icon">⌁</span> Network lab</a>
+        <a class="nav-link" href="#data-explorer"><span class="nav-icon">▤</span> Data explorer</a>
         <a class="nav-link" href="#applications"><span class="nav-icon">▦</span> Applications</a>
       </nav>
       <div class="sidebar-bottom">
@@ -103,6 +105,37 @@
             </div>
             <div class="packet-preview"><div class="packet-head"><span>LAST PAYLOAD</span><span id="packet-status">NO DATA</span></div><code id="packet-json">{ "status": "awaiting_sample" }</code></div>
           </div>
+        </div>
+      </section>
+
+
+      <section class="section section-block" id="network-lab">
+        <div class="section-heading"><div><div class="eyebrow">03 / NETWORK EXPERIMENTS</div><h2>Stress-test the <em>wireless path.</em></h2></div><p>Introduce delay, packet loss, or an outage to understand how network conditions affect telemetry delivery. All outcomes are simulated locally.</p></div>
+        <div class="network-lab-grid">
+          <div class="panel network-controls">
+            <div class="panel-heading"><div><span class="panel-kicker">LINK CONFIGURATION</span><h3>Network conditions</h3></div><span class="live-tag"><i></i> LOCAL MODEL</span></div>
+            <label class="range-setting"><span><b>Transmission latency</b><output id="latency-output">250 ms</output></span><input id="latency-control" type="range" min="0" max="2000" step="50" value="250"><small>Simulated one-way delay before packet delivery</small></label>
+            <label class="range-setting"><span><b>Packet loss probability</b><output id="loss-output">0%</output></span><input id="loss-control" type="range" min="0" max="60" step="1" value="0"><small>Chance that an individual transmission is dropped</small></label>
+            <div class="network-actions"><button class="button secondary" id="reset-network">Reset conditions</button><span id="network-condition-label">NOMINAL LINK</span></div>
+          </div>
+          <div class="panel node-panel">
+            <div class="panel-heading"><div><span class="panel-kicker">VIRTUAL FLEET</span><h3>Node registry</h3></div><span class="pipeline-state">3 NODES</span></div>
+            <div class="node-registry">
+              <div class="registry-row"><span class="registry-icon">°C</span><div><b>NODE-01</b><small>Temperature + humidity</small></div><span class="registry-state online">ONLINE</span></div>
+              <div class="registry-row"><span class="registry-icon">◌</span><div><b>NODE-02</b><small>Air quality</small></div><span class="registry-state online">ONLINE</span></div>
+              <div class="registry-row"><span class="registry-icon">◒</span><div><b>NODE-03</b><small>Soil moisture</small></div><span class="registry-state online">ONLINE</span></div>
+            </div>
+            <p class="microcopy">Node labels and sensor assignments are virtual examples for learning the network model.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section section-block" id="data-explorer">
+        <div class="section-heading"><div><div class="eyebrow">04 / OBSERVABILITY</div><h2>Telemetry <em>data explorer.</em></h2></div><p>Every successfully delivered sample is kept in this browser session. Inspect recent records and compare readings over time.</p></div>
+        <div class="panel explorer-panel">
+          <div class="explorer-toolbar"><div><span class="panel-kicker">SESSION DATASET</span><h3>Recent measurements</h3></div><div class="explorer-actions"><label class="filter-label" for="record-filter">PARAMETER</label><select id="record-filter"><option value="all">All parameters</option><option value="temperature">Temperature</option><option value="humidity">Humidity</option><option value="air_quality">Air quality</option><option value="soil_moisture">Soil moisture</option></select><button class="button secondary" id="export-csv">Export CSV ↓</button></div></div>
+          <div class="table-wrap"><table class="data-table"><thead><tr><th>TIME</th><th>NODE</th><th>SENSOR</th><th>PARAMETER</th><th>VALUE</th><th>STATUS</th></tr></thead><tbody id="records-body"><tr><td colspan="6" class="empty-state">No readings yet. Transmit a sample from the virtual sensor lab.</td></tr></tbody></table></div>
+          <div class="explorer-foot"><span id="record-summary">0 records in this session</span><button class="clear-button" id="clear-records">Clear session data</button></div>
         </div>
       </section>
 
