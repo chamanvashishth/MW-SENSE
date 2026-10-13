@@ -169,6 +169,21 @@ def test_mqtt_heartbeat_rejects_invalid_runtime_metrics(tmp_path, field, value):
         ingest_mqtt_heartbeat("mw-sense/NODE-01/status", json.dumps(heartbeat), path)
 
 
+def test_mqtt_heartbeat_persists_boot_count_and_oldest_pending_time(tmp_path):
+    path, token = registered_node(tmp_path)
+    heartbeat = {
+        "node_id": "NODE-01",
+        "firmware_version": "0.1.0",
+        "event": "heartbeat",
+        "device_token": token,
+        "boot_count": 4,
+        "oldest_pending_timestamp": "2026-10-13T09:15:00Z",
+    }
+    device = ingest_mqtt_heartbeat("mw-sense/NODE-01/status", json.dumps(heartbeat), path)
+    assert device["boot_count"] == 4
+    assert device["oldest_pending_timestamp"] == "2026-10-13T09:15:00Z"
+
+
 def test_mqtt_heartbeat_rejects_bad_credentials_topics_and_unknown_nodes(tmp_path):
     path, token = registered_node(tmp_path)
     heartbeat = {
