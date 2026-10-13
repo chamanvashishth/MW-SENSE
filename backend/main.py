@@ -1,4 +1,5 @@
 """MW-SENSE telemetry API."""
+import hmac
 import logging
 import os
 from time import perf_counter
@@ -27,8 +28,16 @@ def retention_days() -> int:
 def require_api_token(authorization: str | None = Header(default=None)):
     """Require a bearer token when MW_SENSE_API_TOKEN is configured."""
     expected = os.getenv("MW_SENSE_API_TOKEN")
-    if expected and authorization != f"Bearer {expected}":
-        raise HTTPException(status_code=401, detail="A valid API bearer token is required.")
+    if expected:
+        scheme, separator, supplied = (authorization or "").partition(" ")
+        valid = (
+            separator == " "
+            and scheme.lower() == "bearer"
+            and bool(supplied)
+            and hmac.compare_digest(supplied, expected)
+        )
+        if not valid:
+            raise HTTPException(status_code=401, detail="A valid API bearer token is required.")
 
 DB_PATH = Path(os.getenv("MW_SENSE_DB_PATH", database.DEFAULT_DB_PATH))
 
