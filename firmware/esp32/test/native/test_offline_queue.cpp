@@ -30,6 +30,10 @@ static void testAcknowledgementTopicBinding() {
       "NODE-01", validTopic, "", queued));
   assert(!matchesQueuedAcknowledgement(
       "NODE-01", validTopic, "NODE-01-boot-7", "{malformed"));
+  assert(!matchesQueuedAcknowledgement(
+      "NODE-01", validTopic, String(97, 'x'), queued));
+  assert(!matchesQueuedAcknowledgement(
+      "", validTopic, "NODE-01-boot-7", queued));
 }
 
 int main() {
