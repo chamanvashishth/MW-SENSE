@@ -76,7 +76,9 @@ test("HTTP adapter sends the documented telemetry resource requests", async () =
     "https://example.test/api/telemetry",
     "https://example.test/api/telemetry"
   ]);
-  assert.equal(JSON.parse(calls[1].options.body).sensor_id, "TEMP-01");
+  const posted = JSON.parse(calls[1].options.body);
+  assert.equal(posted.sensor_id, "TEMP-01");
+  assert.equal("status" in posted, false);
 });
 
 test("HTTP adapter reports server errors clearly", async () => {
@@ -84,4 +86,20 @@ test("HTTP adapter reports server errors clearly", async () => {
     ok: false, status: 503
   }));
   await assert.rejects(adapter.list(), /status 503/);
+});
+
+
+test("HTTP adapter sends bearer authentication and omits server-owned fields", async () => {
+  let call;
+  const adapter = createHttpAdapter("https://example.test", async (url, options) => {
+    call = { url, options };
+    return { ok: true, status: 201, json: async () => ({ id: 1 }) };
+  }, { token: "secret-token" });
+  await adapter.append({ ...reading, id: 7, received_at: "2026-08-15T10:31:00Z" });
+  assert.equal(call.options.headers.Authorization, "Bearer secret-token");
+  const body = JSON.parse(call.options.body);
+  assert.equal(body.simulation, true);
+  assert.equal("status" in body, false);
+  assert.equal("id" in body, false);
+  assert.equal("received_at" in body, false);
 });
