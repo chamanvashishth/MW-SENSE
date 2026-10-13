@@ -114,6 +114,21 @@ def rotate_device_credential(node_id: str):
     }
 
 
+@app.delete("/devices/{node_id}/credentials", dependencies=[Depends(require_api_token)])
+def revoke_device_credential(node_id: str):
+    if not database.revoke_device_credential(node_id, DB_PATH):
+        raise HTTPException(status_code=404, detail="Device node is not registered.")
+    logger.info("device_credential_revoked node_id=%s", node_id)
+    return {"node_id": node_id, "credential_active": False}
+
+
+@app.get("/devices/{node_id}/credential-events", dependencies=[Depends(require_api_token)])
+def get_device_credential_events(node_id: str):
+    if not any(device["node_id"] == node_id for device in database.list_devices(DB_PATH)):
+        raise HTTPException(status_code=404, detail="Device node is not registered.")
+    return database.list_device_credential_events(node_id, DB_PATH)
+
+
 @app.get("/devices", response_model=list[DeviceOut], dependencies=[Depends(require_api_token)])
 def get_devices():
     from datetime import datetime, timedelta, timezone
@@ -127,6 +142,7 @@ def get_devices():
     cutoff = datetime.now(timezone.utc) - timedelta(seconds=offline_after)
     devices = database.list_devices(DB_PATH)
     for device in devices:
+        device["credential_active"] = bool(device.get("credential_hash"))
         seen = device["last_seen_at"]
         if seen and datetime.fromisoformat(seen.replace("Z", "+00:00")) < cutoff:
             device["last_status"] = "offline"
