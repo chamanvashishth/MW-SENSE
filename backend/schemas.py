@@ -118,3 +118,5 @@ class DeviceOut(BaseModel):
     mqtt_connected: bool | None = None
     boot_count: int | None = None
     oldest_pending_timestamp: str | None = None
+    health_state: str = "unknown"
+    health_warnings: list[str] = Field(default_factory=list)
