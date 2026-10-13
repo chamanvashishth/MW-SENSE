@@ -273,8 +273,15 @@ The MQTT parser, heartbeat handler and database ingestion path are covered by au
 
 | Method | Route | Purpose |
 |---|---|---|
-| GET | `/health` | Public service connection check |\n| GET | `/health/diagnostics` | Protected database and retention diagnostics |
+| GET | `/health` | Public service connection check |
+| GET | `/health/diagnostics` | Protected database and retention diagnostics |
 | GET | `/sensors` | Registered sensor definitions |
+| POST | `/devices` | Register a known node |
+| GET | `/devices` | List node status and credential state |
+| POST | `/devices/{node_id}/credentials` | Issue or rotate a device credential |
+| DELETE | `/devices/{node_id}/credentials` | Revoke a device credential |
+| GET | `/devices/{node_id}/credential-events` | Read credential lifecycle history |
+| POST | `/devices/{node_id}/heartbeat` | Record an API heartbeat |
 | GET | `/telemetry` | Read newest records; optional `parameter`, `limit`, and `offset` |
 | POST | `/telemetry` | Validate and store a reading |
 | DELETE | `/telemetry` | Clear the local development dataset |
