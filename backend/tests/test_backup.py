@@ -58,7 +58,7 @@ def test_restore_requires_new_destination_and_preserves_data(tmp_path):
     records, total = list_readings(restored)
     assert total == 1
     assert records[0]["request_id"] == "backup-test-reading-1"
-    assert verify_backup(restored)["integrity"] if "integrity" in verify_backup(restored) else True
+    assert verify_backup(restored)["integrity"] == "ok"
 
 
 def test_restore_does_not_replace_an_existing_database(tmp_path):
