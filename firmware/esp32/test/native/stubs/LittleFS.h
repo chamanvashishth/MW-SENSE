@@ -68,10 +68,12 @@ class FakeLittleFS {
     return files.erase(path) != 0;
   }
   bool rename(const char* from, const char* to) {
+    ++rename_calls;
     if (rename_failure_count > 0) {
       --rename_failure_count;
       return false;
     }
+    if (fail_rename_on_call > 0 && rename_calls == fail_rename_on_call) return false;
     auto found = files.find(from);
     if (found == files.end()) return false;
     files[to] = found->second;
@@ -84,12 +86,16 @@ class FakeLittleFS {
     open_failure = false;
     remove_failure = false;
     rename_failure_count = 0;
+    rename_calls = 0;
+    fail_rename_on_call = 0;
   }
   std::map<std::string, std::string> files;
   bool mount_ok = true;
   bool open_failure = false;
   bool remove_failure = false;
   int rename_failure_count = 0;
+  int rename_calls = 0;
+  int fail_rename_on_call = 0;
 };
 
 inline FakeLittleFS LittleFS;
