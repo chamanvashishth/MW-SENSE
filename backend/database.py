@@ -77,9 +77,22 @@ def initialize_database(database_path: str | Path | None = None) -> None:
             "INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (?, ?)",
             (2, datetime.now(timezone.utc).isoformat()),
         )
+        connection.execute("""
+            CREATE TABLE IF NOT EXISTS device_credential_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                node_id TEXT NOT NULL,
+                event TEXT NOT NULL CHECK (event IN ('issued', 'rotated', 'revoked')),
+                created_at TEXT NOT NULL,
+                FOREIGN KEY(node_id) REFERENCES devices(node_id)
+            )
+        """)
         connection.execute(
             "INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (?, ?)",
             (3, datetime.now(timezone.utc).isoformat()),
+        )
+        connection.execute(
+            "INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (?, ?)",
+            (4, datetime.now(timezone.utc).isoformat()),
         )
 
 
@@ -242,17 +255,59 @@ def list_devices(database_path: str | Path | None = None) -> list[dict[str, Any]
 
 
 def provision_device_credential(node_id: str, database_path: str | Path | None = None) -> str | None:
-    """Rotate a node credential and return its plaintext value exactly once."""
+    """Issue or rotate a node credential and return its plaintext value once."""
     token = secrets.token_urlsafe(32)
     digest = hashlib.sha256(token.encode("utf-8")).hexdigest()
+    now = datetime.now(timezone.utc).isoformat()
     with connect(database_path) as connection:
-        cursor = connection.execute(
+        row = connection.execute(
+            "SELECT credential_hash FROM devices WHERE node_id = ?",
+            (node_id,),
+        ).fetchone()
+        if not row:
+            return None
+        event = "rotated" if row["credential_hash"] else "issued"
+        connection.execute(
             "UPDATE devices SET credential_hash = ? WHERE node_id = ?",
             (digest, node_id),
         )
-        if not cursor.rowcount:
-            return None
+        connection.execute(
+            "INSERT INTO device_credential_events (node_id, event, created_at) VALUES (?, ?, ?)",
+            (node_id, event, now),
+        )
     return token
+
+
+def revoke_device_credential(node_id: str, database_path: str | Path | None = None) -> bool:
+    """Disable the current credential and record the revocation."""
+    now = datetime.now(timezone.utc).isoformat()
+    with connect(database_path) as connection:
+        row = connection.execute(
+            "SELECT credential_hash FROM devices WHERE node_id = ?",
+            (node_id,),
+        ).fetchone()
+        if not row:
+            return False
+        if not row["credential_hash"]:
+            return True
+        connection.execute(
+            "UPDATE devices SET credential_hash = NULL WHERE node_id = ?",
+            (node_id,),
+        )
+        connection.execute(
+            "INSERT INTO device_credential_events (node_id, event, created_at) VALUES (?, 'revoked', ?)",
+            (node_id, now),
+        )
+    return True
+
+
+def list_device_credential_events(node_id: str, database_path: str | Path | None = None) -> list[dict[str, Any]]:
+    with connect(database_path) as connection:
+        rows = connection.execute(
+            "SELECT id, node_id, event, created_at FROM device_credential_events WHERE node_id = ? ORDER BY id DESC LIMIT 50",
+            (node_id,),
+        ).fetchall()
+    return [dict(row) for row in rows]
 
 
 def verify_device_credential(node_id: str, token: str | None, database_path: str | Path | None = None) -> bool:
