@@ -125,3 +125,28 @@ test("HTTP adapter follows telemetry pagination and restores chronological order
   assert.equal(requests.length, 2);
   assert.match(requests[1], /offset=1/);
 });
+
+
+test("HTTP adapter retries a transient telemetry write using its request ID", async () => {
+  let attempts = 0;
+  const adapter = createHttpAdapter("https://example.test", async (url, options) => {
+    attempts += 1;
+    assert.equal(JSON.parse(options.body).request_id, "retry-safe-01");
+    if (attempts === 1) return { ok: false, status: 503 };
+    return { ok: true, status: 201, json: async () => ({ id: 9 }) };
+  });
+  const result = await adapter.append({ ...reading, request_id: "retry-safe-01" });
+  assert.equal(result.id, 9);
+  assert.equal(attempts, 2);
+});
+
+
+test("HTTP adapter does not retry client errors", async () => {
+  let attempts = 0;
+  const adapter = createHttpAdapter("https://example.test", async () => {
+    attempts += 1;
+    return { ok: false, status: 422 };
+  });
+  await assert.rejects(adapter.append({ ...reading, request_id: "invalid-01" }), /status 422/);
+  assert.equal(attempts, 1);
+});
