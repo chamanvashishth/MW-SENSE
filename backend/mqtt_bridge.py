@@ -9,13 +9,13 @@ import os
 
 from pydantic import ValidationError
 
-from .database import DEFAULT_DB_PATH, initialize_database, insert_reading, update_device_heartbeat
+from .database import DEFAULT_DB_PATH, initialize_database, insert_reading, update_device_heartbeat, verify_device_credential
 from .schemas import TelemetryIn
 
 logger = logging.getLogger("mw_sense.mqtt")
 
 
-def parse_mqtt_message(topic: str, body: bytes | str) -> dict:
+def parse_mqtt_message(topic: str, body: bytes | str, database_path=DEFAULT_DB_PATH) -> dict:
     parts = topic.split("/")
     if len(parts) != 4 or parts[0] != "mw-sense" or parts[3] != "telemetry":
         raise ValueError("MQTT topic must be mw-sense/{node_id}/{sensor_id}/telemetry.")
@@ -29,6 +29,9 @@ def parse_mqtt_message(topic: str, body: bytes | str) -> dict:
         raise ValueError("MQTT topic identity does not match the payload.")
     if payload.get("simulation") is not False:
         raise ValueError("MQTT ingress accepts physical readings only; set simulation to false.")
+    credential = payload.pop("device_token", None)
+    if not verify_device_credential(parts[1], credential, database_path):
+        raise ValueError("MQTT device authentication failed.")
     if not payload.get("request_id"):
         raise ValueError("Physical MQTT readings must include a request_id for safe redelivery.")
     try:
@@ -39,7 +42,7 @@ def parse_mqtt_message(topic: str, body: bytes | str) -> dict:
 
 
 def ingest_mqtt_message(topic: str, body: bytes | str, database_path=DEFAULT_DB_PATH) -> dict:
-    payload = parse_mqtt_message(topic, body)
+    payload = parse_mqtt_message(topic, body, database_path)
     return insert_reading(payload, database_path)
 
 
@@ -55,6 +58,9 @@ def ingest_mqtt_heartbeat(topic: str, body: bytes | str, database_path=DEFAULT_D
         raise ValueError("MQTT heartbeat must be a JSON object.")
     if payload.get("node_id") != parts[1] or payload.get("event") != "heartbeat":
         raise ValueError("MQTT heartbeat identity or event does not match its topic.")
+    credential = payload.pop("device_token", None)
+    if not verify_device_credential(parts[1], credential, database_path):
+        raise ValueError("MQTT heartbeat authentication failed.")
     firmware = payload.get("firmware_version")
     if firmware is not None and (not isinstance(firmware, str) or not 1 <= len(firmware) <= 64):
         raise ValueError("MQTT heartbeat firmware_version must be 1 to 64 characters.")
