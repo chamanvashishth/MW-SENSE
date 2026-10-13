@@ -47,9 +47,11 @@ bool publishPayload(const String& payload) {
 }
 
 void onMqttMessage(char* rawTopic, byte* rawPayload, unsigned int length) {
+  // Keep callback work bounded; acknowledgement packets are deliberately small.
+  if (rawTopic == nullptr || rawPayload == nullptr || length == 0 || length > 256) return;
   const String topic(rawTopic);
   const String prefix = String("mw-sense/") + MW_SENSE_NODE_ID + "/";
-  if (!topic.startsWith(prefix) || topic.indexOf("/ack/") < 0) return;
+  if (!topic.startsWith(prefix)) return;
 
   String body;
   body.reserve(length);
@@ -59,10 +61,22 @@ void onMqttMessage(char* rawTopic, byte* rawPayload, unsigned int length) {
   if (deserializeJson(acknowledgement, body)) return;
   const String requestId = acknowledgement["request_id"] | "";
   const bool accepted = acknowledgement["accepted"] | false;
-  if (!accepted || requestId.isEmpty()) return;
+  if (!accepted || requestId.isEmpty() || requestId.length() > 96) return;
 
-  const String expectedSuffix = String("/ack/") + requestId;
-  if (!topic.endsWith(expectedSuffix)) return;
+  // Match the complete topic to the queue head. A valid request ID alone is
+  // not enough: the acknowledgement must name this node and queued sensor.
+  String oldest;
+  if (!offlineQueue.peekOldest(oldest)) return;
+  JsonDocument queuedReading;
+  if (deserializeJson(queuedReading, oldest)) return;
+  const String queuedRequestId = queuedReading["request_id"] | "";
+  const String sensorId = queuedReading["sensor_id"] | "";
+  if (queuedRequestId != requestId || sensorId.isEmpty()) return;
+
+  const String expectedTopic =
+      String("mw-sense/") + MW_SENSE_NODE_ID + "/" + sensorId + "/ack/" + requestId;
+  if (topic != expectedTopic) return;
+
   if (offlineQueue.acknowledgeOldest(requestId)) {
     Serial.println("Backend acknowledged and removed a queued reading.");
   }
