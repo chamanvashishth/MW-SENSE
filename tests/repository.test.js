@@ -72,7 +72,7 @@ test("HTTP adapter sends the documented telemetry resource requests", async () =
   await adapter.clear();
   assert.deepEqual(calls.map((call) => call.options.method), ["GET", "POST", "DELETE"]);
   assert.deepEqual(calls.map((call) => call.url), [
-    "https://example.test/api/telemetry",
+    "https://example.test/api/telemetry?limit=5000&offset=0",
     "https://example.test/api/telemetry",
     "https://example.test/api/telemetry"
   ]);
