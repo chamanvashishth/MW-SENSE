@@ -155,7 +155,7 @@ def test_database_initialization_records_schema_version(client, tmp_path):
     with connect(path) as connection:
         versions = connection.execute("SELECT version FROM schema_migrations").fetchall()
         columns = {row["name"] for row in connection.execute("PRAGMA table_info(telemetry)")}
-    assert [row["version"] for row in versions] == [1, 2, 3, 4]
+    assert [row["version"] for row in versions] == [1, 2, 3, 4, 5]
     assert "request_id" in columns
 
 
@@ -185,7 +185,7 @@ def test_startup_adds_request_id_to_an_existing_database(tmp_path):
         columns = {row["name"] for row in connection.execute("PRAGMA table_info(telemetry)")}
         version = connection.execute("SELECT MAX(version) FROM schema_migrations").fetchone()[0]
     assert "request_id" in columns
-    assert version == 4
+    assert version == 5
 
 
 
@@ -227,7 +227,7 @@ def test_health_diagnostics_are_protected_when_token_is_configured(client, monke
     assert response.status_code == 200
     report = response.json()
     assert report["integrity"] == "ok"
-    assert report["schema_version"] == 4
+    assert report["schema_version"] == 5
     assert report["telemetry_records"] == 0
     assert report["simulated_records"] == 0
     assert report["physical_records"] == 0
