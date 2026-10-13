@@ -150,22 +150,30 @@ async function loadDeviceRegistry() {
 }
 
 async function showCredentialHistory(nodeId) {
-  deviceEvents.textContent = "Loading credential history…";
+  deviceEvents.textContent = "Loading device history…";
   try {
-    const response = await deviceRequest("/devices/" + encodeURIComponent(nodeId) + "/credential-events");
-    if (!response.ok) throw new Error("History request returned " + response.status);
-    const events = await response.json();
+    const [credentialResponse, lifecycleResponse] = await Promise.all([
+      deviceRequest("/devices/" + encodeURIComponent(nodeId) + "/credential-events"),
+      deviceRequest("/devices/" + encodeURIComponent(nodeId) + "/lifecycle-events")
+    ]);
+    if (!credentialResponse.ok || !lifecycleResponse.ok) {
+      throw new Error("Device history request failed.");
+    }
+    const [credentials, lifecycle] = await Promise.all([
+      credentialResponse.json(),
+      lifecycleResponse.json()
+    ]);
     deviceEvents.replaceChildren();
-    const heading = document.createElement("b");
-    heading.textContent = nodeId + " · Credential history";
-    deviceEvents.append(heading);
-    if (!events.length) {
+
+    const credentialHeading = document.createElement("b");
+    credentialHeading.textContent = nodeId + " · Credential history";
+    deviceEvents.append(credentialHeading);
+    if (!credentials.length) {
       const empty = document.createElement("p");
       empty.textContent = "No credential events recorded.";
       deviceEvents.append(empty);
-      return;
     }
-    events.forEach((event) => {
+    credentials.forEach((event) => {
       const line = document.createElement("div");
       line.className = "device-event-row";
       const action = document.createElement("span");
@@ -175,8 +183,28 @@ async function showCredentialHistory(nodeId) {
       line.append(action, date);
       deviceEvents.append(line);
     });
+
+    const lifecycleHeading = document.createElement("b");
+    lifecycleHeading.textContent = "Boot history";
+    deviceEvents.append(lifecycleHeading);
+    if (!lifecycle.length) {
+      const empty = document.createElement("p");
+      empty.textContent = "No boot events reported by this device yet.";
+      deviceEvents.append(empty);
+    }
+    lifecycle.forEach((event) => {
+      const line = document.createElement("div");
+      line.className = "device-event-row";
+      const action = document.createElement("span");
+      action.textContent = event.event.toUpperCase() +
+        (event.boot_count ? " · boot " + event.boot_count : "");
+      const date = document.createElement("time");
+      date.textContent = new Date(event.created_at).toLocaleString();
+      line.append(action, date);
+      deviceEvents.append(line);
+    });
   } catch (error) {
-    deviceEvents.textContent = "Could not load credential history. Reconnect and try again.";
+    deviceEvents.textContent = "Could not load device history. Check API access and reconnect.";
   }
 }
 
