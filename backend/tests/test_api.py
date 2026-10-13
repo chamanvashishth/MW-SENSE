@@ -65,7 +65,7 @@ def test_filter_and_limit(client):
     assert response.json()["count"] == 2
     assert len(response.json()["items"]) == 1
     assert response.json()["items"][0]["value"] == 31.2
-    assert response.json()["next_offset"] is None
+    assert response.json()["next_offset"] == 1
     assert client.get("/telemetry?parameter=unknown").status_code == 422
 
 
