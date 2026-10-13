@@ -4,7 +4,7 @@
 
 MW-SENSE is an educational project workspace for introducing the architecture and data journey of a modular wireless sensor network. This first repository milestone establishes a browser-based virtual lab shell with an interactive, simulated sensor-to-dashboard flow.
 
-> **Simulation notice:** The current lab uses browser-generated values and an in-memory demonstration flow. It is not connected to physical sensors, an ESP32/STM32 board, a radio network, a broker, or a persistent database. Simulation results must not be presented as hardware test evidence.
+> **Simulation notice:** The current lab uses browser-generated values. It can persist validated readings in the current browser profile, but it is not connected to physical sensors, an ESP32/STM32 board, a radio network, a broker, or a central server database. Simulation results must not be presented as hardware test evidence.
 
 ## First milestone
 
@@ -12,7 +12,7 @@ MW-SENSE is an educational project workspace for introducing the architecture an
 - Conceptual six-layer architecture: sensor, edge node, wireless link, gateway, data store, dashboard.
 - Adjustable virtual temperature, humidity, air-quality, and soil-moisture values.
 - A six-stage telemetry animation: acquisition, validation, transmission, gateway, storage, visualization.
-- A session data explorer with CSV export and parameter filtering.
+- A browser-persisted data explorer with CSV export, parameter filtering, and a 5,000-record retention limit.
 - A live trend chart, configurable virtual sampling, and per-node activity indicators.
 - Adjustable threshold checks with a small in-session alert feed.
 - Repeatable network presets and a six-step guided walkthrough.
@@ -59,17 +59,13 @@ The design is modular. Actual controller, sensor models, radio protocol, server,
 
 ## Current milestone boundaries
 
-The monitoring chart and alert feed use only records created in the current browser session. Sampling runs in the active page and stops when the user stops it or closes the page. Node activity means a virtual node has delivered a sample during this session; it does not indicate a physical device heartbeat. Thresholds are educational examples, not safety alarms.
+The monitoring chart and alert feed use records available in the current browser profile. Browser-local records remain on that device and are not shared with other users or devices. Sampling runs in the active page and stops when the user stops it or closes the page. Node activity means a virtual node has delivered a sample during this session; it does not indicate a physical device heartbeat. Thresholds are educational examples, not safety alarms.
 
 ## Planned next milestones
 
-1. **Architecture explorer:** inspect each layer, interfaces, payloads, and responsibilities.
-2. **Node simulator:** add multiple nodes, sensor configuration, sampling intervals, and node health.
-3. **Network experiments:** configurable latency, packet loss, disconnection, retry, and recovery.
-4. **Data explorer:** inspect records, validation outcomes, and session history.
-5. **Dashboard:** time-series trends, parameter cards, node state, and alerts.
-6. **Testing centre:** repeatable unit, integration, wireless-link, and recovery scenarios.
-7. **Hardware integration:** connect verified firmware and real telemetry without conflating it with simulation.
+1. **Backend service:** implement and deploy the documented telemetry API with authentication, validation, and durable database storage.
+2. **Device integration:** connect verified firmware and real telemetry without conflating it with simulation.
+3. **Operations:** add access control, retention policy, observability, and deployment documentation.
 
 ## Important engineering boundary
 
@@ -94,4 +90,6 @@ Run the checks locally with Node.js:
 npm test
 ```
 
-The browser app now saves validated virtual readings in `localStorage` under `mw-sense.telemetry.v1`, retaining the most recent 5,000 records on that browser profile. Records load again after a page reload and can be cleared from the data explorer. If browser storage is blocked or unavailable, the app continues with session-only data and shows that limitation. This is device-local browser persistence, not a central database, server backup, or cross-device sync. The tested gateway storage helper remains an in-memory contract for software verification. These tests do not demonstrate physical sensor accuracy, wireless range, electrical reliability, or a deployed gateway/database.
+The dashboard accesses readings through a small repository interface (`list`, `append`, and `clear`). The current browser adapter uses `localStorage`; a separate HTTP adapter defines a future `/telemetry` API boundary (`GET`, `POST`, and `DELETE`) but does not imply that a server exists. The repository can create and import version 1.0 JSON snapshots and validates every imported reading before appending it. The local adapter is synchronous; the HTTP adapter is asynchronous, so callers can use either through the same returned interface.
+
+Browser records remain on the current device. If storage is blocked or unavailable, the app continues with session-only data and reports the limitation. This is not a central database, server backup, or cross-device sync. The HTTP API adapter is a contract only; no backend service has been deployed. These tests do not demonstrate physical sensor accuracy, wireless range, electrical reliability, or a deployed gateway/database.
