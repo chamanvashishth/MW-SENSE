@@ -110,13 +110,28 @@
     const request = fetchImpl || (typeof fetch === "function" ? fetch.bind(root) : null);
     const token = options && typeof options.token === "string" ? options.token.trim() : "";
     if (!request) throw new TypeError("Fetch is not available in this environment.");
-    async function send(path, options) {
-      const response = await request(baseUrl.replace(/\/$/, "") + path, {
+    async function send(path, options, retryable) {
+      const url = baseUrl.replace(/\/$/, "") + path;
+      const requestOptions = {
         ...options,
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: "Bearer " + token } : {}), ...(options && options.headers) }
-      });
-      if (!response.ok) throw new Error("Telemetry API request failed with status " + response.status + ".");
-      return response.status === 204 ? null : response.json();
+      };
+      const attempts = retryable ? 2 : 1;
+      for (let attempt = 0; attempt < attempts; attempt++) {
+        let response;
+        try {
+          response = await request(url, requestOptions);
+        } catch (error) {
+          if (retryable && attempt === 0) continue;
+          throw new Error("Could not reach the telemetry API. Check the connection and try again.");
+        }
+        if (!response.ok) {
+          if (retryable && attempt === 0 && response.status >= 500) continue;
+          throw new Error("Telemetry API request failed with status " + response.status + ".");
+        }
+        return response.status === 204 ? null : response.json();
+      }
+      throw new Error("Telemetry API request could not be completed.");
     }
     return {
       kind: "http-api",
@@ -134,7 +149,7 @@
       },
       append: (record) => {
         const { status, id, received_at, ...payload } = record;
-        return send("/telemetry", { method: "POST", body: JSON.stringify(payload) });
+        return send("/telemetry", { method: "POST", body: JSON.stringify(payload) }, true);
       },
       clear: () => send("/telemetry", { method: "DELETE" })
     };
