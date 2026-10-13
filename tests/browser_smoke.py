@@ -110,6 +110,27 @@ def main():
                     {"url": api_url, "token": "browser-test-admin-token"},
                 )
                 assert registration["status"] == 201
+                heartbeat = page.evaluate(
+                    """async ({url, token}) => {
+                      const response = await fetch(url + "/devices/NODE-01/heartbeat", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+                        body: JSON.stringify({
+                          boot_count: 1,
+                          uptime_seconds: 42,
+                          queue_depth: 2,
+                          oldest_pending_timestamp: "2026-10-13T10:00:00Z",
+                          retry_count: 3,
+                          wifi_rssi_dbm: -62,
+                          mqtt_connected: true
+                        })
+                      });
+                      return { status: response.status, body: await response.json() };
+                    }""",
+                    {"url": api_url, "token": "browser-test-admin-token"},
+                )
+                assert heartbeat["status"] == 200
+                assert heartbeat["body"]["boot_count"] == 1
                 page.locator("#refresh-devices").click()
                 device_row = page.locator("#device-rows tr").filter(has_text="NODE-01")
                 device_row.wait_for(timeout=10000)
@@ -127,6 +148,7 @@ def main():
                 device_row.filter(has_text="Active").wait_for(timeout=10000)
                 device_row.locator('button[data-device-action="history"]').click()
                 page.locator("#device-events").filter(has_text="ISSUED").wait_for(timeout=10000)
+                page.locator("#device-events").filter(has_text="BOOT").wait_for(timeout=10000)
                 page.on("dialog", lambda dialog: dialog.accept())
                 device_row.locator('button[data-device-action="revoke"]').click()
                 device_row = page.locator("#device-rows tr").filter(has_text="NODE-01")
