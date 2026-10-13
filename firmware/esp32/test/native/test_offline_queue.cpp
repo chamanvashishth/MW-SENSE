@@ -78,13 +78,18 @@ int main() {
   assert(queue.peekOldest(oldest));
   assert(oldest == record("rename-fail"));
 
-  // Failed second rename restores the backup so the item can be retried.
+  // If installing the replacement fails, the original queue is restored.
   LittleFS.rename_failure_count = 0;
   assert(queue.enqueue(record("rename-fail-2")));
-  LittleFS.rename_failure_count = 1; // queue -> backup succeeds; temp -> queue fails
-  // Fail the second rename specifically using a small wrapper counter setup.
-  // First rename is allowed; the fake FS failure is armed after that move below.
-  LittleFS.rename_failure_count = 0;
+  LittleFS.rename_calls = 0;
+  LittleFS.fail_rename_on_call = 2;
+  assert(!queue.acknowledgeOldest("rename-fail"));
+  assert(queue.count() == 2);
+  assert(queue.peekOldest(oldest));
+  assert(oldest == record("rename-fail"));
+  assert(!LittleFS.exists("/telemetry.bak"));
+  LittleFS.fail_rename_on_call = 0;
+
   std::cout << "OfflineQueue native tests passed\\n";
   return 0;
 }
