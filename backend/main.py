@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query, Response, status
+from fastapi.middleware.cors import CORSMiddleware
 
 from . import database
 from .schemas import SENSOR_RULES, TelemetryIn, TelemetryList, TelemetryOut
@@ -22,6 +23,21 @@ app = FastAPI(
     description="Validated telemetry ingestion and retrieval for the MW-SENSE virtual lab.",
     version="1.0.0",
     lifespan=lifespan,
+)
+
+allowed_origins = [
+    origin.strip()
+    for origin in os.getenv(
+        "MW_SENSE_ALLOWED_ORIGINS",
+        "http://localhost:8000,http://127.0.0.1:8000",
+    ).split(",")
+    if origin.strip()
+]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_methods=["GET", "POST", "DELETE"],
+    allow_headers=["Content-Type"],
 )
 
 
