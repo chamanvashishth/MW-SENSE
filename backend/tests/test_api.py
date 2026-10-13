@@ -64,7 +64,7 @@ def test_filter_and_limit(client):
     response = client.get("/telemetry?parameter=temperature&limit=1")
     assert response.json()["count"] == 2
     assert len(response.json()["items"]) == 1
-    assert response.json()["items"][0]["value"] == 31.2
+    assert response.json()["items"][0]["value"] == 41.2
     assert response.json()["next_offset"] == 1
     assert client.get("/telemetry?parameter=unknown").status_code == 422
 
@@ -133,7 +133,7 @@ def test_database_initialization_records_schema_version(client, tmp_path):
     with connect(path) as connection:
         versions = connection.execute("SELECT version FROM schema_migrations").fetchall()
         columns = {row["name"] for row in connection.execute("PRAGMA table_info(telemetry)")}
-    assert [row["version"] for row in versions] == [1, 2, 3]
+    assert [row["version"] for row in versions] == [1, 2, 3, 4]
     assert "request_id" in columns
 
 
@@ -326,6 +326,45 @@ def test_cannot_provision_credential_for_unknown_node(client, monkeypatch):
     monkeypatch.setenv("MW_SENSE_API_TOKEN", "device-admin")
     response = client.post(
         "/devices/NODE-99/credentials",
+        headers={"Authorization": "Bearer device-admin"},
+    )
+    assert response.status_code == 404
+
+
+def test_device_credential_can_be_revoked_and_audited(client, monkeypatch):
+    monkeypatch.setenv("MW_SENSE_API_TOKEN", "device-admin")
+    headers = {"Authorization": "Bearer device-admin"}
+    client.post("/devices", json={"node_id": "NODE-03", "label": "Soil node"}, headers=headers)
+    issued = client.post("/devices/NODE-03/credentials", headers=headers).json()["credential"]
+    assert client.get("/devices", headers=headers).json()[0]["credential_active"] is True
+
+    revoked = client.delete("/devices/NODE-03/credentials", headers=headers)
+    assert revoked.status_code == 200
+    assert revoked.json()["credential_active"] is False
+
+    from backend.database import verify_device_credential
+    assert not verify_device_credential("NODE-03", issued, main.DB_PATH)
+
+    events = client.get("/devices/NODE-03/credential-events", headers=headers)
+    assert events.status_code == 200
+    assert [event["event"] for event in events.json()] == ["revoked", "issued"]
+    assert all("credential" not in event for event in events.json())
+
+
+def test_revoking_unknown_device_returns_not_found(client, monkeypatch):
+    monkeypatch.setenv("MW_SENSE_API_TOKEN", "device-admin")
+    response = client.delete(
+        "/devices/NODE-99/credentials",
+        headers={"Authorization": "Bearer device-admin"},
+    )
+    assert response.status_code == 404
+
+
+def test_device_audit_route_requires_admin_and_known_node(client, monkeypatch):
+    monkeypatch.setenv("MW_SENSE_API_TOKEN", "device-admin")
+    assert client.get("/devices/NODE-01/credential-events").status_code == 401
+    response = client.get(
+        "/devices/NODE-99/credential-events",
         headers={"Authorization": "Bearer device-admin"},
     )
     assert response.status_code == 404
