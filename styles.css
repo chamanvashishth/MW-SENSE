@@ -106,3 +106,5 @@
 .credential-reveal small{font-size:8px;color:#9cb8ad;margin-top:4px}
 .credential-reveal input{height:32px;min-width:180px;flex:2;padding:0 9px;border:1px solid #3b5b55;border-radius:5px;background:#071815;color:#d9eee6;font:9px var(--mono)}
 @media(max-width:760px){.device-admin-panel{padding:14px}.credential-reveal{align-items:stretch}.credential-reveal input{min-width:100%;flex-basis:100%}}
+
+.device-admin-panel[hidden],.credential-reveal[hidden]{display:none!important}
