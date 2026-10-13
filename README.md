@@ -59,7 +59,7 @@ The design is modular. Actual controller, sensor models, radio protocol, server,
 
 ## Current milestone boundaries
 
-The monitoring chart and alert feed use records available in the current browser profile. Browser-local records remain on that device and are not shared with other users or devices. Sampling runs in the active page and stops when the user stops it or closes the page. Node activity means a virtual node has delivered a sample during this session; it does not indicate a physical device heartbeat. Thresholds are educational examples, not safety alarms.
+The monitoring chart and alert feed use records loaded from the selected storage destination. Browser-local records remain on that device and are not shared with other users or devices. Sampling runs in the active page and stops when the user stops it or closes the page. Node activity means a virtual node has delivered a sample during this session; it does not indicate a physical device heartbeat. Thresholds are educational examples, not safety alarms.
 
 ## Planned next milestones
 
@@ -115,6 +115,26 @@ uvicorn backend.main:app --reload --port 8001
 
 The API starts at `http://127.0.0.1:8001`. Interactive endpoint documentation is available at `/docs`.
 
+### Optional API authentication
+
+For local development, data routes allow access without a token when `MW_SENSE_API_TOKEN` is not set. To require a bearer token, set the environment variable before starting the server. Keep the token private and do not commit it to the repository.
+
+Windows PowerShell:
+
+```powershell
+$env:MW_SENSE_API_TOKEN = (python -c "import secrets; print(secrets.token_urlsafe(32))")
+uvicorn backend.main:app --reload --port 8001
+```
+
+macOS / Linux:
+
+```bash
+export MW_SENSE_API_TOKEN="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+uvicorn backend.main:app --reload --port 8001
+```
+
+When authentication is enabled, enter the same token in the dashboard **API token** field. The browser sends it as a bearer token for sensor and telemetry requests. The `/health` endpoint remains public for connection checks. CORS permits the `Authorization` header. Use HTTPS and a proper secrets manager before deploying beyond localhost; a token entered in a browser is available to that browser session and is not a substitute for user-specific authorization.
+
 ### API routes
 
 | Method | Route | Purpose |
@@ -138,4 +158,4 @@ python -m pip install -r backend/requirements-dev.txt
 python -m pytest backend/tests -q
 ```
 
-GitHub Actions now runs the existing Node.js suite and the Python API tests independently. The HTTP adapter in `telemetry-core.js` speaks the API's `{ items, count, limit }` list response format. In the dashboard, select **API server**, confirm the server URL, and choose **Connect**. The dashboard checks `/health` and loads server readings before enabling server-backed transmissions. If the connection fails, readings are not silently written to browser storage. Do not expose the unauthenticated development API directly to the public internet.
+GitHub Actions now runs the existing Node.js suite and the Python API tests independently. The HTTP adapter in `telemetry-core.js` speaks the API's `{ items, count, limit }` list response format. In the dashboard, select **API server**, confirm the server URL, and choose **Connect**. The dashboard checks `/health` and loads server readings before enabling server-backed transmissions. If the connection fails, readings are not silently written to browser storage. Without `MW_SENSE_API_TOKEN`, data routes are unauthenticated and intended only for local development. A shared bearer token is a basic development safeguard, not full user identity or role-based authorization. Do not expose this service directly to the public internet.
