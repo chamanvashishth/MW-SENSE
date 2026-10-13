@@ -255,8 +255,14 @@ async function transmit() {
           pipelineState.textContent = "STORAGE FAILED";
           packetStatus.textContent = "NOT STORED";
           setStage(index, "error");
-          if (storageNotice) storageNotice.textContent = "Storage error · reading not saved";
-          showToast("Reading was not stored. Check the selected storage destination.");
+          if (storageMode.value === "server") {
+            activeRepository = null;
+            networkStatus.textContent = "API OFFLINE";
+            if (storageNotice) storageNotice.textContent = "API connection lost · reconnect to continue";
+          } else if (storageNotice) {
+            storageNotice.textContent = "Storage error · reading not saved";
+          }
+          showToast("Reading was not stored. " + (error.message || "Check the selected storage destination."));
           outcome = "failed";
           break;
         }
