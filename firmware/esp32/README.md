@@ -31,9 +31,18 @@ On Windows PowerShell:
 Copy-Item include/config.h.example include/config.h
 ```
 
-Edit `include/config.h` and set the Wi-Fi credentials, broker hostname, broker port, broker username/password, node ID, and sensor pin. The real `config.h` is ignored by Git; do not commit it.
+Edit `include/config.h` and set the Wi-Fi credentials, broker hostname, broker port, broker username/password, node ID, sensor pin, and the per-device token provisioned by the API. The real `config.h` is ignored by Git; do not commit it.
 
 Register the node with the API before sending physical telemetry. The node ID must be one of the currently supported catalogue IDs.
+
+After registration, issue a node-specific credential from the admin-authenticated API:
+
+```bash
+curl -X POST http://127.0.0.1:8001/devices/NODE-01/credentials \
+  -H "Authorization: Bearer $MW_SENSE_API_TOKEN"
+```
+
+Copy the returned one-time `credential` into `MW_SENSE_DEVICE_TOKEN` in the node's private `config.h`. The API stores only a SHA-256 digest. Rotating the credential invalidates the previous value; update the firmware configuration before reconnecting the node.
 
 ## MQTT security
 
@@ -85,7 +94,7 @@ A temperature reading follows this shape:
 
 The request ID remains stable when the same queued message is retried. The backend uses it to avoid inserting the same sample more than once.
 
-Heartbeat messages use `mw-sense/{node_id}/status` and include the node ID, firmware version, and `event: "heartbeat"`.
+Heartbeat messages use `mw-sense/{node_id}/status` and include the node ID, firmware version, `event: "heartbeat"`, and the same per-device token. The bridge validates the credential for both telemetry and heartbeat messages and removes it before storage.
 
 ## Reliability notes
 
