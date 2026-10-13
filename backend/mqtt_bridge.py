@@ -15,16 +15,48 @@ from .schemas import TelemetryIn
 logger = logging.getLogger("mw_sense.mqtt")
 
 
+MAX_MQTT_PAYLOAD_BYTES = 4096
+
+
+def _decode_json_object(body: bytes | str, message_type: str) -> dict:
+    """Decode a bounded MQTT JSON object before schema validation."""
+    if isinstance(body, bytes):
+        if len(body) > MAX_MQTT_PAYLOAD_BYTES:
+            raise ValueError(f"MQTT {message_type} exceeds the {MAX_MQTT_PAYLOAD_BYTES}-byte limit.")
+        try:
+            text = body.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise ValueError(f"MQTT {message_type} must contain valid UTF-8 JSON.") from exc
+    elif isinstance(body, str):
+        if len(body.encode("utf-8")) > MAX_MQTT_PAYLOAD_BYTES:
+            raise ValueError(f"MQTT {message_type} exceeds the {MAX_MQTT_PAYLOAD_BYTES}-byte limit.")
+        text = body
+    else:
+        raise ValueError(f"MQTT {message_type} must be bytes or text.")
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"MQTT {message_type} must contain valid UTF-8 JSON.") from exc
+    if not isinstance(payload, dict):
+        raise ValueError(f"MQTT {message_type} must be a JSON object.")
+    return payload
+
+
+def _validate_topic_segment(value: str, label: str) -> None:
+    if not value or len(value) > 64 or any(
+        character not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-"
+        for character in value
+    ):
+        raise ValueError(f"MQTT topic {label} is invalid.")
+
+
 def parse_mqtt_message(topic: str, body: bytes | str, database_path=DEFAULT_DB_PATH) -> dict:
     parts = topic.split("/")
     if len(parts) != 4 or parts[0] != "mw-sense" or parts[3] != "telemetry":
         raise ValueError("MQTT topic must be mw-sense/{node_id}/{sensor_id}/telemetry.")
-    try:
-        payload = json.loads(body.decode("utf-8") if isinstance(body, bytes) else body)
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise ValueError("MQTT message must contain valid UTF-8 JSON.") from exc
-    if not isinstance(payload, dict):
-        raise ValueError("MQTT message must be a JSON object.")
+    _validate_topic_segment(parts[1], "node_id")
+    _validate_topic_segment(parts[2], "sensor_id")
+    payload = _decode_json_object(body, "message")
     if payload.get("node_id") != parts[1] or payload.get("sensor_id") != parts[2]:
         raise ValueError("MQTT topic identity does not match the payload.")
     if payload.get("simulation") is not False:
@@ -50,12 +82,8 @@ def ingest_mqtt_heartbeat(topic: str, body: bytes | str, database_path=DEFAULT_D
     parts = topic.split("/")
     if len(parts) != 3 or parts[0] != "mw-sense" or parts[2] != "status":
         raise ValueError("MQTT heartbeat topic must be mw-sense/{node_id}/status.")
-    try:
-        payload = json.loads(body.decode("utf-8") if isinstance(body, bytes) else body)
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise ValueError("MQTT heartbeat must contain valid UTF-8 JSON.") from exc
-    if not isinstance(payload, dict):
-        raise ValueError("MQTT heartbeat must be a JSON object.")
+    _validate_topic_segment(parts[1], "node_id")
+    payload = _decode_json_object(body, "heartbeat")
     if payload.get("node_id") != parts[1] or payload.get("event") != "heartbeat":
         raise ValueError("MQTT heartbeat identity or event does not match its topic.")
     credential = payload.pop("device_token", None)
