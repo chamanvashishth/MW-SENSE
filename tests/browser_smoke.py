@@ -152,6 +152,16 @@ def main():
                 )
                 assert server_records["count"] == 1
                 assert server_records["items"][0]["simulation"] is True
+                diagnostics = page.evaluate(
+                    "({url, token}) => fetch(url + '/health/diagnostics', {headers: {Authorization: 'Bearer ' + token}}).then(r => r.json())",
+                    {"url": api_url, "token": "browser-test-admin-token"},
+                )
+                assert diagnostics["status"] == "ok"
+                assert diagnostics["integrity"] == "ok"
+                assert diagnostics["telemetry_records"] == 1
+                assert diagnostics["simulated_records"] == 1
+                assert diagnostics["device_records"] == 0
+                assert "credential" not in str(diagnostics).lower()
 
                 with page.expect_download() as download_info:
                     page.locator("#export-csv").click()
