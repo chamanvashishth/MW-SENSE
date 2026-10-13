@@ -100,8 +100,24 @@ def build_mqtt_callbacks(database_path=DEFAULT_DB_PATH):
                 logger.info("mqtt_heartbeat_received node_id=%s", device["node_id"])
                 return
             record = ingest_mqtt_message(message.topic, message.payload, database_path)
+            acknowledgement_topic = (
+                f"mw-sense/{record['node_id']}/{record['sensor_id']}/ack/{record['request_id']}"
+            )
+            acknowledgement = json.dumps({
+                "request_id": record["request_id"],
+                "accepted": True,
+            })
+            published = connection.publish(
+                acknowledgement_topic, acknowledgement, qos=1, retain=False
+            )
+            if published.rc != 0:
+                logger.error(
+                    "mqtt_acknowledgement_publish_failed node_id=%s sensor_id=%s result=%s",
+                    record["node_id"], record["sensor_id"], published.rc,
+                )
+                return
             logger.info(
-                "mqtt_reading_stored node_id=%s sensor_id=%s record_id=%s",
+                "mqtt_reading_stored_and_acknowledged node_id=%s sensor_id=%s record_id=%s",
                 record["node_id"], record["sensor_id"], record["id"],
             )
         except (ValueError, KeyError) as exc:
