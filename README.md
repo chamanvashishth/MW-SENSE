@@ -90,6 +90,14 @@ Current dashboard concepts include:
 
 MW-SENSE is organized into layers so each part has a focused responsibility. A layer can be changed or extended without having to redesign the whole system, provided its interfaces remain compatible.
 
+<p align="center">
+  <img src="docs/assets/animations/00-system-architecture.svg" alt="Animated MW-SENSE architecture showing the physical sensor path, MQTT and API services, SQLite persistence, browser dashboard, and separate virtual telemetry path" width="100%" />
+</p>
+
+The animated view follows the physical-device path from sensor to dashboard. The separate purple path represents browser-generated demonstration data. The diagram is a conceptual map of the current codebase—not a claim that every component is already deployed as one hosted service.
+
+The Mermaid diagram below provides a text-based architecture view for readers and tools that do not display SVG animation.
+
 ```mermaid
 flowchart TB
   subgraph Field["1 · Physical environment"]
