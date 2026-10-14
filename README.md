@@ -2,246 +2,302 @@
 
 ### Modular Wireless Sensor Network & Telemetry Platform
 
-**MW-SENSE** is an IoT telemetry platform for collecting, transporting, validating, storing, and visualizing sensor data from distributed edge devices.
+<p align="center">
+  <strong>An IoT telemetry platform for connected devices, real-time monitoring, and reliable data ingestion.</strong>
+</p>
 
-The system combines an ESP32-based device layer, MQTT messaging, a FastAPI backend, SQLite persistence, and a browser-based monitoring dashboard. It also provides a virtual telemetry path for development and demonstration without requiring physical hardware.
+<p align="center">
+  <img src="https://img.shields.io/badge/Platform-IoT-0D9488?style=flat-square" alt="Platform: IoT" />
+  <img src="https://img.shields.io/badge/Backend-FastAPI-009688?style=flat-square" alt="Backend: FastAPI" />
+  <img src="https://img.shields.io/badge/Messaging-MQTT-6B7280?style=flat-square" alt="Messaging: MQTT" />
+  <img src="https://img.shields.io/badge/Database-SQLite-003B57?style=flat-square" alt="Database: SQLite" />
+  <img src="https://img.shields.io/badge/Hardware-ESP32-E7352C?style=flat-square" alt="Hardware: ESP32" />
+</p>
 
-The project is structured around a clear separation of responsibilities: devices produce telemetry, the messaging layer transports it, the backend validates and persists it, and the dashboard presents the resulting system state.
+<p align="center">
+  <a href="#architecture">Architecture</a> ·
+  <a href="#how-it-works">How it works</a> ·
+  <a href="#getting-started">Getting started</a> ·
+  <a href="#verification">Verification</a>
+</p>
 
 ---
 
-## 1. System Overview
+## The idea
 
-MW-SENSE addresses the practical engineering challenges involved in building a small distributed sensor-monitoring system:
+MW-SENSE connects physical sensor devices to a centralized telemetry platform.
 
-- **Device communication:** Transport telemetry from edge devices through MQTT.
-- **Data ingestion:** Validate incoming messages before accepting them into the application.
-- **Persistence:** Store telemetry and device information using SQLite.
-- **Delivery reliability:** Use request identifiers, application-level acknowledgements, and database uniqueness constraints to support safe redelivery.
-- **Operational visibility:** Expose device status, telemetry history, and monitoring information through an API and browser dashboard.
-- **Development without hardware:** Support virtual telemetry so that application workflows can be exercised independently of physical sensors.
+It provides the software infrastructure required to receive sensor readings, transport messages, validate device data, persist measurements, and make system information accessible through a monitoring dashboard.
 
-### Project status
+Instead of treating an IoT device, backend, and dashboard as separate applications, MW-SENSE brings them together through defined communication and data contracts.
 
-| Area | Implementation |
+**The objective is simple: make distributed sensor data observable, manageable, and accessible through one coherent system.**
+
+## At a glance
+
+| | |
 |---|---|
-| Backend API | FastAPI |
-| Data persistence | SQLite |
-| Messaging | MQTT integration |
-| Edge hardware | ESP32 reference firmware |
-| Dashboard | Browser-based interface |
-| Virtual telemetry | Supported |
-| Device status monitoring | Supported |
-| Telemetry validation | Implemented |
-| Application-level acknowledgements | Implemented |
-| Hardware-independent development | Supported |
-
-> **Engineering note:** MW-SENSE is an actively developed reference implementation. Its current capabilities should not be interpreted as production certification, industrial-grade hardware validation, or a guarantee of exactly-once message delivery.
+| **Device layer** | ESP32-based sensor nodes |
+| **Communication** | MQTT |
+| **Application backend** | FastAPI |
+| **Persistence** | SQLite |
+| **User interface** | Browser-based dashboard |
+| **Development mode** | Physical and virtual telemetry |
+| **Primary concern** | Device telemetry ingestion and monitoring |
 
 ---
 
-## 2. Architecture
+## Architecture
 
-MW-SENSE follows a layered architecture. Each component has a defined responsibility and communicates through explicit interfaces.
+The system is divided into four logical layers.
+
+<p align="center">
+  <img src="docs/assets/mw-sense-architecture.png" alt="MW-SENSE architecture showing ESP32, MQTT, FastAPI, SQLite, dashboard, and virtual telemetry" width="100%" />
+</p>
+
+### System architecture
 
 ```mermaid
-flowchart TD
-    subgraph Edge["Edge Layer"]
-        ESP["ESP32 Sensor Node"]
-        Queue["Bounded Local Queue"]
-        Virtual["Virtual Telemetry Source"]
+flowchart LR
+    subgraph EDGE["01 · EDGE"]
+        ESP["ESP32 Node"]
+        SENSOR["Temperature Sensor"]
+        QUEUE["Local Bounded Queue"]
+        SENSOR --> ESP --> QUEUE
     end
 
-    subgraph Messaging["Messaging Layer"]
+    subgraph TRANSPORT["02 · TRANSPORT"]
         MQTT["MQTT Broker"]
-        Bridge["MQTT Bridge"]
     end
 
-    subgraph Backend["Application Layer"]
-        API["FastAPI Application"]
-        Validation["Telemetry Validation"]
-        Persistence["SQLite Persistence"]
+    subgraph APPLICATION["03 · APPLICATION"]
+        BRIDGE["MQTT Bridge"]
+        API["FastAPI"]
+        VALIDATE["Validation"]
+        DB[("SQLite")]
+        BRIDGE --> VALIDATE
+        API --> VALIDATE
+        VALIDATE --> DB
     end
 
-    subgraph Presentation["Presentation Layer"]
-        Dashboard["Web Dashboard"]
+    subgraph PRESENTATION["04 · PRESENTATION"]
+        UI["Web Dashboard"]
     end
 
-    ESP --> Queue
-    Queue --> MQTT
-    Virtual --> API
-    MQTT --> Bridge
-    Bridge --> Validation
-    API --> Validation
-    Validation --> Persistence
-    Persistence --> API
-    API --> Dashboard
-    Bridge --> MQTT
+    QUEUE --> MQTT
+    MQTT --> BRIDGE
+    DB --> API
+    API --> UI
+
+    VIRTUAL["Virtual Telemetry"] --> API
+
+    style EDGE fill:#e0f2fe,stroke:#0284c7,color:#0c4a6e
+    style TRANSPORT fill:#f0fdfa,stroke:#0d9488,color:#134e4a
+    style APPLICATION fill:#eff6ff,stroke:#2563eb,color:#1e3a8a
+    style PRESENTATION fill:#f5f3ff,stroke:#7c3aed,color:#4c1d95
 ```
 
-### Component responsibilities
+### Layer responsibilities
 
-| Component | Responsibility |
+| Layer | Responsibility |
 |---|---|
-| ESP32 firmware | Collect sensor readings and publish device telemetry |
-| Local device queue | Temporarily retain pending messages within bounded storage |
-| MQTT broker | Transport messages between devices and backend services |
-| MQTT bridge | Subscribe to device topics, validate physical telemetry, and publish acknowledgements |
-| FastAPI | Expose application interfaces and coordinate backend operations |
-| Validation layer | Enforce telemetry and device-level constraints |
-| SQLite | Persist application and telemetry records |
-| Virtual telemetry | Exercise application workflows without physical devices |
-| Dashboard | Present device and telemetry information to users |
+| Edge | Acquire sensor readings and prepare device messages |
+| Transport | Transfer messages using MQTT |
+| Application | Validate, process, and persist telemetry |
+| Presentation | Display device and telemetry information |
 
-The architecture intentionally keeps the device transport layer separate from the application-facing API. This makes it possible to develop and test backend functionality without requiring an active sensor network.
+The architecture keeps physical device communication separate from application-level processing. This makes the backend easier to develop and test without requiring a connected sensor network.
 
 ---
 
-## 3. Data Flow
+## How it works
 
-MW-SENSE supports two primary telemetry paths.
+MW-SENSE supports two telemetry paths.
 
-### 3.1 Physical telemetry
+### 1. Physical telemetry
 
-The physical telemetry path begins at an ESP32-based sensor node.
+```mermaid
+sequenceDiagram
+    autonumber
+    participant S as ESP32 Sensor
+    participant M as MQTT Broker
+    participant B as MQTT Bridge
+    participant A as Backend
+    participant D as SQLite
 
-1. The device collects a sensor measurement.
-2. Firmware constructs a telemetry message containing the device identity, sensor identity, request identifier, and measurement data.
-3. The message is published to the configured MQTT topic.
-4. The MQTT bridge receives the message.
-5. The bridge validates the device credentials and message requirements.
-6. Accepted telemetry is passed into the backend ingestion workflow.
-7. The application persists the accepted record.
-8. An application-level acknowledgement is published for the corresponding request identifier.
-9. The device can use the acknowledgement to determine whether the message was accepted.
+    S->>M: Publish telemetry
+    M->>B: Deliver message
+    B->>B: Validate device and request ID
+    B->>A: Submit accepted telemetry
+    A->>D: Persist telemetry
+    D-->>A: Commit result
+    A-->>B: Processing result
+    B->>M: Publish application ACK
+    M-->>S: Deliver ACK
+```
 
-Physical telemetry is distinguished from simulated telemetry. The MQTT bridge only accepts messages explicitly identified as physical telemetry.
+**Processing sequence**
 
-### 3.2 Virtual telemetry
+1. ESP32 collects a sensor measurement.
+2. Firmware creates a telemetry message with device, sensor, and request identifiers.
+3. The device publishes the message to its MQTT topic.
+4. The MQTT bridge receives and validates the message.
+5. The backend processes and persists accepted telemetry.
+6. The bridge publishes an application-level acknowledgement.
+7. The device can use the acknowledgement to manage its pending message.
 
-The virtual telemetry path allows the platform to operate without ESP32 hardware or a physical MQTT deployment.
+### 2. Virtual telemetry
 
-Virtual telemetry enters through the application layer and follows the relevant validation and persistence workflow.
+Physical hardware should not be a prerequisite for every development activity.
 
-This is useful for:
+MW-SENSE also provides a virtual telemetry path:
+
+```mermaid
+flowchart LR
+    V["Virtual Telemetry Source"]
+    API["FastAPI Ingestion"]
+    VALID["Validation"]
+    DB[("SQLite")]
+    DASH["Dashboard"]
+
+    V --> API --> VALID --> DB --> DASH
+
+    style V fill:#fef3c7,stroke:#d97706,color:#78350f
+    style API fill:#dbeafe,stroke:#2563eb,color:#1e3a8a
+    style VALID fill:#d1fae5,stroke:#059669,color:#064e3b
+    style DB fill:#e0e7ff,stroke:#6366f1,color:#312e81
+    style DASH fill:#ede9fe,stroke:#7c3aed,color:#4c1d95
+```
+
+Virtual telemetry is useful for:
 
 - Dashboard development.
-- Backend integration testing.
+- Backend testing.
 - Demonstrations.
-- Development without hardware.
-- Reproducing application-level telemetry scenarios.
+- Testing application workflows without hardware.
+- Reproducing telemetry scenarios.
 
-Virtual data should not be interpreted as a measurement from a calibrated physical sensor.
-
----
-
-## 4. Delivery and Reliability Model
-
-Reliable telemetry delivery requires more than publishing messages to a broker. MW-SENSE uses multiple mechanisms to reduce the impact of interrupted connections and repeated message delivery.
-
-### MQTT delivery
-
-The MQTT bridge subscribes to device telemetry and status topics using QoS 1.
-
-The reference firmware publishes telemetry using QoS 0. Consequently, broker-level delivery guarantees differ between the firmware publishing path and the backend subscription path.
-
-### Application-level acknowledgement
-
-MW-SENSE uses application acknowledgements in addition to MQTT delivery semantics.
-
-Each telemetry request must contain a stable request identifier. After the backend processes an accepted message, the bridge publishes an acknowledgement associated with that identifier.
-
-### Duplicate protection
-
-Database uniqueness constraints and stable request identifiers help prevent repeated delivery from creating duplicate telemetry records.
-
-### Delivery guarantee
-
-The system is designed around retryable, at-least-once application delivery where the device and transport implementation support retries.
-
-It does **not** claim exactly-once delivery across the complete device-to-database pipeline.
-
-This distinction is important: MQTT QoS, application acknowledgements, and database idempotency solve different parts of the delivery problem.
+Virtual measurements remain distinguishable from physical device measurements.
 
 ---
 
-## 5. Repository Structure
+## Telemetry flow — animated overview
 
-The repository is organized by system responsibility.
+<p align="center">
+  <img src="docs/assets/mw-sense-flow.gif" alt="Animated MW-SENSE telemetry flow from ESP32 through MQTT, FastAPI and SQLite to the dashboard" width="100%" />
+</p>
+
+The animation illustrates the system's primary data path:
+
+**ESP32 → MQTT → FastAPI → SQLite → Dashboard**
+
+A separate virtual telemetry source enters at the application layer.
+
+> Add the animated GIF to `docs/assets/mw-sense-flow.gif` to activate this section. GitHub README files support animated GIFs as image assets.
+
+---
+
+## Core engineering concepts
+
+### Telemetry ingestion
+
+The ingestion workflow is responsible for accepting structured telemetry, validating incoming data, and persisting accepted records.
+
+### Message identity and duplicate protection
+
+Each telemetry request uses a stable request identifier. Database uniqueness constraints help protect against duplicate records when messages are redelivered.
+
+### Application acknowledgements
+
+MQTT transport delivery and application processing are different events.
+
+MW-SENSE uses application-level acknowledgements to communicate the processing result associated with a telemetry request.
+
+### Device status
+
+The platform processes device status and heartbeat messages. Device offline state is derived when device information is requested, using the configured offline threshold.
+
+### Bounded local storage
+
+The ESP32 reference implementation uses bounded local queue storage to retain pending messages within its supported firmware workflow.
+
+### Important delivery distinction
+
+The current firmware publishes telemetry using MQTT QoS 0. The bridge subscribes to telemetry and status topics using QoS 1 and publishes application acknowledgements using QoS 1.
+
+Stable request identifiers and database uniqueness constraints help support safe redelivery.
+
+This is not an exactly-once delivery guarantee across the complete device-to-database pipeline.
+
+---
+
+## Technology stack
+
+| Component | Technology |
+|---|---|
+| Edge hardware | ESP32 |
+| Firmware development | PlatformIO |
+| Communication protocol | MQTT |
+| Backend framework | FastAPI |
+| Runtime | Python |
+| ASGI server | Uvicorn |
+| Database | SQLite |
+| Frontend | JavaScript |
+| Testing | Pytest and JavaScript test tooling |
+
+---
+
+## Repository structure
 
 ```text
 MW-SENSE/
+│
 ├── backend/
 │   ├── tests/
 │   ├── mqtt_bridge.py
 │   └── requirements.txt
+│
 ├── firmware/
 │   └── ESP32 reference implementation
+│
 ├── scripts/
+│
 ├── dashboard/
+│
+├── docs/
+│   └── assets/
+│       ├── mw-sense-architecture.png
+│       └── mw-sense-flow.gif
+│
 ├── package.json
-├── README.md
-└── ...
+└── README.md
 ```
 
-The tree above describes the principal architectural areas. Refer to the repository for the current complete file and directory inventory.
-
-| Area | Purpose |
-|---|---|
-| `backend/` | API, ingestion, persistence, and messaging integration |
-| `backend/tests/` | Backend regression and integration-oriented tests |
-| `backend/mqtt_bridge.py` | MQTT subscription, device validation, and acknowledgement handling |
-| `firmware/` | Embedded reference implementation |
-| `scripts/` | Development and supporting utilities |
-| `dashboard/` | Browser-facing monitoring interface |
-| `package.json` | JavaScript development and verification commands |
+The tree highlights the main system areas. Consult the repository for the complete current directory inventory.
 
 ---
 
-## 6. Technology Stack
+## Getting started
 
-| Layer | Technology |
-|---|---|
-| Embedded platform | ESP32 |
-| Firmware framework | PlatformIO |
-| Messaging protocol | MQTT |
-| Backend framework | FastAPI |
-| Backend runtime | Python |
-| API server | Uvicorn |
-| Database | SQLite |
-| Frontend | JavaScript |
-| Development runtime | Node.js |
-| Testing | Pytest and JavaScript test tooling |
-
-### Requirements
-
-The development environment uses:
+### Prerequisites
 
 - Python 3.12
 - Node.js 22
 - npm
 - Git
-- PlatformIO, for firmware development
-- An MQTT broker, for physical device integration
+- PlatformIO for firmware development
+- An MQTT broker for physical device integration
 
-Physical hardware and a running MQTT broker are not required for all development workflows. The virtual telemetry path supports hardware-independent application development.
-
----
-
-## 7. Local Development
-
-The backend and browser dashboard are separate development processes. They should be configured and started independently.
-
-### 7.1 Clone the repository
+### 1. Clone
 
 ```bash
 git clone https://github.com/chamanvashishth/MW-SENSE.git
 cd MW-SENSE
 ```
 
-### 7.2 Backend environment
+### 2. Backend dependencies
 
-Create and activate a Python virtual environment.
+Create a virtual environment:
 
 **Windows PowerShell**
 
@@ -257,49 +313,53 @@ python3 -m venv .venv
 source .venv/bin/activate
 ```
 
-Install backend dependencies:
+Install dependencies:
 
 ```bash
 pip install -r backend/requirements.txt
 ```
 
-Start the FastAPI application using the application's current ASGI entry point and the configuration described in the backend source.
+Start the FastAPI application using the ASGI entry point defined by the current backend implementation.
 
-The API and MQTT bridge are separate concerns. The MQTT bridge additionally requires a reachable broker and its corresponding device and broker configuration.
-
-### 7.3 Dashboard environment
-
-Install JavaScript dependencies:
+### 3. Dashboard dependencies
 
 ```bash
 npm install
 ```
 
-Run the dashboard using the development script defined in `package.json`.
+Use the development script defined in `package.json` to start the dashboard.
 
-The API and dashboard must be configured to communicate through the intended API origin.
+The dashboard and backend run as separate processes. Configure their API origin appropriately.
 
-> MW-SENSE does not assume that a single command launches the complete system. Backend, dashboard, and optional MQTT infrastructure have independent runtime requirements.
+### 4. Firmware
+
+Install PlatformIO and build the ESP32 reference firmware:
+
+```bash
+pio run
+```
+
+Physical deployment additionally requires compatible hardware, sensor wiring, Wi-Fi configuration, and MQTT broker credentials.
 
 ---
 
-## 8. Configuration
+## Configuration
 
 The backend supports environment-based configuration.
 
-| Variable | Purpose |
+| Environment variable | Purpose |
 |---|---|
-| `MW_SENSE_API_TOKEN` | Enables API token authentication when configured |
-| `MW_SENSE_DB_PATH` | Configures the SQLite database location |
-| `MW_SENSE_ALLOWED_ORIGINS` | Configures permitted browser origins |
-| `MW_SENSE_RETENTION_DAYS` | Configures telemetry retention |
-| `MW_SENSE_DEVICE_OFFLINE_SECONDS` | Sets the device offline threshold |
-| `MW_SENSE_QUEUE_WARNING_DEPTH` | Configures the queue-depth warning threshold |
-| `MW_SENSE_RETRY_WARNING_COUNT` | Configures the retry warning threshold |
-| `MW_SENSE_WEAK_WIFI_RSSI_DBM` | Sets the weak Wi-Fi signal threshold |
-| `MW_SENSE_PENDING_WARNING_SECONDS` | Configures the pending-message warning threshold |
+| `MW_SENSE_API_TOKEN` | Optional API token authentication |
+| `MW_SENSE_DB_PATH` | SQLite database path |
+| `MW_SENSE_ALLOWED_ORIGINS` | Allowed browser origins |
+| `MW_SENSE_RETENTION_DAYS` | Telemetry retention configuration |
+| `MW_SENSE_DEVICE_OFFLINE_SECONDS` | Device offline threshold |
+| `MW_SENSE_QUEUE_WARNING_DEPTH` | Queue warning threshold |
+| `MW_SENSE_RETRY_WARNING_COUNT` | Retry warning threshold |
+| `MW_SENSE_WEAK_WIFI_RSSI_DBM` | Weak Wi-Fi signal threshold |
+| `MW_SENSE_PENDING_WARNING_SECONDS` | Pending-message warning threshold |
 
-### Example
+Example development configuration:
 
 ```env
 MW_SENSE_API_TOKEN=replace-with-a-secure-token
@@ -313,17 +373,13 @@ MW_SENSE_WEAK_WIFI_RSSI_DBM=-75
 MW_SENSE_PENDING_WARNING_SECONDS=60
 ```
 
-The values above are illustrative development settings, not universal production recommendations.
-
-Do not commit credentials, access tokens, private broker configuration, or deployment secrets to version control.
+These are illustrative settings. Production values should be selected according to the deployment environment.
 
 ---
 
-## 9. MQTT Integration
+## MQTT topic contract
 
-The MQTT bridge connects physical device telemetry to the application ingestion workflow.
-
-### Topic conventions
+The bridge uses the following topic structure:
 
 | Topic | Direction | Purpose |
 |---|---|---|
@@ -331,245 +387,127 @@ The MQTT bridge connects physical device telemetry to the application ingestion 
 | `mw-sense/{node_id}/status` | Device → backend | Device status and heartbeat |
 | `mw-sense/{node_id}/{sensor_id}/ack/{request_id}` | Backend → device | Application acknowledgement |
 
-The bridge subscribes to telemetry and status topics using QoS 1 and publishes application acknowledgements using QoS 1.
+### MQTT configuration
 
-### Broker configuration
+The bridge requires an MQTT host.
 
-The bridge requires an MQTT host configuration.
-
-| Setting | Configuration |
+| Setting | Behaviour |
 |---|---|
-| Host | `MW_SENSE_MQTT_HOST` |
-| Port | `MW_SENSE_MQTT_PORT` |
-| TLS | `MW_SENSE_MQTT_TLS` |
+| `MW_SENSE_MQTT_HOST` | Broker host |
+| `MW_SENSE_MQTT_PORT` | Broker port; defaults to `8883` |
+| `MW_SENSE_MQTT_TLS` | TLS enabled by default |
 
-The default port is `8883`, and TLS is enabled by default.
+The bridge enforces a bounded JSON payload size of 4096 bytes.
 
-The bridge also enforces a bounded JSON payload size of 4096 bytes.
-
-### Message requirements
-
-Physical telemetry messages must satisfy the bridge's device validation requirements and include a stable request identifier.
-
-The bridge rejects messages that do not meet the physical telemetry requirements.
-
-For deployment, use unique device credentials, broker-side topic ACLs, TLS certificate validation, and appropriately restricted network access.
+Physical telemetry must satisfy device validation requirements and include a stable request identifier.
 
 ---
 
-## 10. ESP32 Firmware
+## Verification
 
-The firmware directory contains the ESP32 reference implementation used to demonstrate the physical telemetry path.
+MW-SENSE separates verification by component.
 
-Its responsibilities include:
+| Check | Command | Purpose |
+|---|---|---|
+| Frontend checks | `npm run check` | JavaScript validation |
+| Frontend tests | `npm test` | JavaScript regression tests |
+| Backend tests | `python -m pytest backend/tests -q` | Backend regression tests |
+| Firmware build | `pio run` | ESP32 firmware compilation |
 
-- Connecting to the configured network.
-- Collecting supported sensor readings.
-- Constructing telemetry messages.
-- Publishing messages to the MQTT broker.
-- Maintaining bounded local pending-message storage.
-- Processing application acknowledgements.
+Additional browser and native offline-queue checks are available in the repository.
 
-### Hardware boundary
-
-The reference implementation should not be confused with a complete hardware abstraction framework.
-
-The current ESP32 reference firmware supports a temperature sensor adapter. Additional sensor types require corresponding firmware adapters and validation of their telemetry contracts.
-
-### Firmware build
-
-Install PlatformIO and use the project's firmware configuration.
-
-```bash
-pio run
-```
-
-Firmware compilation and hardware-in-the-loop validation are separate verification activities. A successful firmware build does not establish that a physical deployment is correctly calibrated or operational.
+A passing test suite for one component does not establish end-to-end correctness across hardware, messaging, persistence, and dashboard layers. Report only checks that have actually been executed.
 
 ---
 
-## 11. API and Data Contracts
+## Security and operational boundaries
 
-FastAPI provides the application-facing interface for device and telemetry operations.
+MW-SENSE is a reference implementation, not a production security certification.
 
-The backend is responsible for:
+Before deploying beyond a trusted development environment:
 
-- Accepting application requests.
-- Validating device and telemetry data.
-- Persisting accepted records.
-- Exposing device and telemetry information.
-- Supporting the dashboard's application workflows.
+- Configure API authentication.
+- Use TLS for MQTT connections.
+- Use unique device credentials.
+- Restrict broker topics using ACLs.
+- Keep secrets out of source control.
+- Configure browser origins deliberately.
+- Establish database backup and recovery procedures.
+- Define retention and storage monitoring policies.
+- Validate physical sensor calibration.
+- Test reconnect, retry, and offline scenarios.
 
-The MQTT bridge provides a separate integration boundary for physical device messages.
+If `MW_SENSE_API_TOKEN` is not configured, token-based authentication is disabled.
 
-### Telemetry contract
+CORS is not an authentication mechanism. Simulated telemetry is not a substitute for calibrated physical measurements.
 
-Telemetry records are associated with a device, a sensor, and a request identifier.
-
-The ingestion workflow distinguishes physical telemetry from simulated telemetry. This distinction is essential for monitoring, testing, and interpreting measurements correctly.
-
-The authoritative API routes, request models, response schemas, and validation rules are maintained in the backend implementation. They should be treated as the source of truth when integrating another client.
-
----
-
-## 12. Verification
-
-MW-SENSE uses independent verification workflows for its backend, dashboard, and embedded firmware.
-
-Run checks from the repository root unless otherwise specified.
-
-### JavaScript checks
-
-```bash
-npm run check
-```
-
-### JavaScript tests
-
-```bash
-npm test
-```
-
-### Backend tests
-
-```bash
-python -m pytest backend/tests -q
-```
-
-### Firmware build
-
-```bash
-pio run
-```
-
-### Additional verification
-
-The repository also contains verification coverage for native offline-queue behavior and browser-facing functionality.
-
-The checks are intentionally separated because a passing test suite for one component does not establish correctness across the complete device-to-dashboard pipeline.
-
-### Verification scope
-
-| Verification | What it establishes |
-|---|---|
-| JavaScript checks | Static or syntax-level frontend validation |
-| JavaScript tests | Tested dashboard and application behavior |
-| Pytest | Tested backend behavior |
-| PlatformIO build | Firmware compilation |
-| Offline queue tests | Tested local queue behavior |
-| Browser smoke checks | Tested browser workflows in the available environment |
-
-Report actual command output and environment details when publishing test results. Do not treat an unexecuted check as a passing check.
+The current ESP32 reference implementation supports a temperature sensor adapter. Additional sensor types require their own firmware integration and validation.
 
 ---
 
-## 13. Security and Operational Considerations
+## Engineering principles
 
-Security and reliability are system-level properties. They cannot be established by the API or firmware in isolation.
+MW-SENSE is developed around a few core principles:
 
-### Authentication
+**Separation of concerns**  
+Device acquisition, transport, application processing, persistence, and presentation remain distinct responsibilities.
 
-API token authentication is enabled when `MW_SENSE_API_TOKEN` is configured.
+**Explicit contracts**  
+Telemetry messages, device identities, request identifiers, and acknowledgement topics should have clear definitions.
 
-If the variable is unset, token-based authentication is disabled. Deployments that expose the API beyond a trusted local development environment should configure authentication deliberately.
+**Observable behaviour**  
+Device state, pending messages, telemetry records, and processing outcomes should be inspectable.
 
-### MQTT security
+**Testable components**  
+Backend, dashboard, firmware, and transport behaviour should be verifiable independently.
 
-Production MQTT deployments should use:
-
-- TLS-protected broker connections.
-- Unique credentials for each device.
-- Broker-side topic access control.
-- Restricted network exposure.
-- Credential rotation and revocation procedures.
-
-### Browser access
-
-Configure allowed origins deliberately. CORS is a browser access policy, not an authentication or authorization mechanism.
-
-### Persistence
-
-SQLite is appropriate for the current application scope. Production deployments should define:
-
-- Backup and recovery procedures.
-- Retention policies.
-- Database integrity checks.
-- Storage monitoring.
-- Migration procedures before schema changes.
-
-### Device availability
-
-Device offline state is derived when the device list is requested, using the configured offline threshold. It should not be interpreted as an independently generated real-time push notification.
-
-### Measurement integrity
-
-Virtual telemetry is useful for software validation, but it is not evidence of physical sensor accuracy. Real-world measurements require hardware testing, calibration, and environmental validation.
+**Honest delivery guarantees**  
+The system should document what it guarantees and what still depends on the device, broker, and deployment environment.
 
 ---
 
-## 14. Engineering Boundaries and Known Limitations
+## Roadmap
 
-The following distinctions are important when extending the platform:
+Potential engineering extensions include:
 
-1. **MQTT QoS is not end-to-end exactly-once delivery.** Application-level acknowledgement and idempotent persistence address additional failure modes but do not create a universal exactly-once guarantee.
-2. **Virtual telemetry is not physical telemetry.** Simulated measurements must remain distinguishable from actual device readings.
-3. **Reference firmware is not a universal sensor driver framework.** Additional hardware requires explicit implementation and validation.
-4. **A successful API test is not an end-to-end deployment test.** MQTT, device connectivity, storage, and browser behavior require their own verification.
-5. **Development defaults are not production security settings.** Authentication, TLS, credentials, network access, and backup procedures must be configured for the deployment environment.
+- Additional sensor adapters.
+- Stronger device provisioning and credential lifecycle management.
+- More comprehensive end-to-end telemetry tests.
+- Expanded offline and reconnect testing.
+- Deployment observability and structured logging.
+- Scalable persistence and retention strategies.
+- More detailed device health diagnostics.
 
-These boundaries are documented intentionally so that contributors can distinguish implemented behavior from future engineering work.
-
----
-
-## 15. Development Principles
-
-Contributions to MW-SENSE should preserve the architectural separation between:
-
-- Device acquisition and application ingestion.
-- MQTT transport and business validation.
-- Physical and simulated telemetry.
-- Persistence and presentation.
-- Development convenience and production guarantees.
-
-When extending the system:
-
-- Prefer explicit contracts over implicit assumptions.
-- Keep telemetry validation close to the ingestion boundary.
-- Preserve stable request identifiers across retries.
-- Make state transitions observable and testable.
-- Keep device-specific behavior out of the general application layer.
-- Add regression tests for changes to message formats or persistence semantics.
-- Document operational requirements alongside new integration points.
+These are extension areas, not claims that the functionality is already implemented.
 
 ---
 
-## 16. Contributing
+## Contributing
 
-Contributions are welcome.
+Contributions should preserve the system's separation of responsibilities and maintain compatibility with established telemetry contracts.
 
-Before proposing a change:
+Before submitting a change:
 
-1. Understand the affected system boundary.
+1. Understand the affected component.
 2. Review existing implementation and tests.
-3. Keep changes scoped to a clearly defined responsibility.
-4. Add or update regression coverage.
+3. Keep changes scoped to a clear responsibility.
+4. Add regression coverage.
 5. Run the relevant verification commands.
 6. Document configuration or contract changes.
 
-For substantial changes, include the motivation, architectural impact, testing performed, and any operational trade-offs.
+For substantial changes, include the motivation, architectural impact, verification performed, and operational trade-offs.
 
 ---
 
-## 17. License
+## License
 
 Refer to the repository's `LICENSE` file for the applicable licensing terms.
 
 ---
 
-## Project
-
-**MW-SENSE — Modular Wireless Sensor Network & Telemetry Platform**
-
-Repository: https://github.com/chamanvashishth/MW-SENSE
-
-Built around practical IoT engineering: reliable telemetry ingestion, explicit system boundaries, and observable device communication.
+<p align="center">
+  <strong>MW-SENSE</strong><br/>
+  Modular Wireless Sensor Network & Telemetry Platform
+  <br/><br/>
+  <sub>From edge acquisition to observable telemetry.</sub>
+</p>
