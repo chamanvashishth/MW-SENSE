@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 570" role="img" aria-labelledby="title desc">
+<title id="title">MW-SENSE system architecture</title>
+<desc id="desc">Animated architecture showing physical sensors flowing through ESP32 firmware, a local offline queue, Wi-Fi and MQTT, the backend API, SQLite persistence, and the browser dashboard. A separate dashed path shows virtual telemetry generated in the browser.</desc>
+<defs>
+  <linearGradient id="canvas" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#0b1420"/><stop offset="1" stop-color="#142638"/></linearGradient>
+  <linearGradient id="panel" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#172b3e"/><stop offset="1" stop-color="#1c3449"/></linearGradient>
+  <filter id="glow"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  <style>
+    .heading{font:600 23px system-ui,-apple-system,sans-serif;fill:#eef5fb}
+    .subheading{font:13px system-ui,-apple-system,sans-serif;fill:#9db1c4}
+    .lane{font:600 11px system-ui,-apple-system,sans-serif;letter-spacing:1.5px;fill:#8da6ba}
+    .node{fill:url(#panel);stroke:#38546b;stroke-width:1.4}
+    .nodeTitle{font:600 14px system-ui,-apple-system,sans-serif;fill:#edf5fb}
+    .nodeSub{font:11px system-ui,-apple-system,sans-serif;fill:#a9bdce}
+    .number{font:600 10px system-ui,-apple-system,sans-serif;fill:#081522}
+    .flow{fill:none;stroke:#64859f;stroke-width:2.2;stroke-linecap:round;stroke-dasharray:5 7}
+    .virtual{fill:none;stroke:#a98bd6;stroke-width:2;stroke-dasharray:4 7;opacity:.8}
+    .packet{fill:#72e0c0;filter:url(#glow)}
+    .vpacket{fill:#c6a7ff;filter:url(#glow)}
+    .foot{font:11px system-ui,-apple-system,sans-serif;fill:#8198ab}
+    @media (prefers-reduced-motion: reduce){.packet,.vpacket{display:none}}
+  </style>
+</defs>
+<rect width="1120" height="570" rx="22" fill="url(#canvas)"/>
+<text class="heading" x="36" y="48">MW-SENSE · System architecture</text>
+<text class="subheading" x="36" y="72">Two ways to explore one telemetry platform: physical device ingestion and browser simulation</text>
+
+<text class="lane" x="38" y="120">PHYSICAL TELEMETRY PATH</text>
+<g>
+  <rect class="node" x="38" y="145" width="160" height="112" rx="13"/>
+  <circle cx="59" cy="168" r="11" fill="#72e0c0"/><text class="number" x="59" y="172" text-anchor="middle">01</text>
+  <text class="nodeTitle" x="118" y="198" text-anchor="middle">Sensors</text>
+  <text class="nodeSub" x="118" y="220" text-anchor="middle">Physical readings</text>
+
+  <rect class="node" x="246" y="145" width="160" height="112" rx="13"/>
+  <circle cx="267" cy="168" r="11" fill="#72e0c0"/><text class="number" x="267" y="172" text-anchor="middle">02</text>
+  <text class="nodeTitle" x="326" y="198" text-anchor="middle">ESP32 firmware</text>
+  <text class="nodeSub" x="326" y="220" text-anchor="middle">Read + timestamp</text>
+
+  <rect class="node" x="454" y="145" width="160" height="112" rx="13"/>
+  <circle cx="475" cy="168" r="11" fill="#72e0c0"/><text class="number" x="475" y="172" text-anchor="middle">03</text>
+  <text class="nodeTitle" x="534" y="198" text-anchor="middle">LittleFS queue</text>
+  <text class="nodeSub" x="534" y="220" text-anchor="middle">Buffer + retry</text>
+
+  <rect class="node" x="662" y="145" width="160" height="112" rx="13"/>
+  <circle cx="683" cy="168" r="11" fill="#72e0c0"/><text class="number" x="683" y="172" text-anchor="middle">04</text>
+  <text class="nodeTitle" x="742" y="198" text-anchor="middle">Wi-Fi + MQTT</text>
+  <text class="nodeSub" x="742" y="220" text-anchor="middle">Message transport</text>
+
+  <rect class="node" x="870" y="145" width="210" height="112" rx="13"/>
+  <circle cx="891" cy="168" r="11" fill="#72e0c0"/><text class="number" x="891" y="172" text-anchor="middle">05</text>
+  <text class="nodeTitle" x="975" y="198" text-anchor="middle">MQTT bridge + API</text>
+  <text class="nodeSub" x="975" y="220" text-anchor="middle">Authenticate + validate</text>
+</g>
+<g class="flow">
+  <path d="M198 201H246"/><path d="M406 201H454"/><path d="M614 201H662"/><path d="M822 201H870"/>
+</g>
+<circle class="packet" r="5"><animateMotion dur="6s" repeatCount="indefinite" path="M198 201H975"/></circle>
+<circle class="packet" r="4"><animateMotion dur="6s" begin="-3s" repeatCount="indefinite" path="M198 201H975"/></circle>
+
+<path d="M975 257V303H742V326" class="flow"/>
+<path d="M975 303H1002V326" class="flow"/>
+
+<text class="lane" x="38" y="314">PERSISTENCE + PRESENTATION</text>
+<rect class="node" x="570" y="326" width="344" height="102" rx="13"/>
+<circle cx="594" cy="350" r="11" fill="#72e0c0"/><text class="number" x="594" y="354" text-anchor="middle">06</text>
+<text class="nodeTitle" x="742" y="373" text-anchor="middle">SQLite database</text>
+<text class="nodeSub" x="742" y="396" text-anchor="middle">Validated telemetry + device records</text>
+<rect class="node" x="938" y="326" width="142" height="102" rx="13"/>
+<circle cx="960" cy="350" r="11" fill="#72e0c0"/><text class="number" x="960" y="354" text-anchor="middle">07</text>
+<text class="nodeTitle" x="1009" y="373" text-anchor="middle">Dashboard</text>
+<text class="nodeSub" x="1009" y="396" text-anchor="middle">Charts + status</text>
+<path class="flow" d="M914 377H938"/>
+<circle class="packet" r="5"><animateMotion dur="2.8s" repeatCount="indefinite" path="M914 377H938"/></circle>
+<path class="flow" d="M1009 326V286H975V257" opacity=".45"/>
+
+<text class="lane" x="38" y="472">VIRTUAL LEARNING PATH</text>
+<rect class="node" x="38" y="490" width="320" height="52" rx="11" stroke="#7f69a9"/>
+<text class="nodeTitle" x="198" y="512" text-anchor="middle">Browser virtual sensors</text>
+<text class="nodeSub" x="198" y="529" text-anchor="middle">Simulated values · not physical measurements</text>
+<path class="virtual" d="M358 516H440V377H570"/>
+<circle class="vpacket" r="5"><animateMotion dur="5s" repeatCount="indefinite" path="M358 516H440V377H570"/></circle>
+<text class="foot" x="570" y="516">Virtual and physical records should remain distinguishable.</text>
+<text class="foot" x="38" y="556">Conceptual view of the current repository · service hosting and physical validation are separate deployment tasks.</text>
+</svg>
