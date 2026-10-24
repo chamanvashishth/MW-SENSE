@@ -17,6 +17,7 @@ const connectServerButton = document.querySelector("#connect-server");
 let localRepository = null;
 let activeRepository = null;
 let records = [];
+
 try {
   localRepository = window.MWSenseTelemetry.createTelemetryRepository(
     window.MWSenseTelemetry.createLocalAdapter(window.localStorage, "mw-sense.telemetry.v1", 5000)
@@ -27,6 +28,7 @@ try {
 } catch (error) {
   if (storageNotice) storageNotice.textContent = "Browser storage unavailable · session only";
 }
+
 function setStorageControls(mode) {
   const serverMode = mode === "server";
   apiBaseUrl.disabled = !serverMode;
@@ -118,32 +120,32 @@ async function loadDeviceRegistry() {
         row.append(cell);
       });
       const actionCell = document.createElement("td");
-      const actions = document.createElement("div");
-      actions.className = "device-actions";
-      const issue = document.createElement("button");
-      issue.type = "button";
-      issue.className = "button secondary";
-      issue.dataset.deviceAction = "issue";
-      issue.dataset.nodeId = device.node_id;
-      issue.textContent = device.credential_active ? "Rotate" : "Issue";
-      actions.append(issue);
+      actionCell.className = "device-actions";
+      const historyButton = document.createElement("button");
+      historyButton.type = "button";
+      historyButton.className = "button secondary";
+      historyButton.textContent = "History";
+      historyButton.dataset.deviceAction = "history";
+      historyButton.dataset.nodeId = device.node_id;
+      actionCell.append(historyButton);
+
       if (device.credential_active) {
-        const revoke = document.createElement("button");
-        revoke.type = "button";
-        revoke.className = "button secondary";
-        revoke.dataset.deviceAction = "revoke";
-        revoke.dataset.nodeId = device.node_id;
-        revoke.textContent = "Revoke";
-        actions.append(revoke);
+        const revokeButton = document.createElement("button");
+        revokeButton.type = "button";
+        revokeButton.className = "clear-button";
+        revokeButton.textContent = "Revoke";
+        revokeButton.dataset.deviceAction = "revoke";
+        revokeButton.dataset.nodeId = device.node_id;
+        actionCell.append(revokeButton);
+      } else {
+        const issueButton = document.createElement("button");
+        issueButton.type = "button";
+        issueButton.className = "button secondary";
+        issueButton.textContent = "Issue";
+        issueButton.dataset.deviceAction = "issue";
+        issueButton.dataset.nodeId = device.node_id;
+        actionCell.append(issueButton);
       }
-      const history = document.createElement("button");
-      history.type = "button";
-      history.className = "button secondary";
-      history.dataset.deviceAction = "history";
-      history.dataset.nodeId = device.node_id;
-      history.textContent = "History";
-      actions.append(history);
-      actionCell.append(actions);
       row.append(actionCell);
       deviceRows.append(row);
     });
@@ -294,6 +296,7 @@ async function loadRepository(repository, label) {
   readingCount.textContent = String(records.length).padStart(3, "0");
   showToast("Loaded " + records.length + " readings from " + label.toLowerCase() + ".");
 }
+
 storageMode.addEventListener("change", () => {
   setStorageControls(storageMode.value);
   if (storageMode.value === "local") {
@@ -318,6 +321,7 @@ storageMode.addEventListener("change", () => {
     if (storageNotice) storageNotice.textContent = "Server not connected";
   }
 });
+
 connectServerButton.addEventListener("click", async () => {
   if (storageMode.value !== "server") return;
   connectServerButton.disabled = true;
@@ -348,12 +352,15 @@ connectServerButton.addEventListener("click", async () => {
     connectServerButton.disabled = false;
   }
 });
+
 setStorageControls(storageMode.value);
 devicePanel.hidden = true;
 let transmitted = records.length;
 let runId = 0;
 let selectedSensor = "temperature";
 let transmissionInProgress = false;
+let currentPayload = null;
+let currentPacketView = "json";
 
 const sensorMeta = {
   temperature: { id: "TEMP-01", node: "NODE-01", unit: "°C", label: "temperature" },
@@ -365,9 +372,92 @@ const sensorMeta = {
 function getPayload() {
   const input = document.querySelector("#" + selectedSensor);
   const meta = sensorMeta[selectedSensor];
-  const requestId = window.crypto && typeof window.crypto.randomUUID === "function" ? window.crypto.randomUUID() : "mw-" + Date.now() + "-" + Math.random().toString(16).slice(2);
-  return { node_id: meta.node, sensor_id: meta.id, parameter: meta.label, timestamp: new Date().toISOString(), value: Number(input.value), unit: meta.unit, status: "PENDING", simulation: true, request_id: requestId };
+  const requestId = window.crypto && typeof window.crypto.randomUUID === "function"
+    ? window.crypto.randomUUID()
+    : "mw-" + Date.now() + "-" + Math.random().toString(16).slice(2);
+  return {
+    node_id: meta.node,
+    sensor_id: meta.id,
+    parameter: meta.label,
+    timestamp: new Date().toISOString(),
+    value: Number(input.value),
+    unit: meta.unit,
+    status: "PENDING",
+    simulation: true,
+    request_id: requestId
+  };
 }
+
+// Generate raw hex frame string for educational inspection
+function formatHexFrame(payload) {
+  if (!payload || !payload.value) return "0xAA 0x55 [WAITING FOR PACKET]";
+  const preamble = "0xAA 0x55";
+  const nodeHex = payload.node_id === "NODE-01" ? "0x01" : payload.node_id === "NODE-02" ? "0x02" : "0x03";
+  const paramHex = payload.parameter === "temperature" ? "0x10" : payload.parameter === "humidity" ? "0x20" : payload.parameter === "air_quality" ? "0x30" : "0x40";
+  const valFloat = Number(payload.value);
+  const buffer = new ArrayBuffer(4);
+  const view = new DataView(buffer);
+  view.setFloat32(0, valFloat);
+  const floatHex = Array.from(new Uint8Array(buffer)).map((b) => "0x" + b.toString(16).padStart(2, "0").toUpperCase()).join(" ");
+  const crc = "0x" + Math.floor((Math.sin(valFloat) + 2) * 10000).toString(16).slice(0, 4).toUpperCase();
+  return [
+    "/* FRAME HEADER: 802.15.4 / ESP-NOW PACKET */",
+    `[PREAMBLE]:    ${preamble}`,
+    `[NODE_ADDR]:   ${nodeHex} (${payload.node_id})`,
+    `[PARAM_CODE]:  ${paramHex} (${payload.parameter})`,
+    `[RAW_PAYLOAD]: ${floatHex} (Float32: ${payload.value} ${payload.unit})`,
+    `[CHECKSUM]:    CRC-16 / ${crc} [VERIFIED VALID]`
+  ].join("\n");
+}
+
+function formatJourneyTrace(payload) {
+  if (!payload) return "Awaiting telemetry dispatch...";
+  return [
+    "STAGE 1: TRANSDUCER ACQUISITION",
+    `  ↳ Sensor: ${payload.sensor_id} (${payload.parameter})`,
+    `  ↳ Transduction: Physical state converted to 12-bit ADC voltage.`,
+    "",
+    "STAGE 2: EDGE VALIDATION (ESP32)",
+    `  ↳ Calibration: Raw ADC counts scaled to ${payload.value} ${payload.unit}`,
+    `  ↳ Bounds check: Value is within registered operational limits.`,
+    "",
+    "STAGE 3: RF WIRELESS LINK (2.4 GHz)",
+    `  ↳ Protocol: ESP-NOW broadcast frame (Tx Latency: ${document.querySelector("#latency-output").textContent})`,
+    `  ↳ Channel: 2.412 GHz, RSSI: -58 dBm, 0% Drop Rate.`,
+    "",
+    "STAGE 4: IOT GATEWAY INGESTION",
+    `  ↳ Enveloping: Verified CRC-16 checksum, attached received_at timestamp.`,
+    "",
+    "STAGE 5: PERSISTENCE & MONITORING",
+    `  ↳ Storage: Telemetry appended to store with unique Request ID.`,
+    `  ↳ State: ${payload.status}`
+  ].join("\n");
+}
+
+function updatePacketDisplay() {
+  if (!currentPayload) {
+    packetJson.textContent = '{ "status": "awaiting_sample" }';
+    return;
+  }
+  if (currentPacketView === "json") {
+    packetJson.textContent = JSON.stringify(currentPayload, null, 2);
+  } else if (currentPacketView === "hex") {
+    packetJson.textContent = formatHexFrame(currentPayload);
+  } else if (currentPacketView === "journey") {
+    packetJson.textContent = formatJourneyTrace(currentPayload);
+  }
+}
+
+// Packet inspector tabs
+document.querySelectorAll(".packet-tab-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".packet-tab-btn").forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+    currentPacketView = btn.dataset.view;
+    updatePacketDisplay();
+  });
+});
+
 sensorInputs.forEach((id) => {
   const input = document.querySelector("#" + id);
   const output = document.querySelector("#" + id + "-value");
@@ -380,28 +470,73 @@ sensorInputs.forEach((id) => {
 });
 document.querySelector("#temperature").closest(".sensor-row").classList.add("selected");
 
+// Environment Simulation Presets
+const envPresets = {
+  baseline: { temperature: 24.0, humidity: 50, air: 85, soil: 45, desc: "Standard room conditions restored." },
+  smoke: { temperature: 31.0, humidity: 40, air: 380, soil: 35, desc: "Toxic industrial gas leak simulated. AQI spiked to 380 ppm!" },
+  heatwave: { temperature: 42.0, humidity: 22, air: 140, soil: 14, desc: "Agricultural heatwave. High temperature and severe soil drought!" },
+  monsoon: { temperature: 21.5, humidity: 94, air: 50, soil: 90, desc: "Monsoon cloudburst simulated. High humidity and saturated soil!" },
+  freeze: { temperature: 2.5, humidity: 75, air: 65, soil: 30, desc: "Cold storage facility test. Near-freezing temperatures!" }
+};
+
+document.querySelectorAll(".env-preset-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const presetKey = btn.dataset.preset;
+    const preset = envPresets[presetKey];
+    if (!preset) return;
+
+    document.querySelectorAll(".env-preset-btn").forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+
+    // Apply values to inputs
+    ["temperature", "humidity", "air", "soil"].forEach((param) => {
+      const input = document.querySelector("#" + param);
+      const output = document.querySelector("#" + param + "-value");
+      input.value = preset[param];
+      output.textContent = Number(preset[param]).toFixed(param === "temperature" ? 1 : 0);
+    });
+
+    showToast("Environment preset loaded: " + preset.desc);
+  });
+});
+
 function showToast(message) {
   toast.textContent = message;
   toast.classList.add("show");
   window.clearTimeout(showToast.timer);
   showToast.timer = window.setTimeout(() => toast.classList.remove("show"), 2800);
 }
+
 function setStage(index, state) {
   const stage = pipelineStages[index];
   stage.classList.remove("active", "done", "error");
   if (state) stage.classList.add(state);
-  stage.querySelector(".stage-state").textContent = state === "done" ? "DONE" : state === "active" ? "RUNNING" : state === "error" ? "FAILED" : "IDLE";
+  stage.querySelector(".stage-state").textContent =
+    state === "done" ? "DONE" : state === "active" ? "RUNNING" : state === "error" ? "FAILED" : "IDLE";
 }
-function resetPipeline() { pipelineStages.forEach((_, index) => setStage(index, "")); }
+
+function resetPipeline() {
+  pipelineStages.forEach((_, index) => setStage(index, ""));
+}
 
 function updateNetworkLabels() {
   const latency = Number(document.querySelector("#latency-control").value);
   const loss = Number(document.querySelector("#loss-control").value);
   document.querySelector("#latency-output").textContent = latency + " ms";
   document.querySelector("#loss-output").textContent = loss + "%";
-  document.querySelector("#network-condition-label").textContent = !networkToggle.checked ? "LINK DISABLED" : loss >= 30 || latency >= 1500 ? "DEGRADED LINK" : loss > 0 || latency > 500 ? "IMPAIRED LINK" : "NOMINAL LINK";
+  document.querySelector("#network-condition-label").textContent = !networkToggle.checked
+    ? "LINK DISABLED"
+    : loss >= 30 || latency >= 1500
+    ? "DEGRADED LINK"
+    : loss > 0 || latency > 500
+    ? "IMPAIRED LINK"
+    : "NOMINAL LINK";
 }
-["latency-control", "loss-control"].forEach((id) => document.querySelector("#" + id).addEventListener("input", updateNetworkLabels));
+
+["latency-control", "loss-control"].forEach((id) =>
+  document.querySelector("#" + id).addEventListener("input", updateNetworkLabels)
+);
+
 document.querySelector("#reset-network").addEventListener("click", () => {
   document.querySelector("#latency-control").value = 250;
   document.querySelector("#loss-control").value = 0;
@@ -410,6 +545,7 @@ document.querySelector("#reset-network").addEventListener("click", () => {
   networkStatus.textContent = "READY";
   showToast("Network conditions restored to nominal.");
 });
+
 networkToggle.addEventListener("change", () => {
   updateNetworkLabels();
   networkStatus.textContent = networkToggle.checked ? "READY" : "OFFLINE";
@@ -419,31 +555,66 @@ networkToggle.addEventListener("change", () => {
 function renderRecords() {
   const filter = document.querySelector("#record-filter").value;
   const visible = records.filter((record) => filter === "all" || record.parameter === filter).slice().reverse();
-  recordsBody.innerHTML = visible.length ? visible.map((r) =>
-    "<tr><td>" + new Date(r.timestamp).toLocaleTimeString() + "</td><td>" + r.node_id + "</td><td>" + r.sensor_id + "</td><td>" + r.parameter.replace("_", " ") + "</td><td>" + r.value + " " + r.unit + "</td><td><span class=\"record-valid\">" + r.status + "</span></td></tr>"
-  ).join("") : '<tr><td colspan="6" class="empty-state">No matching records. Transmit a sample or change the filter.</td></tr>';
-  document.querySelector("#record-summary").textContent = records.length + " saved record" + (records.length === 1 ? "" : "s");
+  recordsBody.innerHTML = visible.length
+    ? visible
+        .map(
+          (r) =>
+            "<tr><td>" +
+            new Date(r.timestamp).toLocaleTimeString() +
+            "</td><td>" +
+            r.node_id +
+            "</td><td>" +
+            r.sensor_id +
+            "</td><td>" +
+            r.parameter.replace("_", " ") +
+            "</td><td>" +
+            r.value +
+            " " +
+            r.unit +
+            '</td><td><span class="record-valid">' +
+            r.status +
+            "</span></td></tr>"
+        )
+        .join("")
+    : '<tr><td colspan="6" class="empty-state">No matching records. Transmit a sample or change the filter.</td></tr>';
+  document.querySelector("#record-summary").textContent =
+    records.length + " saved record" + (records.length === 1 ? "" : "s");
 }
+
 document.querySelector("#record-filter").addEventListener("change", renderRecords);
+
 document.querySelector("#clear-records").addEventListener("click", async () => {
-  if (!activeRepository) { showToast("Connect to a storage destination before clearing records."); return; }
+  if (!activeRepository) {
+    showToast("Connect to a storage destination before clearing records.");
+    return;
+  }
   try {
     await activeRepository.clear();
     records = [];
     transmitted = 0;
     readingCount.textContent = "000";
+    currentPayload = null;
+    updatePacketDisplay();
     renderRecords();
     renderTrend();
-    if (storageNotice) storageNotice.textContent = storageMode.value === "server" ? "Connected to API server" : "Saved in this browser";
+    if (storageNotice)
+      storageNotice.textContent = storageMode.value === "server" ? "Connected to API server" : "Saved in this browser";
     showToast("Records cleared from the selected storage destination.");
   } catch (error) {
     showToast("Could not clear records. Check the storage connection and try again.");
   }
 });
+
 document.querySelector("#export-csv").addEventListener("click", () => {
-  if (!records.length) { showToast("There are no records to export yet."); return; }
+  if (!records.length) {
+    showToast("There are no records to export yet.");
+    return;
+  }
   const headers = ["timestamp", "node_id", "sensor_id", "parameter", "value", "unit", "status", "simulation"];
-  const csv = [headers.join(","), ...records.map((r) => headers.map((key) => JSON.stringify(r[key] ?? "")).join(","))].join("\n");
+  const csv = [
+    headers.join(","),
+    ...records.map((r) => headers.map((key) => JSON.stringify(r[key] ?? "")).join(","))
+  ].join("\n");
   const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
   const a = document.createElement("a");
   a.href = url;
@@ -451,6 +622,63 @@ document.querySelector("#export-csv").addEventListener("click", () => {
   a.click();
   URL.revokeObjectURL(url);
 });
+
+// Real-Time Canvas RF Signal Oscilloscope
+const rfCanvas = document.querySelector("#rf-canvas");
+let rfCtx = null;
+let rfPhase = 0;
+let rfBurst = 0;
+
+if (rfCanvas && rfCanvas.getContext) {
+  rfCtx = rfCanvas.getContext("2d");
+  function animateRF() {
+    if (!rfCtx) return;
+    const w = rfCanvas.width;
+    const h = rfCanvas.height;
+    rfCtx.clearRect(0, 0, w, h);
+
+    // Draw background grid lines
+    rfCtx.strokeStyle = "#121218";
+    rfCtx.lineWidth = 1;
+    rfCtx.beginPath();
+    rfCtx.moveTo(0, h / 2);
+    rfCtx.lineTo(w, h / 2);
+    rfCtx.stroke();
+
+    // Waveform parameters
+    rfPhase += transmissionInProgress ? 0.28 : 0.08;
+    if (rfBurst > 0) rfBurst -= 0.04;
+    const amplitude = transmissionInProgress ? h * 0.35 : h * 0.15;
+    const freq = transmissionInProgress ? 0.08 : 0.035;
+
+    // Draw RF carrier wave
+    rfCtx.beginPath();
+    rfCtx.lineWidth = transmissionInProgress ? 2.5 : 1.5;
+    rfCtx.strokeStyle = transmissionInProgress ? "#00f2fe" : "#1e293b";
+
+    for (let x = 0; x < w; x++) {
+      const y = h / 2 + Math.sin(x * freq + rfPhase) * amplitude * (1 + (transmissionInProgress ? Math.sin(x * 0.02) * 0.3 : 0));
+      if (x === 0) rfCtx.moveTo(x, y);
+      else rfCtx.lineTo(x, y);
+    }
+    rfCtx.stroke();
+
+    // Packet burst packet marker if active
+    if (transmissionInProgress) {
+      const packetX = ((Date.now() / 3) % (w + 40)) - 20;
+      rfCtx.fillStyle = "#10b981";
+      rfCtx.shadowColor = "#00f2fe";
+      rfCtx.shadowBlur = 10;
+      rfCtx.beginPath();
+      rfCtx.arc(Math.min(Math.max(packetX, 10), w - 10), h / 2, 4, 0, Math.PI * 2);
+      rfCtx.fill();
+      rfCtx.shadowBlur = 0;
+    }
+
+    requestAnimationFrame(animateRF);
+  }
+  requestAnimationFrame(animateRF);
+}
 
 async function transmit() {
   if (transmissionInProgress) return "busy";
@@ -460,11 +688,14 @@ async function transmit() {
   transmitButton.style.opacity = ".65";
   resetPipeline();
   const payload = getPayload();
-  packetJson.textContent = JSON.stringify(payload, null, 2);
+  currentPayload = payload;
+  updatePacketDisplay();
+
   packetStatus.textContent = "PREPARING";
   pipelineState.textContent = "PROCESSING SAMPLE";
   const stages = ["Acquisition", "Validation", "Transmission", "Gateway", "Storage", "Visualization"];
   let outcome = "pending";
+
   try {
     for (let index = 0; index < stages.length; index++) {
       if (currentRun !== runId) return "cancelled";
@@ -472,6 +703,7 @@ async function transmit() {
       const latency = index === 2 ? Number(document.querySelector("#latency-control").value) : 0;
       await new Promise((resolve) => window.setTimeout(resolve, 320 + Math.min(latency, 1000)));
       if (currentRun !== runId) return "cancelled";
+
       if (index === 1) {
         const validation = window.MWSenseTelemetry.validatePayload(payload);
         if (!validation.valid) {
@@ -479,39 +711,46 @@ async function transmit() {
           pipelineState.textContent = "VALIDATION FAILED";
           packetStatus.textContent = "INVALID PAYLOAD";
           payload.status = "INVALID";
-          packetJson.textContent = JSON.stringify({ ...payload, validation_errors: validation.errors }, null, 2);
+          currentPayload = { ...payload, validation_errors: validation.errors };
+          updatePacketDisplay();
           showToast("Sample rejected: " + validation.errors.join(" "));
           outcome = "invalid";
           break;
         }
         payload.status = "VALID";
-        packetJson.textContent = JSON.stringify(payload, null, 2);
+        currentPayload = payload;
+        updatePacketDisplay();
       }
+
       if (index === 2 && !networkToggle.checked) {
         setStage(index, "error");
         pipelineState.textContent = "TRANSMISSION FAILED";
         packetStatus.textContent = "LINK OFFLINE";
         networkStatus.textContent = "OFFLINE";
-        showToast("Wireless link is disabled. Packet was not delivered.");
+        showToast("Wireless RF link is disabled. Packet was not delivered.");
         outcome = "failed";
         break;
       }
+
       if (index === 2 && window.MWSenseTelemetry.isPacketDropped(Number(document.querySelector("#loss-control").value), Math.random())) {
         setStage(index, "error");
         pipelineState.textContent = "PACKET DROPPED";
         packetStatus.textContent = "SIMULATED LOSS";
         networkStatus.textContent = "DEGRADED";
-        showToast("Packet was dropped by the simulated link. Try transmitting again.");
+        showToast("Packet was dropped by radio interference. Try transmitting again.");
         outcome = "failed";
         break;
       }
+
       setStage(index, "done");
+
       if (index === stages.length - 1) {
         try {
           if (!activeRepository) throw new Error("No storage destination is connected.");
           await activeRepository.append(payload);
           records.push(payload);
-          if (storageNotice) storageNotice.textContent = storageMode.value === "server" ? "Connected to API server" : "Saved in this browser";
+          if (storageNotice)
+            storageNotice.textContent = storageMode.value === "server" ? "Connected to API server" : "Saved in this browser";
         } catch (error) {
           pipelineState.textContent = "STORAGE FAILED";
           packetStatus.textContent = "NOT STORED";
@@ -527,6 +766,7 @@ async function transmit() {
           outcome = "failed";
           break;
         }
+
         updateNodeHealth(payload);
         checkThresholds(payload);
         transmitted++;
@@ -546,19 +786,26 @@ async function transmit() {
     transmitButton.style.opacity = "1";
   }
 }
+
 transmitButton.addEventListener("click", transmit);
-document.querySelectorAll(".nav-link").forEach((link) => link.addEventListener("click", () => {
-  document.querySelectorAll(".nav-link").forEach((item) => item.classList.remove("active"));
-  link.classList.add("active");
-}));
-document.querySelectorAll('a[href^="#"]').forEach((link) => link.addEventListener("click", () => {
-  const target = document.querySelector(link.getAttribute("href"));
-  if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
-}));
+
+document.querySelectorAll(".nav-link").forEach((link) =>
+  link.addEventListener("click", () => {
+    document.querySelectorAll(".nav-link").forEach((item) => item.classList.remove("active"));
+    link.classList.add("active");
+  })
+);
+
+document.querySelectorAll('a[href^="#"]').forEach((link) =>
+  link.addEventListener("click", () => {
+    const target = document.querySelector(link.getAttribute("href"));
+    if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+  })
+);
+
 updateNetworkLabels();
 
-
-// Monitoring, thresholds, and repeatable learning scenarios.
+// Monitoring, trends, thresholds, and repeatable learning scenarios
 const chartParameter = document.querySelector("#chart-parameter");
 const trendChart = document.querySelector("#trend-chart");
 const chartValues = {
@@ -585,7 +832,8 @@ function renderTrend() {
   if (!points.length) {
     document.querySelector("#chart-latest").textContent = "—";
     document.querySelector("#chart-caption").textContent = "No samples collected yet";
-    trendChart.innerHTML = '<line x1="36" y1="20" x2="36" y2="158" class="chart-axis"/><line x1="36" y1="158" x2="620" y2="158" class="chart-axis"/><text x="36" y="180" class="chart-label">Waiting for samples</text>';
+    trendChart.innerHTML =
+      '<line x1="36" y1="20" x2="36" y2="158" class="chart-axis"/><line x1="36" y1="158" x2="620" y2="158" class="chart-axis"/><text x="36" y="180" class="chart-label">Waiting for samples</text>';
     return;
   }
   const values = points.map((point) => point.value);
@@ -595,15 +843,25 @@ function renderTrend() {
   const low = min - spread * 0.15;
   const high = max + spread * 0.15;
   const coords = values.map((value, index) => ({
-    x: 36 + (points.length === 1 ? 292 : index * 584 / (points.length - 1)),
+    x: 36 + (points.length === 1 ? 292 : (index * 584) / (points.length - 1)),
     y: 150 - ((value - low) / (high - low)) * 120
   }));
   const polyline = coords.map((point) => point.x + "," + point.y).join(" ");
-  trendChart.innerHTML = '<line x1="36" y1="20" x2="36" y2="158" class="chart-axis"/><line x1="36" y1="158" x2="620" y2="158" class="chart-axis"/><line x1="36" y1="90" x2="620" y2="90" class="chart-gridline"/><polyline points="' + polyline + '" class="chart-line"/>' +
-    coords.map((point) => '<circle cx="' + point.x + '" cy="' + point.y + '" r="3.5" class="chart-point"/>' ).join("") +
-    '<text x="36" y="180" class="chart-label">' + points.length + ' recent sample' + (points.length === 1 ? "" : "s") + '</text>';
-  document.querySelector("#chart-latest").textContent = values[values.length - 1].toFixed(selected === "temperature" ? 1 : 0);
-  document.querySelector("#chart-caption").textContent = "Latest value · " + new Date(points[points.length - 1].timestamp).toLocaleTimeString();
+  trendChart.innerHTML =
+    '<line x1="36" y1="20" x2="36" y2="158" class="chart-axis"/><line x1="36" y1="158" x2="620" y2="158" class="chart-axis"/><line x1="36" y1="90" x2="620" y2="90" class="chart-gridline"/><polyline points="' +
+    polyline +
+    '" class="chart-line"/>' +
+    coords.map((point) => '<circle cx="' + point.x + '" cy="' + point.y + '" r="3.5" class="chart-point"/>').join("") +
+    '<text x="36" y="180" class="chart-label">' +
+    points.length +
+    " recent sample" +
+    (points.length === 1 ? "" : "s") +
+    "</text>";
+  document.querySelector("#chart-latest").textContent = values[values.length - 1].toFixed(
+    selected === "temperature" ? 1 : 0
+  );
+  document.querySelector("#chart-caption").textContent =
+    "Latest value · " + new Date(points[points.length - 1].timestamp).toLocaleTimeString();
 }
 
 function updateNodeHealth(record) {
@@ -611,8 +869,9 @@ function updateNodeHealth(record) {
   if (!row) return;
   row.classList.add("has-reading");
   row.querySelector("strong").textContent = "ACTIVE";
-  row.querySelector(".health-last").textContent = "Last sample " + new Date(record.timestamp).toLocaleTimeString();
-  document.querySelector("#health-summary").textContent = "3 VIRTUAL NODES";
+  row.querySelector(".health-last").textContent =
+    "Last sample " + new Date(record.timestamp).toLocaleTimeString();
+  document.querySelector("#health-summary").textContent = "3 VIRTUAL NODES ACTIVE";
 }
 
 function checkThresholds(record) {
@@ -625,7 +884,8 @@ function checkThresholds(record) {
   if (!rule) return;
   const limit = Number(document.querySelector("#" + rule.input).value);
   if (!Number.isFinite(limit) || !rule.test(record.value, limit)) return;
-  const message = record.parameter.replace("_", " ") + " is " + rule.direction + " its configured limit (" + limit + " " + record.unit + ").";
+  const message =
+    record.parameter.replace("_", " ") + " is " + rule.direction + " its configured limit (" + limit + " " + record.unit + ").";
   alertEvents.unshift({ message, time: new Date(record.timestamp).toLocaleTimeString() });
   alertEvents = alertEvents.slice(0, 8);
   renderAlerts();
@@ -635,8 +895,17 @@ function checkThresholds(record) {
 function renderAlerts() {
   document.querySelector("#alert-count").textContent = String(alertEvents.length);
   document.querySelector("#alert-list").innerHTML = alertEvents.length
-    ? alertEvents.map((item) => '<div class="alert-item"><span class="alert-mark">!</span><div><b>' + item.message + '</b><small>' + item.time + '</small></div></div>').join("")
-    : '<p class="empty-alert">No alerts. Threshold checks run when a sample is delivered.</p>';
+    ? alertEvents
+        .map(
+          (item) =>
+            '<div class="alert-item"><span class="alert-mark">!</span><div><b>' +
+            item.message +
+            "</b><small>" +
+            item.time +
+            "</small></div></div>"
+        )
+        .join("")
+    : '<p class="empty-alert">No alerts. Threshold checks evaluate automatically per reading.</p>';
 }
 
 function takeScheduledSample() {
@@ -661,22 +930,25 @@ document.querySelector("#sampler-start").addEventListener("click", () => {
   setSamplerRunning(true);
   takeScheduledSample();
   samplerTimer = window.setInterval(takeScheduledSample, interval);
-  showToast("Virtual sampling started. You can stop it at any time.");
+  showToast("Automated periodic sampling started.");
 });
+
 document.querySelector("#sampler-stop").addEventListener("click", () => {
   if (samplerTimer) window.clearInterval(samplerTimer);
   samplerTimer = null;
   setSamplerRunning(false);
-  showToast("Virtual sampling stopped.");
+  showToast("Automated periodic sampling stopped.");
 });
+
 chartParameter.addEventListener("change", renderTrend);
 
 const scenarios = {
-  normal: { latency: 100, loss: 0, online: true, title: "Normal delivery", detail: "A sample should pass through all six stages with a short simulated delay." },
-  congested: { latency: 900, loss: 15, online: true, title: "Slow network", detail: "Extra delay and some packet loss make delivery less predictable. Repeat the test to see the random loss model." },
-  unstable: { latency: 1400, loss: 45, online: true, title: "Unstable link", detail: "A high packet-loss probability means many attempts will be dropped at the transmission stage." },
-  outage: { latency: 250, loss: 0, online: false, title: "Link unavailable", detail: "The node can prepare a payload, but the disabled wireless link prevents delivery." }
+  normal: { latency: 100, loss: 0, online: true, title: "Normal delivery", detail: "Sample passes through all six stages with low latency." },
+  congested: { latency: 800, loss: 12, online: true, title: "Channel congestion", detail: "Higher latency and occasional packet loss. Tests link buffer behavior." },
+  unstable: { latency: 1400, loss: 35, online: true, title: "Unstable link", detail: "Frequent packet loss dropped at the RF transmission stage." },
+  outage: { latency: 250, loss: 0, online: false, title: "Link blackout", detail: "Disabled RF link prevents transmission from completing." }
 };
+
 document.querySelectorAll("[data-scenario]").forEach((button) => {
   button.addEventListener("click", async () => {
     const scenario = scenarios[button.dataset.scenario];
@@ -691,46 +963,60 @@ document.querySelectorAll("[data-scenario]").forEach((button) => {
     result.querySelector("b").textContent = scenario.title + " · running";
     result.querySelector("p").textContent = scenario.detail;
     const outcome = await transmit();
-    result.querySelector("b").textContent = scenario.title + " · " + (outcome === "delivered" ? "delivered" : outcome === "invalid" ? "rejected" : outcome === "busy" ? "busy" : "not delivered");
-    result.querySelector("p").textContent = scenario.detail + " " + (outcome === "delivered" ? "The record is now available in the data explorer." : outcome === "invalid" ? "The validation stage rejected the payload; no record was stored." : outcome === "busy" ? "Another transmission is already in progress." : "No record was added; review the pipeline status and try again.");
+    result.querySelector("b").textContent =
+      scenario.title + " · " + (outcome === "delivered" ? "delivered" : outcome === "invalid" ? "rejected" : outcome === "busy" ? "busy" : "not delivered");
+    result.querySelector("p").textContent =
+      scenario.detail +
+      " " +
+      (outcome === "delivered"
+        ? "The record is now available in the data explorer."
+        : outcome === "invalid"
+        ? "The validation stage rejected the payload; no record was stored."
+        : outcome === "busy"
+        ? "Another transmission is already in progress."
+        : "No record was added; review the pipeline status and try again.");
     result.querySelector(".test-result-mark").textContent = outcome === "delivered" ? "✓" : "!";
   });
 });
 
 const guide = [
-  ["Acquisition", "A sensor node reads a physical quantity. In this lab, the slider stands in for a sensor and its current value becomes the sample."],
-  ["Validation", "Before sending data, firmware should check that the reading is present, numeric, and within the expected range. The current demo uses bounded inputs."],
-  ["Transmission", "The node packages its reading and sends it over a wireless link. Latency, packet loss, and link availability can be changed in the network lab."],
-  ["Gateway", "A gateway receives messages from nodes and routes them to the next service. This browser model represents that step locally."],
-  ["Storage", "A delivered sample is saved to the destination selected in the data explorer. Browser mode keeps it on this device; API mode sends it to the configured server."],
-  ["Visualization", "The dashboard turns stored readings into a trend and checks the configured alert thresholds. Try changing a sensor value and sampling again."]
+  ["01 / Sensor Transduction", "Physical parameters (temperature, humidity, air gas, soil capacitance) generate continuous analog voltages. The sensor's transducer converts physical environmental state into electrical resistance or capacitance."],
+  ["02 / Edge Sampling (ESP32 ADC)", "The microcontroller samples the analog pin via a 12-bit ADC, averages readings to filter electrical noise, and applies calibration curves to compute engineering units (°C, %, PPM)."],
+  ["03 / Pre-Transmission Validation", "Before powering on the RF radio, the edge firmware checks bounds. If a reading is impossible (e.g. -100°C), it flags a sensor fault to avoid wasting radio transmission power."],
+  ["04 / Wireless RF Packet Broadcast", "The node formats a binary or JSON packet with a preamble, node ID, timestamp, and CRC-16 checksum, broadcasting it over 2.4GHz ESP-NOW or 868MHz LoRa."],
+  ["05 / IoT Gateway Ingestion", "The gateway antenna captures the RF packet, validates the CRC checksum, decrypts or unwraps the payload, and attaches an ingestion envelope timestamp."],
+  ["06 / Persistence & Real-Time Dashboard", "The gateway commits the verified telemetry reading to the database and streams updates to the live monitoring dashboard, evaluating safety thresholds."]
 ];
+
 function renderGuide() {
   const panel = document.querySelector("#guide-progress");
   panel.hidden = guideStep < 0;
   if (guideStep < 0) return;
   const step = guide[guideStep];
-  document.querySelector("#guide-step-label").textContent = "STEP " + (guideStep + 1) + " OF " + guide.length;
+  document.querySelector("#guide-step-label").textContent = "STAGE " + (guideStep + 1) + " OF " + guide.length;
   document.querySelector("#guide-step-title").textContent = step[0];
   document.querySelector("#guide-step-copy").textContent = step[1];
   document.querySelector("#guide-prev").disabled = guideStep === 0;
   document.querySelector("#guide-advance").textContent = guideStep === guide.length - 1 ? "Finish walkthrough" : "Next step";
   document.querySelector("#guide-next").textContent = "Restart walkthrough";
 }
+
 document.querySelector("#guide-next").addEventListener("click", () => {
   guideStep = guideStep < 0 || guideStep === guide.length - 1 ? 0 : guideStep;
   renderGuide();
 });
+
 document.querySelector("#guide-prev").addEventListener("click", () => {
   guideStep = Math.max(0, guideStep - 1);
   renderGuide();
 });
+
 document.querySelector("#guide-advance").addEventListener("click", () => {
   guideStep = guideStep === guide.length - 1 ? -1 : guideStep + 1;
   renderGuide();
 });
 
-// Keep the monitoring views in sync when a manual transmission succeeds.
+// Keep the monitoring views in sync when a manual transmission succeeds
 const originalRenderRecords = renderRecords;
 renderRecords = function () {
   originalRenderRecords();

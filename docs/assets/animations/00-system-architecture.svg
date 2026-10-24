@@ -1,85 +1,215 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 570" role="img" aria-labelledby="title desc">
-<title id="title">MW-SENSE system architecture</title>
-<desc id="desc">Animated architecture showing physical sensors flowing through ESP32 firmware, a local offline queue, Wi-Fi and MQTT, the backend API, SQLite persistence, and the browser dashboard. A separate dashed path shows virtual telemetry generated in the browser.</desc>
-<defs>
-  <linearGradient id="canvas" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#0b1420"/><stop offset="1" stop-color="#142638"/></linearGradient>
-  <linearGradient id="panel" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#172b3e"/><stop offset="1" stop-color="#1c3449"/></linearGradient>
-  <filter id="glow"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-  <style>
-    .heading{font:600 23px system-ui,-apple-system,sans-serif;fill:#eef5fb}
-    .subheading{font:13px system-ui,-apple-system,sans-serif;fill:#9db1c4}
-    .lane{font:600 11px system-ui,-apple-system,sans-serif;letter-spacing:1.5px;fill:#8da6ba}
-    .node{fill:url(#panel);stroke:#38546b;stroke-width:1.4}
-    .nodeTitle{font:600 14px system-ui,-apple-system,sans-serif;fill:#edf5fb}
-    .nodeSub{font:11px system-ui,-apple-system,sans-serif;fill:#a9bdce}
-    .number{font:600 10px system-ui,-apple-system,sans-serif;fill:#081522}
-    .flow{fill:none;stroke:#64859f;stroke-width:2.2;stroke-linecap:round;stroke-dasharray:5 7}
-    .virtual{fill:none;stroke:#a98bd6;stroke-width:2;stroke-dasharray:4 7;opacity:.8}
-    .packet{fill:#72e0c0;filter:url(#glow)}
-    .vpacket{fill:#c6a7ff;filter:url(#glow)}
-    .foot{font:11px system-ui,-apple-system,sans-serif;fill:#8198ab}
-    @media (prefers-reduced-motion: reduce){.packet,.vpacket{display:none}}
-  </style>
-</defs>
-<rect width="1120" height="570" rx="22" fill="url(#canvas)"/>
-<text class="heading" x="36" y="48">MW-SENSE · System architecture</text>
-<text class="subheading" x="36" y="72">Two ways to explore one telemetry platform: physical device ingestion and browser simulation</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1160 580" role="img" aria-labelledby="title desc" style="background:#000000; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+  <title id="title">MW-SENSE System Architecture &amp; Telemetry Pipeline</title>
+  <desc id="desc">Animated system architecture showing physical sensors flowing through ESP32 firmware, LittleFS offline storage, wireless transport, IoT gateway, SQLite backend, and the interactive real-time dashboard.</desc>
+  <defs>
+    <!-- Background & Panel Gradients -->
+    <linearGradient id="bgCanvas" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#000000" />
+      <stop offset="50%" stop-color="#040608" />
+      <stop offset="100%" stop-color="#000000" />
+    </linearGradient>
 
-<text class="lane" x="38" y="120">PHYSICAL TELEMETRY PATH</text>
-<g>
-  <rect class="node" x="38" y="145" width="160" height="112" rx="13"/>
-  <circle cx="59" cy="168" r="11" fill="#72e0c0"/><text class="number" x="59" y="172" text-anchor="middle">01</text>
-  <text class="nodeTitle" x="118" y="198" text-anchor="middle">Sensors</text>
-  <text class="nodeSub" x="118" y="220" text-anchor="middle">Physical readings</text>
+    <linearGradient id="panelGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#0a0a0f" />
+      <stop offset="100%" stop-color="#060609" />
+    </linearGradient>
 
-  <rect class="node" x="246" y="145" width="160" height="112" rx="13"/>
-  <circle cx="267" cy="168" r="11" fill="#72e0c0"/><text class="number" x="267" y="172" text-anchor="middle">02</text>
-  <text class="nodeTitle" x="326" y="198" text-anchor="middle">ESP32 firmware</text>
-  <text class="nodeSub" x="326" y="220" text-anchor="middle">Read + timestamp</text>
+    <linearGradient id="cyanLine" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#00f2fe" />
+      <stop offset="100%" stop-color="#4facfe" />
+    </linearGradient>
 
-  <rect class="node" x="454" y="145" width="160" height="112" rx="13"/>
-  <circle cx="475" cy="168" r="11" fill="#72e0c0"/><text class="number" x="475" y="172" text-anchor="middle">03</text>
-  <text class="nodeTitle" x="534" y="198" text-anchor="middle">LittleFS queue</text>
-  <text class="nodeSub" x="534" y="220" text-anchor="middle">Buffer + retry</text>
+    <filter id="glowCyan" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3.5" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
 
-  <rect class="node" x="662" y="145" width="160" height="112" rx="13"/>
-  <circle cx="683" cy="168" r="11" fill="#72e0c0"/><text class="number" x="683" y="172" text-anchor="middle">04</text>
-  <text class="nodeTitle" x="742" y="198" text-anchor="middle">Wi-Fi + MQTT</text>
-  <text class="nodeSub" x="742" y="220" text-anchor="middle">Message transport</text>
+    <filter id="glowGreen" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
 
-  <rect class="node" x="870" y="145" width="210" height="112" rx="13"/>
-  <circle cx="891" cy="168" r="11" fill="#72e0c0"/><text class="number" x="891" y="172" text-anchor="middle">05</text>
-  <text class="nodeTitle" x="975" y="198" text-anchor="middle">MQTT bridge + API</text>
-  <text class="nodeSub" x="975" y="220" text-anchor="middle">Authenticate + validate</text>
-</g>
-<g class="flow">
-  <path d="M198 201H246"/><path d="M406 201H454"/><path d="M614 201H662"/><path d="M822 201H870"/>
-</g>
-<circle class="packet" r="5"><animateMotion dur="6s" repeatCount="indefinite" path="M198 201H975"/></circle>
-<circle class="packet" r="4"><animateMotion dur="6s" begin="-3s" repeatCount="indefinite" path="M198 201H975"/></circle>
+    <style>
+      .title-text { font: 700 22px -apple-system, BlinkMacSystemFont, sans-serif; fill: #ffffff; letter-spacing: 0.5px; }
+      .sub-text { font: 12px -apple-system, BlinkMacSystemFont, sans-serif; fill: #71717a; }
+      .lane-label { font: 700 10px monospace; fill: #00f2fe; letter-spacing: 1.5px; }
+      .lane-virtual { font: 700 10px monospace; fill: #a855f7; letter-spacing: 1.5px; }
+      
+      .node-card { fill: url(#panelGrad); stroke: #1e1e26; stroke-width: 1.4; rx: 10px; }
+      .node-card:hover { stroke: #00f2fe; }
+      .node-title { font: 600 13px -apple-system, BlinkMacSystemFont, sans-serif; fill: #f4f4f5; }
+      .node-detail { font: 10px -apple-system, BlinkMacSystemFont, sans-serif; fill: #8e8e99; }
+      .node-badge { font: 700 9px monospace; fill: #000000; }
+      
+      .bus-line { fill: none; stroke: #272733; stroke-width: 2; stroke-dasharray: 6 6; }
+      .bus-active { fill: none; stroke: #00f2fe; stroke-width: 2.2; stroke-linecap: round; }
+      .virtual-bus { fill: none; stroke: #7e22ce; stroke-width: 1.8; stroke-dasharray: 5 6; }
+      
+      .packet-cyan { fill: #00f2fe; filter: url(#glowCyan); }
+      .packet-green { fill: #10b981; filter: url(#glowGreen); }
+      .packet-purple { fill: #c084fc; filter: url(#glowCyan); }
+      
+      .footer-note { font: 10px monospace; fill: #52525b; }
+      
+      .pulse-indicator {
+        animation: pulseDot 2s infinite ease-in-out;
+      }
+      @keyframes pulseDot {
+        0%, 100% { opacity: 0.6; }
+        50% { opacity: 1; filter: drop-shadow(0 0 6px #00f2fe); }
+      }
+    </style>
+  </defs>
 
-<path d="M975 257V303H742V326" class="flow"/>
-<path d="M975 303H1002V326" class="flow"/>
+  <!-- Canvas Background -->
+  <rect width="1160" height="580" rx="14" fill="url(#bgCanvas)" stroke="#1a1a24" stroke-width="1.5" />
 
-<text class="lane" x="38" y="314">PERSISTENCE + PRESENTATION</text>
-<rect class="node" x="570" y="326" width="344" height="102" rx="13"/>
-<circle cx="594" cy="350" r="11" fill="#72e0c0"/><text class="number" x="594" y="354" text-anchor="middle">06</text>
-<text class="nodeTitle" x="742" y="373" text-anchor="middle">SQLite database</text>
-<text class="nodeSub" x="742" y="396" text-anchor="middle">Validated telemetry + device records</text>
-<rect class="node" x="938" y="326" width="142" height="102" rx="13"/>
-<circle cx="960" cy="350" r="11" fill="#72e0c0"/><text class="number" x="960" y="354" text-anchor="middle">07</text>
-<text class="nodeTitle" x="1009" y="373" text-anchor="middle">Dashboard</text>
-<text class="nodeSub" x="1009" y="396" text-anchor="middle">Charts + status</text>
-<path class="flow" d="M914 377H938"/>
-<circle class="packet" r="5"><animateMotion dur="2.8s" repeatCount="indefinite" path="M914 377H938"/></circle>
-<path class="flow" d="M1009 326V286H975V257" opacity=".45"/>
+  <!-- Subtle Blueprint Grid -->
+  <g opacity="0.06" stroke="#ffffff" stroke-width="0.5">
+    <line x1="0" y1="80" x2="1160" y2="80" />
+    <line x1="0" y1="280" x2="1160" y2="280" />
+    <line x1="0" y1="460" x2="1160" y2="460" />
+    <line x1="180" y1="0" x2="180" y2="580" />
+    <line x1="380" y1="0" x2="380" y2="580" />
+    <line x1="580" y1="0" x2="580" y2="580" />
+    <line x1="780" y1="0" x2="780" y2="580" />
+    <line x1="980" y1="0" x2="980" y2="580" />
+  </g>
 
-<text class="lane" x="38" y="472">VIRTUAL LEARNING PATH</text>
-<rect class="node" x="38" y="490" width="320" height="52" rx="11" stroke="#7f69a9"/>
-<text class="nodeTitle" x="198" y="512" text-anchor="middle">Browser virtual sensors</text>
-<text class="nodeSub" x="198" y="529" text-anchor="middle">Simulated values · not physical measurements</text>
-<path class="virtual" d="M358 516H440V377H570"/>
-<circle class="vpacket" r="5"><animateMotion dur="5s" repeatCount="indefinite" path="M358 516H440V377H570"/></circle>
-<text class="foot" x="570" y="516">Virtual and physical records should remain distinguishable.</text>
-<text class="foot" x="38" y="556">Conceptual view of the current repository · service hosting and physical validation are separate deployment tasks.</text>
+  <!-- Header -->
+  <g transform="translate(40, 48)">
+    <text class="title-text" x="0" y="0">MW-SENSE // SYSTEM ARCHITECTURE &amp; TELEMETRY PIPELINE</text>
+    <text class="sub-text" x="0" y="20">Modular Wireless Sensor Network · Hardware Ingestion &amp; Interactive Virtual Lab</text>
+    
+    <!-- Status Badges Top-Right -->
+    <g transform="translate(760, -14)">
+      <rect x="0" y="0" width="130" height="26" rx="13" fill="#081512" stroke="#10b981" stroke-width="1.2" />
+      <circle cx="12" cy="13" r="4" fill="#10b981" class="pulse-indicator" />
+      <text x="24" y="17" fill="#10b981" font-size="10" font-weight="700" letter-spacing="0.05em">HARDWARE READY</text>
+
+      <rect x="145" y="0" width="155" height="26" rx="13" fill="#090d18" stroke="#00f2fe" stroke-width="1.2" />
+      <circle cx="157" cy="13" r="4" fill="#00f2fe" class="pulse-indicator" />
+      <text x="169" y="17" fill="#00f2fe" font-size="10" font-weight="700" letter-spacing="0.05em">VIRTUAL LAB ACTIVE</text>
+    </g>
+  </g>
+
+  <!-- ========================================================================= -->
+  <!-- PRIMARY TELEMETRY BUS (PHYSICAL HARDWARE PATH)                             -->
+  <!-- ========================================================================= -->
+  <text class="lane-label" x="40" y="116">PRIMARY TELEMETRY PIPELINE (6 STAGES)</text>
+
+  <!-- Stage 01: Physical Sensors -->
+  <g transform="translate(40, 135)">
+    <rect class="node-card" width="160" height="115" />
+    <circle cx="24" cy="24" r="10" fill="#00f2fe" />
+    <text class="node-badge" x="24" y="27" text-anchor="middle">01</text>
+    <text class="node-title" x="20" y="60">Sensor Modules</text>
+    <text class="node-detail" x="20" y="78">DHT22, MQ-135, Soil</text>
+    <text class="node-detail" x="20" y="94">Analog voltage / I2C</text>
+  </g>
+
+  <!-- Stage 02: Edge Microcontroller -->
+  <g transform="translate(260, 135)">
+    <rect class="node-card" width="160" height="115" />
+    <circle cx="24" cy="24" r="10" fill="#00f2fe" />
+    <text class="node-badge" x="24" y="27" text-anchor="middle">02</text>
+    <text class="node-title" x="20" y="60">Edge Node (ESP32)</text>
+    <text class="node-detail" x="20" y="78">12-Bit ADC Sampling</text>
+    <text class="node-detail" x="20" y="94">LittleFS Flash Queue</text>
+  </g>
+
+  <!-- Stage 03: Wireless RF Link -->
+  <g transform="translate(480, 135)">
+    <rect class="node-card" width="160" height="115" />
+    <circle cx="24" cy="24" r="10" fill="#00f2fe" />
+    <text class="node-badge" x="24" y="27" text-anchor="middle">03</text>
+    <text class="node-title" x="20" y="60">Wireless RF Link</text>
+    <text class="node-detail" x="20" y="78">ESP-NOW / 2.4GHz Wi-Fi</text>
+    <text class="node-detail" x="20" y="94">LoRa 868MHz Option</text>
+  </g>
+
+  <!-- Stage 04: IoT Gateway -->
+  <g transform="translate(700, 135)">
+    <rect class="node-card" width="170" height="115" />
+    <circle cx="24" cy="24" r="10" fill="#00f2fe" />
+    <text class="node-badge" x="24" y="27" text-anchor="middle">04</text>
+    <text class="node-title" x="20" y="60">IoT Gateway &amp; Broker</text>
+    <text class="node-detail" x="20" y="78">CRC-16 Validation</text>
+    <text class="node-detail" x="20" y="94">MQTT Mosquitto Bridge</text>
+  </g>
+
+  <!-- Stage 05 & 06: Storage & Presentation -->
+  <g transform="translate(930, 135)">
+    <rect class="node-card" width="190" height="115" />
+    <circle cx="24" cy="24" r="10" fill="#10b981" />
+    <text class="node-badge" x="24" y="27" text-anchor="middle">05</text>
+    <text class="node-title" x="20" y="60">FastAPI &amp; SQLite</text>
+    <text class="node-detail" x="20" y="78">Persistence &amp; Validation</text>
+    <text class="node-detail" x="20" y="94">REST Telemetry API</text>
+  </g>
+
+  <!-- Connecting Bus Lines (Physical Path) -->
+  <path d="M 200 192 L 260 192" class="bus-line" />
+  <path d="M 420 192 L 480 192" class="bus-line" />
+  <path d="M 640 192 L 700 192" class="bus-line" />
+  <path d="M 870 192 L 930 192" class="bus-line" />
+
+  <!-- Animated Telemetry Packets Traversing the Primary Bus -->
+  <circle class="packet-cyan" r="4.5">
+    <animateMotion dur="5s" repeatCount="indefinite" path="M 200 192 L 930 192" />
+  </circle>
+  <circle class="packet-cyan" r="3.5">
+    <animateMotion dur="5s" begin="-2.5s" repeatCount="indefinite" path="M 200 192 L 930 192" />
+  </circle>
+
+  <!-- ========================================================================= -->
+  <!-- SECONDARY LANE: OBSERVABILITY & VIRTUAL ENVIRONMENT                       -->
+  <!-- ========================================================================= -->
+  <text class="lane-virtual" x="40" y="310">INTERACTIVE PRESENTATION &amp; VIRTUAL LAB</text>
+
+  <!-- Presentation Layer Card -->
+  <g transform="translate(40, 330)">
+    <rect class="node-card" width="450" height="135" />
+    <circle cx="24" cy="24" r="10" fill="#a855f7" />
+    <text class="node-badge" x="24" y="27" text-anchor="middle">06</text>
+    <text class="node-title" x="20" y="60">Real-Time SCADA Dashboard</text>
+    <text class="node-detail" x="20" y="82">Interactive SVG Trend Oscilloscope &amp; Spectrum History</text>
+    <text class="node-detail" x="20" y="98">Per-Node Connection Health &amp; Microcontroller Uptime Heartbeats</text>
+    <text class="node-detail" x="20" y="114">Configurable Environmental Thresholds &amp; Incident Feed</text>
+  </g>
+
+  <!-- Virtual Sensor Emulator Card -->
+  <g transform="translate(530, 330)">
+    <rect class="node-card" width="590" height="135" stroke="#7e22ce" />
+    <circle cx="24" cy="24" r="10" fill="#a855f7" />
+    <text class="node-badge" x="24" y="27" text-anchor="middle">LAB</text>
+    <text class="node-title" x="20" y="60">Client-Side Virtual Sensor Lab</text>
+    <text class="node-detail" x="20" y="82">In-browser transducer physics emulator (DHT22, MQ-135, Soil Capacitive)</text>
+    <text class="node-detail" x="20" y="98">RF link stress-testing: Latency controls (0-2000ms) &amp; Packet Drop model (0-60%)</text>
+    <text class="node-detail" x="20" y="114">Dual-mode packet inspector: Decoded JSON vs. Raw Hex Frame vs. Journey Trace</text>
+  </g>
+
+  <!-- Downward Feed Connectors -->
+  <path d="M 1025 250 L 1025 295 L 265 295 L 265 330" class="bus-line" />
+  <circle class="packet-green" r="4">
+    <animateMotion dur="4s" repeatCount="indefinite" path="M 1025 250 L 1025 295 L 265 295 L 265 330" />
+  </circle>
+
+  <!-- Virtual Telemetry Path to Dashboard -->
+  <path d="M 530 395 L 490 395" class="virtual-bus" />
+  <circle class="packet-purple" r="4">
+    <animateMotion dur="2.5s" repeatCount="indefinite" path="M 530 395 L 490 395" />
+  </circle>
+
+  <!-- Footer Information -->
+  <g transform="translate(40, 520)">
+    <text class="footer-note" x="0" y="0">Unidirectional Telemetry Bus: Physical readings enter via ESP32 ADC · Virtual packets generated client-side for educational exploration.</text>
+    <text class="footer-note" x="0" y="18">Platform Architecture: C++ Embedded Firmware (PlatformIO) | Python FastAPI Backend | Pure Vanilla JavaScript / HTML5 Frontend.</text>
+  </g>
 </svg>

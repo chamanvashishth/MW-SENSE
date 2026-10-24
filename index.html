@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#f6f6f2" />
-  <meta name="description" content="MW-SENSE Virtual Lab — explore modular wireless sensor networks through interactive simulations." />
-  <title>MW-SENSE | Virtual Lab</title>
+  <meta name="theme-color" content="#000000" />
+  <meta name="description" content="MW-SENSE Virtual Lab — Interactive Modular Wireless Sensor Network & Embedded Telemetry Platform." />
+  <title>MW-SENSE | Virtual Sensor & Telemetry Lab</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -28,115 +28,252 @@
         <a class="nav-link" href="#applications"><span class="nav-icon">▦</span> Applications</a>
       </nav>
       <div class="sidebar-bottom">
-        <div class="simulation-note"><span class="pulse-dot"></span><div><b>Simulation mode</b><small>No physical hardware connected</small></div></div>
-        <div class="sidebar-foot">MODULAR WIRELESS SENSOR NETWORK<br><span>PROJECT WORKSPACE · 2026</span></div>
+        <div class="simulation-note">
+          <span class="pulse-dot"></span>
+          <div><b>Interactive Virtual Lab</b><small>Pure client-side IoT simulation</small></div>
+        </div>
+        <div class="sidebar-foot">MODULAR WIRELESS SENSOR NETWORK<br><span>COLLEGE MAJOR PROJECT · 2026</span></div>
       </div>
     </aside>
 
     <main class="main-content">
       <header class="topbar">
         <div class="breadcrumb">Workspace <span>/</span> <b>Overview</b></div>
-        <div class="topbar-right"><span class="mode-pill"><i></i> VIRTUAL ENVIRONMENT</span><span class="avatar">MW</span></div>
+        <div class="topbar-right">
+          <span class="mode-pill"><i></i> VIRTUAL ENVIRONMENT ACTIVE</span>
+          <span class="avatar">MW</span>
+        </div>
       </header>
 
       <section class="hero section" id="overview">
         <div class="hero-copy">
-          <div class="eyebrow"><span class="eyebrow-line"></span> INTRODUCING THE SYSTEM</div>
+          <div class="eyebrow"><span class="eyebrow-line"></span> EMBEDDED TELEMETRY LAB</div>
           <h1>Monitor the environment.<br><em>Make sense of the data.</em></h1>
-          <p class="hero-description">A modular wireless sensor network for infrastructure and environmental monitoring. Explore how sensor nodes collect, send, and organize field data.</p>
-          <div class="hero-actions"><a class="button primary" href="#virtual-lab">Open virtual lab <span>↗</span></a><a class="text-button" href="#architecture">Explore architecture <span>→</span></a></div>
+          <p class="hero-description">An educational virtual lab and modular wireless sensor network architecture. Experience how physical sensors transduce physical phenomena into electrical signals, packetize telemetry at edge nodes, transmit over RF wireless links, and route through an IoT gateway to real-time dashboards.</p>
+          <div class="hero-actions">
+            <a class="button primary" href="#virtual-lab">Launch Virtual Lab <span>↗</span></a>
+            <a class="text-button" href="#architecture">Inspect 6-Layer Architecture <span>→</span></a>
+          </div>
         </div>
         <div class="hero-visual" aria-label="Illustration of connected wireless sensor nodes">
           <div class="orbit orbit-one"></div><div class="orbit orbit-two"></div>
-          <div class="orbit-label label-a">FIELD NODE 01</div><div class="orbit-label label-b">WIRELESS LINK</div><div class="orbit-label label-c">GATEWAY</div>
+          <div class="orbit-label label-a">NODE-01 · DHT22</div><div class="orbit-label label-b">2.4GHz WIRELESS</div><div class="orbit-label label-c">IOT GATEWAY</div>
           <div class="network-core"><div class="core-ring"></div><div class="core-symbol">⌁</div><small>MW<br>SENSE</small></div>
           <div class="node node-a"><span>°C</span></div><div class="node node-b"><span>◌</span></div><div class="node node-c"><span>⌁</span></div>
           <div class="signal signal-a"></div><div class="signal signal-b"></div><div class="signal signal-c"></div>
-          <div class="visual-caption"><span class="pulse-dot"></span> CONNECTED SYSTEM MODEL</div>
+          <div class="visual-caption"><span class="pulse-dot"></span> TELEMETRY NETWORK TOPOLOGY</div>
         </div>
       </section>
 
       <section class="section metrics-grid" aria-label="System summary">
-        <article class="metric-card"><div class="metric-top"><span>VIRTUAL NODES</span><span class="metric-symbol">⌘</span></div><strong id="node-count">03</strong><small>Configured in this demo</small></article>
-        <article class="metric-card"><div class="metric-top"><span>DATA POINTS</span><span class="metric-symbol">⌁</span></div><strong id="reading-count">000</strong><small>Readings transmitted</small></article>
-        <article class="metric-card"><div class="metric-top"><span>NETWORK STATUS</span><span class="metric-symbol">◉</span></div><strong class="status-value" id="network-status" role="status" aria-live="polite">READY</strong><small>Simulation environment</small></article>
-        <article class="metric-card"><div class="metric-top"><span>DATA ROUTE</span><span class="metric-symbol">⇢</span></div><strong>6 <small class="inline-unit">STAGES</small></strong><small>From sensing to visualization</small></article>
+        <article class="metric-card"><div class="metric-top"><span>VIRTUAL SENSOR NODES</span><span class="metric-symbol">⌘</span></div><strong id="node-count">03</strong><small>Active microcontroller fleet</small></article>
+        <article class="metric-card"><div class="metric-top"><span>TELEMETRY PACKETS</span><span class="metric-symbol">⌁</span></div><strong id="reading-count">000</strong><small>Delivered & verified records</small></article>
+        <article class="metric-card"><div class="metric-top"><span>RF LINK STATUS</span><span class="metric-symbol">◉</span></div><strong class="status-value" id="network-status" role="status" aria-live="polite">READY</strong><small>ESP-NOW / MQTT Channel</small></article>
+        <article class="metric-card"><div class="metric-top"><span>DATA JOURNEY</span><span class="metric-symbol">⇢</span></div><strong>6 <small class="inline-unit">STAGES</small></strong><small>Transducer to visualization</small></article>
       </section>
 
       <section class="section section-block" id="architecture">
-        <div class="section-heading"><div><div class="eyebrow">01 / SYSTEM DESIGN</div><h2>One system. <em>Connected layers.</em></h2></div><p>MW-SENSE follows a modular architecture. Each layer has a distinct responsibility and can be expanded as the monitoring requirements evolve.</p></div>
+        <div class="section-heading">
+          <div><div class="eyebrow">01 / SYSTEM DESIGN</div><h2>One system. <em>Connected layers.</em></h2></div>
+          <p>MW-SENSE follows a modular IoT architecture. Every stage has an isolated responsibility, from analog sensor transduction to cloud database ingestion.</p>
+        </div>
         <div class="architecture-card">
           <div class="architecture-flow">
-            <div class="arch-step"><div class="arch-icon">⌁</div><b>Sensor layer</b><small>Environmental inputs</small><span>01</span></div><div class="arch-connector">······›</div>
-            <div class="arch-step"><div class="arch-icon">▣</div><b>Edge node</b><small>ESP32 / STM32 class</small><span>02</span></div><div class="arch-connector">······›</div>
-            <div class="arch-step"><div class="arch-icon">⌁</div><b>Wireless link</b><small>Wi-Fi / MQTT concept</small><span>03</span></div><div class="arch-connector">······›</div>
-            <div class="arch-step"><div class="arch-icon">▤</div><b>Gateway</b><small>Receive & route</small><span>04</span></div><div class="arch-connector">······›</div>
-            <div class="arch-step"><div class="arch-icon">▥</div><b>Data store</b><small>Timestamped records</small><span>05</span></div><div class="arch-connector">······›</div>
-            <div class="arch-step"><div class="arch-icon">▦</div><b>Dashboard</b><small>Monitor & analyze</small><span>06</span></div>
+            <div class="arch-step"><div class="arch-icon">⌁</div><b>01 / Sensors</b><small>DHT22, MQ-135, Capacitive</small><span>01</span></div><div class="arch-connector">······›</div>
+            <div class="arch-step"><div class="arch-icon">▣</div><b>02 / Edge Node</b><small>ESP32 ADC & Sampling</small><span>02</span></div><div class="arch-connector">······›</div>
+            <div class="arch-step"><div class="arch-icon">⌁</div><b>03 / Wireless Link</b><small>ESP-NOW / 2.4GHz RF</small><span>03</span></div><div class="arch-connector">······›</div>
+            <div class="arch-step"><div class="arch-icon">▤</div><b>04 / IoT Gateway</b><small>CRC Check & Enveloping</small><span>04</span></div><div class="arch-connector">······›</div>
+            <div class="arch-step"><div class="arch-icon">▥</div><b>05 / Data Store</b><small>Timestamped Persistence</small><span>05</span></div><div class="arch-connector">······›</div>
+            <div class="arch-step"><div class="arch-icon">▦</div><b>06 / Dashboard</b><small>Live Real-Time Telemetry</small><span>06</span></div>
           </div>
-          <div class="architecture-foot"><span><i class="legend-dot"></i> Data direction</span><span>Conceptual system architecture · hardware implementation may vary</span></div>
+          <div class="architecture-foot">
+            <span><i class="legend-dot"></i> Unidirectional Telemetry Bus</span>
+            <span>Modular Wireless Sensor Network · Hardware & Virtual Architecture</span>
+          </div>
         </div>
       </section>
 
       <section class="section section-block" id="virtual-lab">
-        <div class="section-heading"><div><div class="eyebrow">02 / EXPERIMENT</div><h2>Virtual <em>sensor lab.</em></h2></div><p>Change a sensor value and transmit a sample reading. Watch the simulated system validate and route the data.</p></div>
+        <div class="section-heading">
+          <div><div class="eyebrow">02 / EXPERIMENT & SENSING</div><h2>Interactive <em>sensor lab.</em></h2></div>
+          <p>Adjust environmental transducers or choose a real-world scenario. Watch how physical changes convert into digital ADC readings and travel across the RF link.</p>
+        </div>
         <div class="lab-grid">
           <div class="panel sensor-panel">
-            <div class="panel-heading"><div><span class="panel-kicker">FIELD CONFIGURATION</span><h3>Sensor nodes</h3></div><span class="live-tag"><i></i> SIMULATED</span></div>
+            <div class="panel-heading">
+              <div><span class="panel-kicker">PHYSICAL TRANSDUCER EMULATOR</span><h3>Sensor node controls</h3></div>
+              <span class="live-tag"><i></i> TRANSDUCER ACTIVE</span>
+            </div>
+
+            <!-- Environment Scenario Presets Bar -->
+            <div class="env-presets-bar">
+              <span class="env-presets-label">PRESETS:</span>
+              <button class="env-preset-btn active" type="button" data-preset="baseline">Standard Room</button>
+              <button class="env-preset-btn" type="button" data-preset="smoke">Gas Leak Event</button>
+              <button class="env-preset-btn" type="button" data-preset="heatwave">Crop Heatwave</button>
+              <button class="env-preset-btn" type="button" data-preset="monsoon">Monsoon Rain</button>
+              <button class="env-preset-btn" type="button" data-preset="freeze">Cold Storage</button>
+            </div>
+
             <div class="sensor-list">
-              <article class="sensor-row" data-sensor="temperature"><div class="sensor-icon warm">°C</div><div class="sensor-info"><b>Temperature</b><small>TEMP-01 · NODE-01</small></div><div class="sensor-control"><strong id="temperature-value">28.4</strong><span>°C</span><input id="temperature" type="range" min="0" max="50" step="0.1" value="28.4" aria-label="Temperature value"></div></article>
-              <article class="sensor-row" data-sensor="humidity"><div class="sensor-icon cool">％</div><div class="sensor-info"><b>Humidity</b><small>HUM-01 · NODE-01</small></div><div class="sensor-control"><strong id="humidity-value">62</strong><span>%</span><input id="humidity" type="range" min="0" max="100" step="1" value="62" aria-label="Humidity value"></div></article>
-              <article class="sensor-row" data-sensor="air"><div class="sensor-icon violet">◌</div><div class="sensor-info"><b>Air quality</b><small>AIR-02 · NODE-02</small></div><div class="sensor-control"><strong id="air-value">145</strong><span>ppm*</span><input id="air" type="range" min="0" max="500" step="1" value="145" aria-label="Air quality value"></div></article>
-              <article class="sensor-row" data-sensor="soil"><div class="sensor-icon green">◒</div><div class="sensor-info"><b>Soil moisture</b><small>SOIL-01 · NODE-03</small></div><div class="sensor-control"><strong id="soil-value">38</strong><span>%</span><input id="soil" type="range" min="0" max="100" step="1" value="38" aria-label="Soil moisture value"></div></article>
+              <article class="sensor-row" data-sensor="temperature">
+                <div class="sensor-icon warm">°C</div>
+                <div class="sensor-info">
+                  <b>Temperature</b>
+                  <small>TEMP-01 · NODE-01</small>
+                  <span class="sensor-tech-detail">Transducer: NTC Thermistor (Analog ADC)</span>
+                </div>
+                <div class="sensor-control">
+                  <strong id="temperature-value">28.4</strong><span>°C</span>
+                  <input id="temperature" type="range" min="0" max="50" step="0.1" value="28.4" aria-label="Temperature value">
+                </div>
+              </article>
+
+              <article class="sensor-row" data-sensor="humidity">
+                <div class="sensor-icon cool">％</div>
+                <div class="sensor-info">
+                  <b>Humidity</b>
+                  <small>HUM-01 · NODE-01</small>
+                  <span class="sensor-tech-detail">Transducer: Capacitive Polymer Film</span>
+                </div>
+                <div class="sensor-control">
+                  <strong id="humidity-value">62</strong><span>%</span>
+                  <input id="humidity" type="range" min="0" max="100" step="1" value="62" aria-label="Humidity value">
+                </div>
+              </article>
+
+              <article class="sensor-row" data-sensor="air">
+                <div class="sensor-icon violet">◌</div>
+                <div class="sensor-info">
+                  <b>Air Quality (AQI)</b>
+                  <small>AIR-02 · NODE-02</small>
+                  <span class="sensor-tech-detail">Transducer: MQ-135 Tin Dioxide (SnO2)</span>
+                </div>
+                <div class="sensor-control">
+                  <strong id="air-value">145</strong><span>ppm*</span>
+                  <input id="air" type="range" min="0" max="500" step="1" value="145" aria-label="Air quality value">
+                </div>
+              </article>
+
+              <article class="sensor-row" data-sensor="soil">
+                <div class="sensor-icon green">◒</div>
+                <div class="sensor-info">
+                  <b>Soil Moisture</b>
+                  <small>SOIL-01 · NODE-03</small>
+                  <span class="sensor-tech-detail">Transducer: Capacitive 1.5MHz Frequency Osc</span>
+                </div>
+                <div class="sensor-control">
+                  <strong id="soil-value">38</strong><span>%</span>
+                  <input id="soil" type="range" min="0" max="100" step="1" value="38" aria-label="Soil moisture value">
+                </div>
+              </article>
             </div>
-            <div class="lab-controls"><label class="toggle-label"><input id="network-toggle" type="checkbox" checked><span class="toggle"></span> Wireless link enabled</label><button class="button primary transmit-button" id="transmit-button">Transmit sample <span>↗</span></button></div>
-            <p class="microcopy">*Air-quality value is an illustrative simulation unit, not a calibrated ppm measurement.</p>
+
+            <div class="lab-controls">
+              <label class="toggle-label"><input id="network-toggle" type="checkbox" checked><span class="toggle"></span> Wireless RF link enabled</label>
+              <button class="button primary transmit-button" id="transmit-button" type="button">Transmit sample <span>↗</span></button>
+            </div>
+            <p class="microcopy">*Air quality uses an illustrative simulation PPM scale. Real hardware uses calibrated ADC resistance curves ($R_s / R_0$).</p>
           </div>
+
           <div class="panel pipeline-panel" id="data-flow">
-            <div class="panel-heading"><div><span class="panel-kicker">LIVE TELEMETRY</span><h3>Data pipeline</h3></div><span class="pipeline-state" id="pipeline-state" role="status" aria-live="polite" aria-atomic="true">AWAITING SAMPLE</span></div>
-            <div class="pipeline-list" id="pipeline-list">
-              <div class="pipeline-stage"><span class="stage-index">01</span><span class="stage-dot"></span><div><b>Acquisition</b><small>Read sensor value at the node</small></div><span class="stage-state">IDLE</span></div>
-              <div class="pipeline-stage"><span class="stage-index">02</span><span class="stage-dot"></span><div><b>Validation</b><small>Check value and payload format</small></div><span class="stage-state">IDLE</span></div>
-              <div class="pipeline-stage"><span class="stage-index">03</span><span class="stage-dot"></span><div><b>Transmission</b><small>Send packet over wireless link</small></div><span class="stage-state">IDLE</span></div>
-              <div class="pipeline-stage"><span class="stage-index">04</span><span class="stage-dot"></span><div><b>Gateway</b><small>Receive and route telemetry</small></div><span class="stage-state">IDLE</span></div>
-              <div class="pipeline-stage"><span class="stage-index">05</span><span class="stage-dot"></span><div><b>Storage</b><small>Append timestamped record</small></div><span class="stage-state">IDLE</span></div>
-              <div class="pipeline-stage"><span class="stage-index">06</span><span class="stage-dot"></span><div><b>Visualization</b><small>Refresh monitoring dashboard</small></div><span class="stage-state">IDLE</span></div>
+            <div class="panel-heading">
+              <div><span class="panel-kicker">LIVE INGESTION PIPELINE</span><h3>Telemetry stream</h3></div>
+              <span class="pipeline-state" id="pipeline-state" role="status" aria-live="polite" aria-atomic="true">AWAITING SAMPLE</span>
             </div>
-            <div class="packet-preview"><div class="packet-head"><span>LAST PAYLOAD</span><span id="packet-status" role="status" aria-live="polite">NO DATA</span></div><code id="packet-json">{ "status": "awaiting_sample" }</code></div>
+
+            <!-- Real-time RF Carrier Waveform Oscilloscope -->
+            <div class="rf-signal-container">
+              <div class="rf-signal-header">
+                <span>WIRELESS CARRIER WAVE (2.4 GHz RF LINK)</span>
+                <span id="rf-link-stats">RSSI: -58 dBm · CH: 01</span>
+              </div>
+              <canvas id="rf-canvas" class="rf-canvas" width="460" height="48"></canvas>
+            </div>
+
+            <div class="pipeline-list" id="pipeline-list">
+              <div class="pipeline-stage"><span class="stage-index">01</span><span class="stage-dot"></span><div><b>Acquisition</b><small>Analog-to-Digital conversion (12-bit ADC)</small></div><span class="stage-state">IDLE</span></div>
+              <div class="pipeline-stage"><span class="stage-index">02</span><span class="stage-dot"></span><div><b>Validation</b><small>Sensor bounds check & payload format</small></div><span class="stage-state">IDLE</span></div>
+              <div class="pipeline-stage"><span class="stage-index">03</span><span class="stage-dot"></span><div><b>Transmission</b><small>Radio packet broadcast via RF channel</small></div><span class="stage-state">IDLE</span></div>
+              <div class="pipeline-stage"><span class="stage-index">04</span><span class="stage-dot"></span><div><b>Gateway</b><small>Verify CRC-16 checksum & wrap envelope</small></div><span class="stage-state">IDLE</span></div>
+              <div class="pipeline-stage"><span class="stage-index">05</span><span class="stage-dot"></span><div><b>Storage</b><small>Append timestamped record to database</small></div><span class="stage-state">IDLE</span></div>
+              <div class="pipeline-stage"><span class="stage-index">06</span><span class="stage-dot"></span><div><b>Visualization</b><small>Refresh dashboard & evaluate thresholds</small></div><span class="stage-state">IDLE</span></div>
+            </div>
+
+            <div class="packet-preview">
+              <div class="packet-head">
+                <span>PACKET INSPECTOR</span>
+                <span id="packet-status" role="status" aria-live="polite">NO DATA</span>
+              </div>
+              <div class="packet-tabs">
+                <button class="packet-tab-btn active" type="button" data-view="json">Decoded JSON</button>
+                <button class="packet-tab-btn" type="button" data-view="hex">Raw Hex Frame</button>
+                <button class="packet-tab-btn" type="button" data-view="journey">Data Journey</button>
+              </div>
+              <code id="packet-json">{ "status": "awaiting_sample" }</code>
+            </div>
           </div>
         </div>
       </section>
 
-
       <section class="section section-block" id="network-lab">
-        <div class="section-heading"><div><div class="eyebrow">03 / NETWORK EXPERIMENTS</div><h2>Stress-test the <em>wireless path.</em></h2></div><p>Introduce delay, packet loss, or an outage to understand how network conditions affect telemetry delivery. All outcomes are simulated locally.</p></div>
+        <div class="section-heading">
+          <div><div class="eyebrow">03 / NETWORK EXPERIMENTS</div><h2>Stress-test the <em>wireless path.</em></h2></div>
+          <p>Introduce transmission delay, packet loss, or an intentional link blackout to study how real-world radio attenuation affects IoT telemetry.</p>
+        </div>
         <div class="network-lab-grid">
           <div class="panel network-controls">
-            <div class="panel-heading"><div><span class="panel-kicker">LINK CONFIGURATION</span><h3>Network conditions</h3></div><span class="live-tag"><i></i> LOCAL MODEL</span></div>
-            <label class="range-setting"><span><b>Transmission latency</b><output id="latency-output">250 ms</output></span><input id="latency-control" type="range" min="0" max="2000" step="50" value="250"><small>Simulated one-way delay before packet delivery</small></label>
-            <label class="range-setting"><span><b>Packet loss probability</b><output id="loss-output">0%</output></span><input id="loss-control" type="range" min="0" max="60" step="1" value="0"><small>Chance that an individual transmission is dropped</small></label>
-            <div class="network-actions"><button class="button secondary" id="reset-network">Reset conditions</button><span id="network-condition-label">NOMINAL LINK</span></div>
+            <div class="panel-heading"><div><span class="panel-kicker">RF PROPAGATION MODEL</span><h3>Link conditions</h3></div><span class="live-tag"><i></i> LOCAL MODEL</span></div>
+            <label class="range-setting">
+              <span><b>Transmission latency</b><output id="latency-output">250 ms</output></span>
+              <input id="latency-control" type="range" min="0" max="2000" step="50" value="250">
+              <small>Simulated RF packet propagation delay</small>
+            </label>
+            <label class="range-setting">
+              <span><b>Packet loss probability</b><output id="loss-output">0%</output></span>
+              <input id="loss-control" type="range" min="0" max="60" step="1" value="0">
+              <small>Simulated multi-path fading or interference packet drop</small>
+            </label>
+            <div class="network-actions">
+              <button class="button secondary" id="reset-network" type="button">Reset conditions</button>
+              <span id="network-condition-label">NOMINAL LINK</span>
+            </div>
           </div>
           <div class="panel node-panel">
-            <div class="panel-heading"><div><span class="panel-kicker">VIRTUAL FLEET</span><h3>Node registry</h3></div><span class="pipeline-state">3 NODES</span></div>
+            <div class="panel-heading"><div><span class="panel-kicker">ACTIVE MICROCONTROLLERS</span><h3>Node registry</h3></div><span class="pipeline-state">3 NODES ONLINE</span></div>
             <div class="node-registry">
-              <div class="registry-row"><span class="registry-icon">°C</span><div><b>NODE-01</b><small>Temperature + humidity</small></div><span class="registry-state online">ONLINE</span></div>
-              <div class="registry-row"><span class="registry-icon">◌</span><div><b>NODE-02</b><small>Air quality</small></div><span class="registry-state online">ONLINE</span></div>
-              <div class="registry-row"><span class="registry-icon">◒</span><div><b>NODE-03</b><small>Soil moisture</small></div><span class="registry-state online">ONLINE</span></div>
+              <div class="registry-row"><span class="registry-icon">°C</span><div><b>NODE-01 (ESP32 Weather)</b><small>DHT22 Temp & Humidity · Pin GPIO 4</small></div><span class="registry-state online">ONLINE</span></div>
+              <div class="registry-row"><span class="registry-icon">◌</span><div><b>NODE-02 (ESP32 Sentinel)</b><small>MQ-135 Gas Sensor · Pin ADC1_CH0 (GPIO 36)</small></div><span class="registry-state online">ONLINE</span></div>
+              <div class="registry-row"><span class="registry-icon">◒</span><div><b>NODE-03 (ESP32 Agri-Unit)</b><small>Capacitive Soil Sensor · Pin ADC1_CH3 (GPIO 39)</small></div><span class="registry-state online">ONLINE</span></div>
             </div>
-            <p class="microcopy">Node labels and sensor assignments are virtual examples for learning the network model.</p>
+            <p class="microcopy">Node identities and pinouts emulate physical firmware deployment topologies.</p>
           </div>
         </div>
       </section>
 
       <section class="section section-block" id="data-explorer">
-        <div class="section-heading"><div><div class="eyebrow">04 / OBSERVABILITY</div><h2>Telemetry <em>data explorer.</em></h2></div><p>Every successfully delivered sample is saved to the selected storage destination. Inspect recent records and compare readings over time.</p></div>
-        <div class="panel explorer-panel">
-          <div class="explorer-toolbar"><div><span class="panel-kicker">TELEMETRY DATASET</span><h3>Recent measurements</h3></div><div class="explorer-actions"><label class="filter-label" for="storage-mode">STORAGE</label><select id="storage-mode"><option value="local">This browser</option><option value="server">API server</option></select><input id="api-base-url" class="api-url-input" type="url" value="http://127.0.0.1:8001" aria-label="API server URL" placeholder="http://127.0.0.1:8001"><input id="api-token" class="api-token-input" type="password" autocomplete="off" aria-label="API bearer token" placeholder="API token (optional)"><button class="button secondary" id="connect-server" type="button">Connect</button><label class="filter-label" for="record-filter">PARAMETER</label><select id="record-filter"><option value="all">All parameters</option><option value="temperature">Temperature</option><option value="humidity">Humidity</option><option value="air_quality">Air quality</option><option value="soil_moisture">Soil moisture</option></select><button class="button secondary" id="export-csv">Export CSV ↓</button></div></div>
-          <div class="table-wrap"><table class="data-table"><thead><tr><th>TIME</th><th>NODE</th><th>SENSOR</th><th>PARAMETER</th><th>VALUE</th><th>STATUS</th></tr></thead><tbody id="records-body"><tr><td colspan="6" class="empty-state">No readings yet. Transmit a sample from the virtual sensor lab.</td></tr></tbody></table></div>
-          <div class="explorer-foot"><span id="record-summary" role="status" aria-live="polite">0 saved records</span><span class="storage-status" id="storage-status" role="status" aria-live="polite">Checking browser storage…</span><button class="clear-button" id="clear-records">Clear session data</button></div>
+        <div class="section-heading">
+          <div><div class="eyebrow">04 / OBSERVABILITY</div><h2>Telemetry <em>data explorer.</em></h2></div>
+          <p>Every successfully verified sample is committed to the local repository. Filter, inspect raw fields, and export CSV logs for analysis.</p>
         </div>
-        <div class="panel device-admin-panel" id="device-admin-panel">
+        <div class="panel explorer-panel">
+          <div class="explorer-toolbar">
+            <div><span class="panel-kicker">HISTORICAL DATA LOGS</span><h3>Recent measurements</h3></div>
+            <div class="explorer-actions">
+              <label class="filter-label" for="storage-mode">STORAGE</label>
+              <select id="storage-mode"><option value="local">This browser</option><option value="server">API server</option></select>
+              <input id="api-base-url" class="api-url-input" type="url" value="http://127.0.0.1:8001" aria-label="API server URL" placeholder="http://127.0.0.1:8001">
+              <input id="api-token" class="api-token-input" type="password" autocomplete="off" aria-label="API bearer token" placeholder="API token (optional)">
+              <button class="button secondary" id="connect-server" type="button">Connect</button>
+              <label class="filter-label" for="record-filter">PARAMETER</label>
+              <select id="record-filter"><option value="all">All parameters</option><option value="temperature">Temperature</option><option value="humidity">Humidity</option><option value="air_quality">Air quality</option><option value="soil_moisture">Soil moisture</option></select>
+              <button class="button secondary" id="export-csv" type="button">Export CSV ↓</button>
+            </div>
+          </div>
+          <div class="table-wrap"><table class="data-table"><thead><tr><th>TIME</th><th>NODE</th><th>SENSOR</th><th>PARAMETER</th><th>VALUE</th><th>STATUS</th></tr></thead><tbody id="records-body"><tr><td colspan="6" class="empty-state">No readings yet. Transmit a sample from the virtual sensor lab.</td></tr></tbody></table></div>
+          <div class="explorer-foot"><span id="record-summary" role="status" aria-live="polite">0 saved records</span><span class="storage-status" id="storage-status" role="status" aria-live="polite">Checking browser storage…</span><button class="clear-button" id="clear-records" type="button">Clear session data</button></div>
+        </div>
+        <div class="panel device-admin-panel" id="device-admin-panel" hidden>
           <div class="panel-heading"><div><span class="panel-kicker">DEVICE OPERATIONS</span><h3>Registered nodes</h3></div><button class="button secondary" id="refresh-devices" type="button" disabled>Refresh nodes</button></div>
           <p class="device-admin-copy">Connect to the API server to inspect physical-node heartbeats and manage per-device credentials. Virtual samples do not change physical device status.</p>
           <div class="table-wrap"><table class="data-table device-table"><thead><tr><th>NODE</th><th>STATUS</th><th>HEALTH</th><th>FIRMWARE</th><th>BOOT</th><th>UPTIME</th><th>QUEUE</th><th>OLDEST PENDING</th><th>RETRIES</th><th>WI-FI RSSI</th><th>MQTT</th><th>LAST SEEN</th><th>CREDENTIAL</th><th>ACTIONS</th></tr></thead><tbody id="device-rows"><tr><td colspan="14" class="empty-state">Connect to the API server to load registered nodes.</td></tr></tbody></table></div>
@@ -145,60 +282,103 @@
         </div>
       </section>
 
-
       <section class="section section-block" id="monitoring">
-        <div class="section-heading"><div><div class="eyebrow">05 / LIVE MONITORING</div><h2>Readings over <em>time.</em></h2></div><p>Start the local sampler to create a steady stream of virtual readings. Trends, node status, and alerts update as samples arrive.</p></div>
+        <div class="section-heading">
+          <div><div class="eyebrow">05 / LIVE MONITORING</div><h2>Readings over <em>time.</em></h2></div>
+          <p>Start the automated periodic sampler to generate continuous telemetry. Trend lines, node health heartbeats, and threshold alarms update in real time.</p>
+        </div>
         <div class="monitoring-grid">
           <div class="panel chart-panel">
-            <div class="panel-heading"><div><span class="panel-kicker">SESSION TREND</span><h3 id="chart-title">Temperature history</h3></div><label class="chart-select-label" for="chart-parameter">VIEW <select id="chart-parameter"><option value="temperature">Temperature</option><option value="humidity">Humidity</option><option value="air_quality">Air quality</option><option value="soil_moisture">Soil moisture</option></select></label></div>
+            <div class="panel-heading">
+              <div><span class="panel-kicker">REAL-TIME TELEMETRY</span><h3 id="chart-title">Temperature history</h3></div>
+              <label class="chart-select-label" for="chart-parameter">VIEW <select id="chart-parameter"><option value="temperature">Temperature</option><option value="humidity">Humidity</option><option value="air_quality">Air quality</option><option value="soil_moisture">Soil moisture</option></select></label>
+            </div>
             <div class="chart-summary"><strong id="chart-latest">—</strong><span id="chart-unit">°C</span><small id="chart-caption" role="status" aria-live="polite">No samples collected yet</small></div>
             <svg id="trend-chart" class="trend-chart" viewBox="0 0 640 190" role="img" aria-label="Simulated sensor readings over time"><line x1="36" y1="20" x2="36" y2="158" class="chart-axis"/><line x1="36" y1="158" x2="620" y2="158" class="chart-axis"/><text x="36" y="180" class="chart-label">Waiting for samples</text></svg>
-            <div class="sampler-controls"><label for="sampling-interval">Sample every</label><select id="sampling-interval"><option value="2">2 seconds</option><option value="5" selected>5 seconds</option><option value="10">10 seconds</option><option value="30">30 seconds</option></select><button class="button primary" id="sampler-start">Start sampling</button><button class="button secondary" id="sampler-stop" disabled>Stop</button></div>
-            <p class="microcopy">Sampling uses the current virtual sensor values and saves successful samples to the selected storage destination.</p>
+            <div class="sampler-controls">
+              <label for="sampling-interval">Sample every</label>
+              <select id="sampling-interval"><option value="2">2 seconds</option><option value="5" selected>5 seconds</option><option value="10">10 seconds</option><option value="30">30 seconds</option></select>
+              <button class="button primary" id="sampler-start" type="button">Start sampling</button>
+              <button class="button secondary" id="sampler-stop" type="button" disabled>Stop</button>
+            </div>
+            <p class="microcopy">Automated sampling dispatches periodic packets according to the configured virtual interval.</p>
           </div>
           <div class="panel health-panel">
-            <div class="panel-heading"><div><span class="panel-kicker">NODE HEALTH</span><h3>Connection overview</h3></div><span class="pipeline-state" id="health-summary">3 NODES READY</span></div>
-            <div class="health-list">
-              <div class="health-row" data-node="NODE-01"><span class="health-indicator"></span><div><b>NODE-01</b><small>Temperature and humidity</small></div><strong>READY</strong><small class="health-last">No samples yet</small></div>
-              <div class="health-row" data-node="NODE-02"><span class="health-indicator"></span><div><b>NODE-02</b><small>Air quality</small></div><strong>READY</strong><small class="health-last">No samples yet</small></div>
-              <div class="health-row" data-node="NODE-03"><span class="health-indicator"></span><div><b>NODE-03</b><small>Soil moisture</small></div><strong>READY</strong><small class="health-last">No samples yet</small></div>
+            <div class="panel-heading">
+              <div><span class="panel-kicker">NODE FLEET STATUS</span><h3>Connection overview</h3></div>
+              <span class="pipeline-state" id="health-summary">3 NODES READY</span>
             </div>
-            <div class="threshold-settings"><div class="threshold-heading"><b>Alert thresholds</b><small>Illustrative limits for this demo</small></div>
+            <div class="health-list">
+              <div class="health-row" data-node="NODE-01"><span class="health-indicator"></span><div><b>NODE-01</b><small>DHT22 Weather Unit</small></div><strong>READY</strong><small class="health-last">No samples yet</small></div>
+              <div class="health-row" data-node="NODE-02"><span class="health-indicator"></span><div><b>NODE-02</b><small>MQ-135 Gas Sentinel</small></div><strong>READY</strong><small class="health-last">No samples yet</small></div>
+              <div class="health-row" data-node="NODE-03"><span class="health-indicator"></span><div><b>NODE-03</b><small>Capacitive Soil Unit</small></div><strong>READY</strong><small class="health-last">No samples yet</small></div>
+            </div>
+            <div class="threshold-settings">
+              <div class="threshold-heading"><b>Alert thresholds</b><small>Configurable safety limits</small></div>
               <label>Temperature upper limit <span><input id="temperature-threshold" type="number" min="0" max="50" step="0.5" value="40"> °C</span></label>
               <label>Humidity upper limit <span><input id="humidity-threshold" type="number" min="0" max="100" step="1" value="85"> %</span></label>
               <label>Soil moisture lower limit <span><input id="soil-threshold" type="number" min="0" max="100" step="1" value="20"> %</span></label>
             </div>
-            <div class="alert-feed" aria-live="polite"><div class="alert-feed-heading"><b>Recent alerts</b><span id="alert-count">0</span></div><div id="alert-list" class="alert-list"><p class="empty-alert">No alerts. Threshold checks run when a sample is delivered.</p></div></div>
+            <div class="alert-feed" aria-live="polite">
+              <div class="alert-feed-heading"><b>Incident feed</b><span id="alert-count">0</span></div>
+              <div id="alert-list" class="alert-list"><p class="empty-alert">No alerts recorded. Threshold checks evaluate automatically per reading.</p></div>
+            </div>
           </div>
         </div>
       </section>
 
       <section class="section section-block" id="testing-centre">
-        <div class="section-heading"><div><div class="eyebrow">06 / REPEATABLE TESTS</div><h2>Try a network <em>scenario.</em></h2></div><p>Choose a preset to see how the virtual telemetry path behaves under common link conditions. These are repeatable teaching scenarios, not measured radio tests.</p></div>
+        <div class="section-heading">
+          <div><div class="eyebrow">06 / REPEATABLE TESTS</div><h2>Network <em>scenarios.</em></h2></div>
+          <p>Choose an RF channel condition preset to observe how telemetry responds to packet drops and link degradation.</p>
+        </div>
         <div class="panel test-panel">
           <div class="scenario-grid">
-            <button class="scenario-card" data-scenario="normal"><span>01 / BASELINE</span><b>Normal delivery</b><small>Low delay, no packet loss</small></button>
-            <button class="scenario-card" data-scenario="congested"><span>02 / CONGESTION</span><b>Slow network</b><small>Higher delay and occasional loss</small></button>
-            <button class="scenario-card" data-scenario="unstable"><span>03 / INSTABILITY</span><b>Unstable link</b><small>Frequent packet drops</small></button>
-            <button class="scenario-card" data-scenario="outage"><span>04 / OUTAGE</span><b>Link unavailable</b><small>Transmission cannot complete</small></button>
+            <button class="scenario-card" data-scenario="normal" type="button"><span>01 / BASELINE</span><b>Normal delivery</b><small>Low latency (250ms), 0% packet loss</small></button>
+            <button class="scenario-card" data-scenario="congested" type="button"><span>02 / CONGESTION</span><b>Channel congestion</b><small>High latency (800ms) + 10% packet drop</small></button>
+            <button class="scenario-card" data-scenario="unstable" type="button"><span>03 / INSTABILITY</span><b>Unstable radio link</b><small>Severe 35% packet drop probability</small></button>
+            <button class="scenario-card" data-scenario="outage" type="button"><span>04 / OUTAGE</span><b>Total link blackout</b><small>RF link disabled; delivery fails</small></button>
           </div>
-          <div class="test-result" id="test-result"><span class="test-result-mark">—</span><div><b>Choose a scenario to begin</b><p>Each run applies its network settings and sends one sample through the six-stage pipeline.</p></div></div>
-          <div class="guide-row"><div><span class="panel-kicker">LEARN THE SYSTEM</span><b>Guided experiment</b><small>Follow the data from sensor input to the dashboard.</small></div><button class="button secondary" id="guide-next">Start guided walkthrough →</button></div>
-          <div class="guide-progress" id="guide-progress" hidden><div><span id="guide-step-label">STEP 1 OF 6</span><b id="guide-step-title">Acquisition</b></div><p id="guide-step-copy"></p><div class="guide-actions"><button class="button secondary" id="guide-prev" disabled>Back</button><button class="button primary" id="guide-advance">Next step</button></div></div>
+          <div class="test-result" id="test-result">
+            <span class="test-result-mark">—</span>
+            <div><b>Select an RF scenario above</b><p>Applies channel conditions and transmits one test packet across all 6 telemetry stages.</p></div>
+          </div>
+          <div class="guide-row">
+            <div><span class="panel-kicker">STUDENT WALKTHROUGH</span><b>Step-by-step guided tour</b><small>Learn the journey of a data packet from sensor transducer to cloud screen.</small></div>
+            <button class="button secondary" id="guide-next" type="button">Start guided walkthrough →</button>
+          </div>
+          <div class="guide-progress" id="guide-progress" hidden>
+            <div><span id="guide-step-label">STEP 1 OF 6</span><b id="guide-step-title">Acquisition</b></div>
+            <p id="guide-step-copy"></p>
+            <div class="guide-actions">
+              <button class="button secondary" id="guide-prev" type="button" disabled>Back</button>
+              <button class="button primary" id="guide-advance" type="button">Next step</button>
+            </div>
+          </div>
         </div>
       </section>
 
       <section class="section section-block" id="applications">
-        <div class="section-heading"><div><div class="eyebrow">07 / WHERE IT FITS</div><h2>Designed for <em>many environments.</em></h2></div><p>A modular monitoring approach can be adapted to different settings by selecting the relevant sensors and deployment design.</p></div>
+        <div class="section-heading">
+          <div><div class="eyebrow">07 / DEPLOYMENT DOMAINS</div><h2>Real-world <em>applications.</em></h2></div>
+          <p>Modular wireless sensor networks adapt seamlessly to diverse environmental, structural, and agricultural monitoring requirements.</p>
+        </div>
         <div class="application-grid">
-          <article class="application-card"><span>01</span><div class="application-icon">⌂</div><h3>Smart buildings</h3><p>Observe indoor environmental conditions and building spaces.</p></article>
-          <article class="application-card"><span>02</span><div class="application-icon">♧</div><h3>Agriculture</h3><p>Track soil and local environmental parameters for field insight.</p></article>
-          <article class="application-card"><span>03</span><div class="application-icon">⌖</div><h3>Infrastructure</h3><p>Support distributed observation of selected infrastructure conditions.</p></article>
-          <article class="application-card"><span>04</span><div class="application-icon">◉</div><h3>Campus & labs</h3><p>Explore sensor networks for educational and research environments.</p></article>
+          <article class="application-card"><span>01</span><div class="application-icon">⌂</div><h3>Smart Buildings & HVAC</h3><p>Real-time indoor air quality (MQ-135) and temperature telemetry for energy-efficient climate control.</p></article>
+          <article class="application-card"><span>02</span><div class="application-icon">♧</div><h3>Precision Agriculture</h3><p>Distributed capacitive soil moisture and ambient humidity monitoring for automated irrigation scheduling.</p></article>
+          <article class="application-card"><span>03</span><div class="application-icon">⌖</div><h3>Structural Health</h3><p>Continuous vibration, strain, and environmental telemetry for bridge, tunnel, and dam safety inspections.</p></article>
+          <article class="application-card"><span>04</span><div class="application-icon">◉</div><h3>Academic & Research Labs</h3><p>A hands-on testbed for studying embedded IoT architectures, wireless protocols, and telemetry pipelines.</p></article>
         </div>
       </section>
 
-      <footer class="footer"><a class="brand footer-brand" href="#overview"><span class="brand-mark"><span></span><span></span><span></span></span><span><strong>MW-SENSE</strong><small>VIRTUAL LAB</small></span></a><span>Modular Wireless Sensor Network · Educational simulation</span><a href="https://github.com/chamanvashishth/MW-SENSE" target="_blank" rel="noreferrer">VIEW REPOSITORY ↗</a></footer>
+      <footer class="footer">
+        <a class="brand footer-brand" href="#overview">
+          <span class="brand-mark"><span></span><span></span><span></span></span>
+          <span><strong>MW-SENSE</strong><small>VIRTUAL LAB</small></span>
+        </a>
+        <span>Modular Wireless Sensor Network · College Major Project</span>
+        <a href="https://github.com/chamanvashishth/MW-SENSE" target="_blank" rel="noreferrer">VIEW REPOSITORY ↗</a>
+      </footer>
     </main>
   </div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
