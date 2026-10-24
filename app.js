@@ -458,6 +458,39 @@ document.querySelectorAll(".packet-tab-btn").forEach((btn) => {
   });
 });
 
+function updateJourneyBanner() {
+  const sourceText = document.querySelector("#journey-source-text");
+  const sourceDetail = document.querySelector("#journey-source-detail");
+  if (!sourceText || !sourceDetail) return;
+
+  const input = document.querySelector("#" + selectedSensor);
+  if (!input) return;
+  const val = Number(input.value);
+  const details = {
+    temperature: {
+      src: "Node-01 · DHT22 Weather Station (Rooftop)",
+      det: `NTC thermistor converts ambient temperature (${val.toFixed(1)} °C) to analog voltage on GPIO 4`
+    },
+    humidity: {
+      src: "Node-01 · DHT22 Weather Station (Rooftop)",
+      det: `Capacitive polymer film absorbs moisture vapor (${val.toFixed(0)} %) on GPIO 4`
+    },
+    air: {
+      src: "Node-02 · MQ-135 Gas Sentinel (Lab Vent)",
+      det: `Heated tin-dioxide (SnO2) reacts with gas molecules (${val.toFixed(0)} ppm) on ADC Pin 36`
+    },
+    soil: {
+      src: "Node-03 · Capacitive Soil Probe (Greenhouse)",
+      det: `1.5 MHz oscillation measures soil dielectric capacitance (${val.toFixed(0)} %) on ADC Pin 39`
+    }
+  };
+  const active = details[selectedSensor];
+  if (active) {
+    sourceText.textContent = active.src;
+    sourceDetail.textContent = active.det;
+  }
+}
+
 sensorInputs.forEach((id) => {
   const input = document.querySelector("#" + id);
   const output = document.querySelector("#" + id + "-value");
@@ -466,9 +499,11 @@ sensorInputs.forEach((id) => {
     document.querySelectorAll(".sensor-row").forEach((row) => row.classList.remove("selected"));
     input.closest(".sensor-row").classList.add("selected");
     selectedSensor = id;
+    updateJourneyBanner();
   });
 });
 document.querySelector("#temperature").closest(".sensor-row").classList.add("selected");
+updateJourneyBanner();
 
 // Environment Simulation Presets
 const envPresets = {
@@ -496,6 +531,7 @@ document.querySelectorAll(".env-preset-btn").forEach((btn) => {
       output.textContent = Number(preset[param]).toFixed(param === "temperature" ? 1 : 0);
     });
 
+    updateJourneyBanner();
     showToast("Environment preset loaded: " + preset.desc);
   });
 });
