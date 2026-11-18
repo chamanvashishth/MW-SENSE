@@ -1,242 +1,173 @@
 # MW-SENSE
 
-### Modular Wireless Sensor Network & Real-Time Telemetry Platform
+**Modular Wireless Sensor Network for Environmental and Infrastructure Monitoring**
 
-[![Platform](https://img.shields.io/badge/platform-Embedded%20IoT%20%2F%20WSN-blue.svg)](docs/assets/animations/00-system-architecture.svg)
-[![Microcontroller](https://img.shields.io/badge/hardware-ESP32%20(Xtensa%20Dual--Core)-red.svg)](firmware/esp32/)
-[![Firmware](https://img.shields.io/badge/firmware-C%2B%2B%20%2F%20PlatformIO-orange.svg)](firmware/esp32/)
-[![Backend](https://img.shields.io/badge/backend-FastAPI%20%7C%20Python%203.11%2B-teal.svg)](backend/)
-[![Messaging](https://img.shields.io/badge/protocol-MQTT%20%7C%20ESP--NOW%20%7C%20Wi--Fi-purple.svg)](backend/mqtt_bridge.py)
-[![Test Suite](https://img.shields.io/badge/tests-29%20passed-brightgreen.svg)](tests/)
-[![Interface](https://img.shields.io/badge/ui-ZBlack%20Virtual%20Lab-black.svg)](#interactive-virtual-sensor-lab)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+MW-SENSE explores how measurements move from physical sensors into a wireless monitoring system. The project contains two complementary experiences: a browser-based virtual telemetry lab and an ESP32 circuit imported from Tinkered. The new **Sensor Data Journey** page follows each live measurement block by block, so it is possible to inspect where the data comes from and what happens before it reaches the dashboard.
 
-MW-SENSE is an end-to-end modular wireless sensor network (WSN) and environmental telemetry platform developed as an engineering college major project. It bridges physical hardware transducers, microcontroller firmware with flash-based offline buffering, wireless transport protocols, a container-ready telemetry gateway, and an interactive browser-based virtual lab.
+> **Project status:** The Tinkered export reports firmware compilation and structural circuit checks. That is not proof of real-hardware deployment, authenticated backend integration, broker delivery or long-term reliability. The existing browser virtual lab operates on simulated inputs. These modes are intentionally labelled separately.
 
-The platform provides a dual-mode workflow: it interfaces directly with physical ESP32 sensor nodes over MQTT and Wi-Fi, while offering a self-contained, interactive virtual lab environment so students and evaluators can inspect every stage of the telemetry pipeline without requiring benchtop hardware.
+## 1. The problem
 
----
+Environmental monitoring in laboratories, classrooms, farms and facilities is often manual or split between different instruments. Periodic checks can miss changes. A fixed sensor assembly can also be difficult to expand. MW-SENSE investigates a reusable path from **sensors → microcontroller → validation → wireless telemetry → monitoring**, with a design that can accommodate additional nodes.
 
-## Animated System Architecture
+## 2. What this repository contains
 
-The following dynamic schematic illustrates the telemetry journey across both the physical embedded path and the client-side virtual lab:
+| Part | Purpose | Measurement source |
+|---|---|---|
+| `index.html`, `app.js`, `styles.css` | Existing interactive virtual lab with an educational telemetry pipeline | Explicitly simulated inputs |
+| `firmware/esp32/` | Existing ESP32 embedded implementation | Device readings from its own configured sensor and pinout |
+| `backend/` | Existing FastAPI application, persistence and authenticated MQTT ingestion | Requests accepted under the existing backend schema |
+| `simulator/tinkered/` | **New imported ESP32 DevKit V1 circuit, firmware and Tinkered export metadata** | DHT22, SGP40 and capacitive soil probe |
+| `simulator/tinkered/src/trace.h` | **New live block by block Sensor Data Journey** served at `/trace` | Data read from the ESP32's real `/api/nodes` response |
+| `docs/SENSOR_DATA_FLOW.md` | Signal paths, pin map, validation rules, MQTT topics and experiments | Verified against the Tinkered export and firmware |
 
-<p align="center">
-  <img src="docs/assets/animations/00-system-architecture.svg" alt="MW-SENSE System Architecture and Telemetry Pipeline" width="100%">
-</p>
+**Important:** The two ESP32 firmware variants use different pins and different MQTT topics. They are not drop-in replacements. The current FastAPI MQTT bridge does **not** ingest the Tinkered aggregate telemetry schema without an adapter and registered credentials.
 
----
+## 3. Architecture: from environment to dashboard
 
-## The 6-Layer Architecture Breakdown
-
-MW-SENSE decomposes distributed sensing into six decoupled layers, following standard industrial telemetry and SCADA design principles:
-
-```text
-+---------------------------------------------------------------------------------------------------+
-| 01. SENSOR TRANSDUCTION LAYER                                                                     |
-| Physical environmental inputs converted to analog voltage / capacitance (DHT22, MQ-135, Soil v1.2)|
-+---------------------------------------------------------------------------------------------------+
-                                                  |
-                                                  v
-+---------------------------------------------------------------------------------------------------+
-| 02. EDGE COMPUTATION LAYER (ESP32)                                                                |
-| 12-bit ADC sampling, digital noise filtering, engineering unit calibration, LittleFS flash queue |
-+---------------------------------------------------------------------------------------------------+
-                                                  |
-                                                  v
-+---------------------------------------------------------------------------------------------------+
-| 03. WIRELESS RF TRANSPORT LAYER                                                                   |
-| 2.4 GHz Wi-Fi / ESP-NOW link with CRC-16 checksums, latency modulation, and packet loss handling |
-+---------------------------------------------------------------------------------------------------+
-                                                  |
-                                                  v
-+---------------------------------------------------------------------------------------------------+
-| 04. IOT GATEWAY & BROKER LAYER                                                                    |
-| Packet decryption, checksum validation, metadata envelope wrapping, Mosquitto MQTT pub/sub        |
-+---------------------------------------------------------------------------------------------------+
-                                                  |
-                                                  v
-+---------------------------------------------------------------------------------------------------+
-| 05. DATA PERSISTENCE & API LAYER                                                                  |
-| Python FastAPI service, SQLite WAL persistence, bearer authentication, device credential registry |
-+---------------------------------------------------------------------------------------------------+
-                                                  |
-                                                  v
-+---------------------------------------------------------------------------------------------------+
-| 06. PRESENTATION & VIRTUAL LAB LAYER                                                              |
-| Jet-black obsidian SCADA interface, live RF carrier oscilloscope, dual-mode packet inspector      |
-+---------------------------------------------------------------------------------------------------+
+```mermaid
+flowchart LR
+    A[Physical environment] --> B[DHT22 digital GPIO13]
+    A --> C[SGP40 I2C GPIO21 and 22]
+    A --> D[Soil sensor ADC1 GPIO34]
+    B --> E[ESP32 data acquisition]
+    C --> E
+    D --> E
+    E --> F[Validate and calibrate]
+    F --> G[Local JSON API and dashboard]
+    F --> H[WiFi and MQTT publication]
+    H --> I[Other Tinkered nodes on same broker]
 ```
 
-### 1. Sensor Transduction Layer
-Physical environmental properties are transduced into electrical signals:
-- **Temperature & Relative Humidity (DHT22 / SHT31)**: Negative Temperature Coefficient (NTC) thermistor resistance decreases non-linearly with heat; relative humidity is measured via a moisture-absorbing capacitive dielectric polymer film.
-- **Air Quality & Gas Sensing (MQ-135)**: Heated tin-dioxide ($SnO_2$) semiconductor surface reacts with hazardous gases ($CO_2$, $NH_3$, ethanol, benzene, smoke), lowering surface electrical resistance in direct proportion to gas concentration in parts-per-million (PPM).
-- **Soil Moisture (Capacitive v1.2)**: A 1.5 MHz high-frequency oscillator measures soil dielectric permittivity without exposing copper traces to galvanic electrolysis or soil corrosion.
+The live trace on the device is reached through the ESP32's IP address, not GitHub Pages. It shows actual API values and the last JSON accepted by the local MQTT publishing call. It does not invent missing measurements.
 
-### 2. Edge Node Firmware (`firmware/esp32/`)
-The ESP32 edge microcontroller executes C++ firmware built on PlatformIO:
-- **Analog-to-Digital Conversion**: Samples sensor lines using the 12-bit SAR ADC (4096 resolution steps across a 0.0V to 3.3V attenuation window).
-- **Digital Calibration**: Averages multi-sample windows to reject electrical switching noise and applies polynomial calibration curves to output standard engineering units (°C, %, PPM).
-- **LittleFS Offline Ring Buffer**: During wireless disconnections or router dropouts, readings are buffered to flash memory via an offline circular queue (`firmware/esp32/src/main.cpp`). Once connectivity recovers, queued packets flush chronologically with exponential retry backoff.
+### Block 1: Sensors
 
-### 3. Wireless RF Transport Layer
-- Telemetry frames are broadcast over 2.4 GHz Wi-Fi (802.11 b/g/n) or low-overhead ESP-NOW peer-to-peer links.
-- Frames include 16-bit Cyclic Redundancy Checks (CRC-16) to reject corrupted bytes caused by radio interference or multi-path fading.
+| Sensor | What it measures | ESP32 connection | Update interval |
+|---|---|---|---|
+| DHT22 | Temperature and relative humidity | DATA to **GPIO13**, 10 kΩ pullup | 2500 ms |
+| SGP40 | **Relative VOC index** with environmental compensation | SDA **GPIO21**, SCL **GPIO22**, I²C 0x59 | 1000 ms |
+| Capacitive soil v1.2 | Raw analog soil-probe output | AOUT to **GPIO34** (ADC1) | 1000 ms |
 
-### 4. IoT Gateway & Message Broker
-- A central gateway node captures raw RF broadcasts and verifies frame integrity.
-- Wraps raw telemetry into a versioned Gateway Envelope (`schema_version: 1.0`, `message_type: telemetry.reading`, `received_at: ISO8601`).
-- Dispatches messages across the Mosquitto MQTT broker (`mwsense/telemetry/nodes`).
+All sensors use the **3.3 V** rail and common ground in this Tinkered design. An SGP40 VOC index is **not** AQI, CO2 concentration or a pollutant PPM reading. Soil moisture percentage requires calibration with the actual probe and soil.
 
-### 5. Application Backend & Data Storage (`backend/`)
-- Built with Python and FastAPI, providing OpenAPI-compliant REST endpoints (`/telemetry`, `/devices`, `/health`).
-- Telemetry validation verifies device registrations, expected sensor bounds, and parameter definitions before committing records.
-- Persists verified time-series readings to SQLite in Write-Ahead Logging (WAL) mode for concurrent read/write throughput.
+### Block 2: Read the values on ESP32
 
-### 6. Presentation & Virtual Sensor Lab (`index.html`, `styles.css`, `app.js`)
-- Styled in high-contrast ZBlack Obsidian (`#000000`) with glassmorphic onyx surfaces and neon cyan/emerald status accents.
-- Features a real-time RF carrier oscilloscope, dual-mode packet inspector, and live SVG time-series charts.
+`sampleRoom()` reads DHT22, `sampleAir()` measures the SGP40 VOC index, and `sampleSoil()` reads and averages 16 ADC measurements. The ESP32 does this before values are sent anywhere else.
 
----
+### Block 3: Check readings
 
-## Interactive Virtual Sensor Lab
+DHT22 readings are checked against expected temperature and humidity limits. SGP40 can report `warming_up`. Soil ADC rail errors and calibration-range errors are reported. Sensor records preserve `status`, `age_ms`, `error_count` and `last_good_value`. Unhealthy `value` fields are `null` rather than old readings presented as current.
 
-To enable students and visitors to understand how IoT networks function, the browser interface includes an educational virtual lab:
-
-### How Students Can Explore the Data Journey
-1. **Interactive Transducer Sliders**: Adjust physical inputs (temperature from 0°C to 50°C, air quality up to 500 PPM, soil moisture from 0% to 100%).
-2. **One-Click Real-World Scenario Presets**:
-   - `Standard Room`: Baseline room conditions (24.0°C, 50% Hum, 85 PPM, 45% Soil).
-   - `Gas Leak Event`: Spikes air quality to 380 PPM to test threshold alert triggers.
-   - `Crop Heatwave`: Sets temperature to 42.0°C and soil moisture to 14% to simulate drought conditions.
-   - `Monsoon Cloudburst`: Saturates soil moisture to 90% and humidity to 94%.
-   - `Cold Storage`: Emulates cold chain refrigeration failure (2.5°C).
-3. **RF Signal Carrier Oscilloscope**: A Canvas-driven oscilloscope visualizes the 2.4 GHz radio carrier. When transmission is triggered, the wave modulates into high-frequency RF packet bursts.
-4. **Dual-Mode Packet Inspector**:
-   - `Decoded JSON`: Human-readable structured payload with timestamps, node ID, parameter, and status.
-   - `Raw Hex Frame`: Displays the underlying binary byte layout (`[PREAMBLE] [NODE_ADDR] [PARAM] [FLOAT32_BYTES] [CRC16]`).
-   - `Data Journey Trace`: Step-by-step diagnostic breakdown of the 6-stage telemetry journey.
-5. **Network Stress Testing**: Adjust latency (0 to 2000 ms) and simulated packet loss probability (0% to 60%) to observe how network congestion affects packet delivery and alert feeds.
-
----
-
-## Repository Structure
+Soil percentage in the exported firmware uses the editable endpoints **dry = 3723** and **wet = 1489** ADC counts:
 
 ```text
-MW-SENSE/
-├── index.html                  # ZBlack Obsidian Virtual Lab interface
-├── styles.css                  # Pure CSS3 responsive obsidian visual system
-├── app.js                      # Client-side telemetry simulation and RF visualizer
-├── telemetry-core.js           # Payload validation, repository contracts, and storage adapters
-├── package.json                # Node.js test scripts and project metadata
-├── requirements-browser.txt    # Browser testing dependencies
-├── LICENSE                     # MIT Open-Source License
-├── README.md                   # System documentation and engineering specifications
-├── backend/                    # Python FastAPI application and MQTT ingestion service
-│   ├── main.py                 # FastAPI application factory and REST endpoints
-│   ├── database.py             # SQLite WAL database models and migrations
-│   ├── mqtt_bridge.py          # Mosquitto MQTT subscriber and telemetry parser
-│   ├── backup.py               # Database backup and restore utilities
-│   ├── schemas.py              # Pydantic request/response schemas
-│   └── tests/                  # Backend unit and integration test suite
-├── docs/                       # Architectural documentation and visual assets
-│   ├── DEPLOYMENT_CHECKLIST.md # Physical installation and production checklist
-│   └── assets/animations/      # Animated SVG architecture diagrams
-│       └── 00-system-architecture.svg
-├── firmware/esp32/             # PlatformIO embedded C++ firmware for ESP32 nodes
-│   ├── platformio.ini          # Board definitions, baud rates, and library dependencies
-│   ├── src/main.cpp            # ADC reading, LittleFS queue, and MQTT publisher
-│   └── test/native/            # Unit tests for LittleFS offline queue logic
-└── tests/                      # Core JavaScript telemetry and storage test suite
-    ├── telemetry.test.js       # Payload validation and range boundary checks
-    ├── storage.test.js         # LocalStorage adapter and retention limits
-    ├── repository.test.js      # Repository abstraction and snapshot export/import
-    ├── pipeline.integration.test.js # End-to-end telemetry pipeline verification
-    └── browser_smoke.py        # Playwright headless browser smoke test
+percent = round(100 * (raw_adc - dry_adc) / (wet_adc - dry_adc))
 ```
 
----
+### Block 4: Publish over MQTT
 
-## Quickstart & Local Setup
+The Tinkered device sends a node-level JSON message to `mw-sense/<node_id>/telemetry` every five seconds when connected. It publishes retained online and offline status to `mw-sense/<node_id>/status`. A designated dashboard host also subscribes to other nodes using those topics. This schema differs from the existing backend's per-sensor MQTT topic and validation format.
 
-### 1. Launch the Virtual Lab (Zero Dependencies)
+### Block 5: View the measurements
 
-No package installation or compiler is required to run the virtual lab interface. Serve the root directory using Python:
+- `http://<ESP32-IP>/` shows current device measurements and status.
+- `http://<ESP32-IP>/trace` shows the **new block by block journey**, the GPIO source for every value, validation status, current JSON API snapshot and most recent successful MQTT publish payload.
+- `http://<ESP32-IP>/api/nodes` returns live node records.
+- `http://<ESP32-IP>/api/last-published` returns the last locally successful MQTT payload, or a `no_mqtt_publish_yet` marker.
+
+The API is polled by the browser every two seconds. A successful `mqtt.publish()` call is not equivalent to independent broker delivery confirmation.
+
+## 4. Run the browser virtual lab
+
+The original site can be used without hardware. Clone the repository, then from its root run:
 
 ```bash
 python -m http.server 8000
 ```
 
-Open your browser at **http://localhost:8000** to access the interactive virtual lab.
-
-### 2. Run the Unit & Integration Test Suite
-
-Verify all 29 telemetry validation, storage, and repository contracts using the built-in Node.js test runner:
+Open **http://localhost:8000** and use the virtual lab to explore simulated sensing, wireless transport and the packet journey. For the tests that already ship with the browser project:
 
 ```bash
 node --test
 ```
 
-Output:
+The virtual lab's controls **simulate conditions**. They do not directly read the ESP32's GPIO pins or automatically subscribe to the Tinkered firmware's MQTT messages.
+
+## 5. Run the Tinkered ESP32 circuit
+
+1. Open the files in `simulator/tinkered/` in a compatible Tinkered environment, or use PlatformIO to build the provided `esp32dev` configuration for a real ESP32 board.
+2. Review `simulator/tinkered/wiring/wiring.json` and `simulator/tinkered/schematic/main.sch` before assembly. It uses a 3.3 V rail and common ground.
+3. Set the WiFi credentials and broker settings in `simulator/tinkered/src/config.h`. These are placeholder values in the imported export and **must** be edited for real hardware.
+4. If using PlatformIO, run:
+
+```bash
+cd simulator/tinkered
+pio run -e esp32dev
+pio run -e esp32dev -t upload
+pio device monitor -b 115200
+```
+
+5. Open the ESP32 IP address printed in the Serial Monitor and visit `/trace` for the complete live sensor journey. Confirm the observed readings against the simulator or the physical sensors.
+
+**Security:** The Tinkered export defaults to plaintext MQTT on port 1883 and a read-only HTTP dashboard. Its example broker configuration is for demonstrations and trusted networks, not a production deployment. Do not expose the ESP32 HTTP server to the public Internet. The existing authenticated backend cannot be safely connected merely by changing a topic string.
+
+## 6. Understand the two firmware profiles
+
+| Detail | Existing `firmware/esp32` implementation | Added `simulator/tinkered` implementation |
+|---|---|---|
+| Primary purpose | Existing node and backend integration | Exact Tinkered circuit with live on-device dashboard |
+| Sensor wiring | Defined by the original firmware | DHT22 13, SGP40 21 and 22, soil 34 |
+| MQTT message topic | `mw-sense/{node_id}/{sensor_id}/telemetry` | `mw-sense/{node_id}/telemetry` |
+| Payload | One authenticated sensor reading under the backend contract | Aggregated five sensor readings and node status |
+| MQTT interoperability | Matches existing MQTT bridge contract | Needs a validated translation and device authentication |
+| Browser view | Existing virtual lab | ESP32 on-device `/` and `/trace` |
+
+Keep these as separate profiles until a tested protocol adapter is built. Do not copy sensor settings between them without checking both firmware and physical wiring.
+
+## 7. Research gap and next experiments
+
+Integrating one sensor is not the hardest part. Important open questions are whether several inexpensive nodes remain dependable when WiFi fails, sensor readings become invalid, calibration changes or a broker stops responding. The next steps are to measure data completeness, recovery after disconnection, end-to-end latency and multi-node reliability in controlled physical tests. The Tinkered example is an educational starting point, **not yet experimental evidence** of these performance targets.
+
+## 8. Project directory
+
 ```text
-[PASS] valid sample crosses validation, gateway and storage
-[PASS] invalid sample never reaches gateway storage
-[PASS] dropped packet is not stored
-[PASS] repository validates records before delegating to its adapter
-[PASS] repository exports a versioned portable snapshot
-...
-Tests: 29 passed, 0 failed
+MW-SENSE/
+├── index.html                 Existing virtual lab
+├── app.js and styles.css      Virtual lab interface
+├── backend/                   API, MQTT ingestion, database
+├── firmware/esp32/            Existing embedded profile
+├── tests/                     Existing browser tests
+├── simulator/tinkered/        Imported sensor circuit and embedded firmware
+│   ├── platformio.ini
+│   ├── src/
+│   │   ├── main.cpp           Sensor sampling, validation, networking, routes
+│   │   ├── config.h           GPIO, broker and calibration settings
+│   │   ├── dashboard.h        Local live values
+│   │   └── trace.h            NEW: sensor data journey page
+│   ├── wiring/wiring.json
+│   ├── schematic/main.sch
+│   ├── specs/bom.json
+│   ├── design/spec.json
+│   ├── docs/steps.json
+│   └── README.md              Exact Tinkered build notes
+└── docs/SENSOR_DATA_FLOW.md   Stepwise explanation and experiments
 ```
 
-### 3. Run the Backend Telemetry API (Optional)
+## 9. Technical references
 
-To connect the dashboard to a persistent backend service:
+The following are manufacturer, standards or implementation documentation. They explain the hardware and protocols, and are not claims that the project has passed hardware tests.
 
-```bash
-cd backend
-python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-uvicorn main:app --host 127.0.0.1 --port 8001 --reload
-```
+1. [Espressif: ESP32-DevKitC hardware and pin reference](https://documentation.espressif.com/esp-dev-kits/en/latest/esp32/esp32-devkitc/user_guide.html)
+2. [Espressif: ESP32 ADC documentation](https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/peripherals/adc/index.html)
+3. [Adafruit: DHT temperature and humidity sensor guide](https://learn.adafruit.com/dht)
+4. [Adafruit: SGP40 Arduino guide](https://learn.adafruit.com/adafruit-sgp40/arduino)
+5. [Sensirion: SGP40 sensor](https://sensirion.com/products/catalog/SGP40)
+6. [PlatformIO: Espressif ESP32 Dev Module](https://docs.platformio.org/en/stable/boards/espressif32/esp32dev.html)
+7. [OASIS: MQTT Version 5.0 standard](https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html)
+8. [ArduinoJson documentation](https://arduinojson.org/)
+9. [PubSubClient MQTT library](https://pubsubclient.knolleary.net/)
 
-Access the OpenAPI documentation at **http://127.0.0.1:8001/docs**.
+## 10. Credits and license
 
-### 4. Flash ESP32 Hardware Firmware (PlatformIO)
-
-To compile and upload firmware to an ESP32 microcontroller:
-
-```bash
-cd firmware/esp32
-pio run --target upload
-pio device monitor --baud 115200
-```
-
----
-
-## Hardware Pinout Reference (ESP32)
-
-| Node Identifier | Target Sensor | ESP32 GPIO Pin | Protocol / Signal Type | Operating Voltage |
-|---|---|---|---|---|
-| `NODE-01` | DHT22 Temperature & Humidity | GPIO 4 | 1-Wire Digital Bitbang | 3.3V DC |
-| `NODE-02` | MQ-135 Gas & Air Quality | GPIO 36 (ADC1_CH0) | Analog Voltage (0.0V - 3.3V) | 5.0V Heater / 3.3V ADC |
-| `NODE-03` | Capacitive Soil Moisture v1.2 | GPIO 39 (ADC1_CH3) | Analog Voltage (1.2V - 2.8V) | 3.3V DC |
-| `GATEWAY` | RF Transceiver / Status LED | GPIO 2 (Internal LED) | Digital Output Heartbeat | 3.3V DC |
-
----
-
-## Offline Resiliency: The LittleFS Queue
-
-In real-world field installations, cellular or Wi-Fi links can fail intermittently. Rather than dropping readings during an outage, the ESP32 firmware executes a LittleFS ring buffer:
-
-1. **State Detection**: If `WiFi.status() != WL_CONNECTED` or the MQTT socket disconnects, the node enters `OFFLINE_BUFFER` mode.
-2. **Flash Serialization**: New telemetry readings serialize into compact binary records and append to `/spool/offline.dat` on the internal LittleFS flash partition.
-3. **Queue Bounding**: The queue enforces a 100-record threshold to prevent flash exhaustion.
-4. **Reconnection & Drain**: When connection recovers, a background worker reads pending records from flash, broadcasts them with their original timestamps, and purges the spool.
-
----
-
-## License
-
-MW-SENSE is open-source software licensed under the [MIT License](LICENSE). Developed as an academic college project for modular wireless sensor network research and telemetry education.
+MW-SENSE is an academic IoT and wireless sensor network project. The original repository's license and contributor history remain intact. The new Tinkered folder is based on the user-provided simulator export, with a documented trace view added for teaching how sensor readings are acquired, validated and published.
