@@ -1,4 +1,6 @@
-// MW-SENSE browser teaching model. It never claims to be physical sensor telemetry.
+import { DATASETS, validateReplayRows } from './datasets.mjs';
+// MW-SENSE teaching model. Recorded dataset replay and synthetic data are NEVER live physical ESP32 telemetry.
+
 // Sampling cadence and validation boundaries are adapted from the supplied Tinkered firmware.
 export const SENSOR_META = {
   temperature: { title: 'Temperature', unit: '°C', sensor: 'DHT22', pin: 'GPIO 13', period: 2500, min: -40, max: 80 },
@@ -21,7 +23,7 @@ const tickMs = 250;
 
 export function soilReading(percent, fail = false, phase = 0) {
   // The circuit's dry and wet ADC endpoints must be calibrated on physical hardware.
-  const adc = fail ? 4095 : Math.round(SOIL_DRY - (SOIL_DRY - SOIL_WET) * percent / 100 + 5 * Math.sin(phase));
+  const adc = fail ? 4095 : Math.max(SOIL_WET, Math.min(SOIL_DRY, Math.round(SOIL_DRY - (SOIL_DRY - SOIL_WET) * percent / 100 + (percent > 0 && percent < 100 ? 3 * Math.sin(phase) : 0))));
   if (adc <= 16 || adc >= 4079) return { adc, percent: null, status: 'rail_error' };
   if (adc < SOIL_WET || adc > SOIL_DRY) return { adc, percent: null, status: 'out_of_calibration' };
   return { adc, percent: Math.round((SOIL_DRY - adc) * 100 / (SOIL_DRY - SOIL_WET)), status: 'ok' };
@@ -55,8 +57,69 @@ export class SensorLab {
     this.lastAction = 'boot';
     this.nodeId = 'mw-virtual-01';
     this.startAt = Date.now();
+    this.lastHistoryAt = null;
+    this.compensation = null;
+    this.sourceMode = 'synthetic';
+    this.dataset = null;
+    this.datasetIndex = 0;
+    this.datasetRow = null;
+    this.datasetRowAt = 0;
+    this.replayInterval = 6;
+    this.sourceError = null;
     this.logEvent('boot', 'ESP32 booted. GPIO and I²C interfaces initialized.', 'neutral');
     this.logEvent('boot', 'SGP40 relative VOC algorithm begins a 45 second warm up.', 'warn');
+  }
+  loadDataset(id, custom = null) {
+    const source = custom || DATASETS[id];
+    if (!source) throw Error('Dataset not found.');
+    const rows = validateReplayRows(source.rows);
+    if (!rows.length) throw Error('Dataset has no observations.');
+    this.reset();
+    this.sourceMode = 'recorded_replay';
+    this.dataset = { id: source.id, name: source.name, origin: source.origin, sourceUrl: source.sourceUrl || null,
+      cadence: source.cadence, note: source.note, measured: source.measured, rows };
+    this.nextSample.dataset = this.replayInterval;
+    this.applyDatasetRow(0);
+    this.logEvent('dataset', `Loaded ${rows.length} historical observations from ${source.name}. This is a replay, not live sensing.`, 'good');
+  }
+  applyDatasetRow(index) {
+    if (!this.dataset || index >= this.dataset.rows.length) return;
+    this.datasetIndex = index;
+    this.datasetRow = this.dataset.rows[index];
+    this.datasetRowAt = this.time;
+    const row = this.datasetRow;
+    this.conditions.temperature = row.temperature ?? 24;
+    this.conditions.humidity = row.humidity ?? 50;
+    this.conditions.soil = row.soil ?? 45;
+    this.conditions.voc = 100; // Only scene fallback. VOC output is always unavailable in replay.
+    this.logEvent('dataset', `Original observation ${index + 1}/${this.dataset.rows.length}: ${row.recordedTime}. Source values are kept separate from ESP32 calculations.`, 'neutral');
+  }
+  advanceDataset() {
+    if (!this.dataset) return;
+    if (this.datasetIndex + 1 >= this.dataset.rows.length) {
+      this.isRunning = false;
+      this.lastDecision = 'Reached final recorded observation. Playback paused. Press Reset to replay from the beginning.';
+      this.logEvent('dataset', 'End of recorded dataset. Replay stopped automatically.', 'good');
+      delete this.nextSample.dataset;
+      return;
+    }
+    this.applyDatasetRow(this.datasetIndex + 1);
+  }
+  restart() {
+    const selected = this.dataset;
+    if (selected) this.loadDataset(selected.id, selected);
+    else this.reset();
+  }
+  useSynthetic() { this.reset(); }
+  verifyCurrentRow() {
+    if (!this.datasetRow) return [];
+    return [['temperature', 'temperature'], ['humidity', 'humidity'], ['soil', 'soil_percent']].map(([field,key]) => {
+      const expected = this.datasetRow[field], actual = this.getReading(key);
+      const measured = expected !== null && expected !== undefined;
+      const pending = measured && ['ok', 'loading'].includes(actual.status) && (actual.sampled_at === null || actual.sampled_at < this.datasetRowAt - 1e-8);
+      const match = !pending && measured && actual.status === 'ok' && actual.value !== null && Math.abs(actual.value - expected) < (key === 'soil_percent' ? .02 : .11);
+      return { field, expected: measured ? expected : null, observed: pending ? null : actual.value, status: !measured ? 'not_recorded' : pending ? 'pending' : match ? 'match' : actual.status === 'ok' ? 'mismatch' : actual.status }; 
+    });
   }
   logEvent(stage, message, kind = 'neutral') {
     this.log.unshift({ t: this.time, stage, message, kind });
@@ -64,6 +127,7 @@ export class SensorLab {
     this.lastAction = stage;
   }
   setCondition(name, value) {
+    if (this.sourceMode === 'recorded_replay') return;
     if (!['temperature', 'humidity', 'voc', 'soil'].includes(name)) return;
     const ranges = { temperature: [-20, 60], humidity: [0, 100], voc: [1, 500], soil: [0, 100] };
     const n = Number(value);
@@ -72,7 +136,7 @@ export class SensorLab {
     this.scenario = 'custom';
   }
   setScenario(name) {
-    if (!SCENARIOS[name]) return;
+    if (!SCENARIOS[name] || this.sourceMode === 'recorded_replay') return;
     this.scenario = name;
     this.conditions = { ...SCENARIOS[name] };
     delete this.conditions.label;
@@ -85,10 +149,10 @@ export class SensorLab {
     this.faults[key] = next;
     this.logEvent(key === 'wifi' || key === 'mqtt' ? 'network' : 'sensor',
       `${{dht:'DHT22 data',sgp:'SGP40 I²C',soil:'Soil ADC',wifi:'WiFi link',mqtt:'MQTT broker'}[key]} ${next ? 'fault injected' : 'restored'}.`, next ? 'warn' : 'good');
-    if (!next && (key === 'wifi' || key === 'mqtt') && this.canPublish() && this.queue.length) this.flushQueue(2);
+    if (this.isRunning && !next && (key === 'wifi' || key === 'mqtt') && this.canPublish() && this.queue.length) this.flushQueue(2);
   }
   setSecondNode(on) {
-    this.hasSecondNode = Boolean(on);
+    this.hasSecondNode = this.sourceMode === 'recorded_replay' ? false : Boolean(on);
     this.logEvent('network', this.hasSecondNode ? 'Virtual Node 02 joined for expansion demonstration.' : 'Virtual Node 02 removed.', 'neutral');
   }
   updateReading(key, value, status) {
@@ -116,14 +180,30 @@ export class SensorLab {
       this.logEvent('validation', 'DHT22 read failed on GPIO 13. Invalid readings will not be shown as current.', 'bad');
       return;
     }
-    const t = +(this.conditions.temperature + 0.15 * Math.sin(this.time * 0.6)).toFixed(1);
-    const h = Math.round(this.conditions.humidity + 0.4 * Math.sin(this.time * 0.36));
-    this.updateReading('temperature', t, 'ok');
-    this.updateReading('humidity', h, 'ok');
-    this.lastDecision = `ESP32 decoded DHT22 digital data from GPIO 13. Temperature ${t} °C and humidity ${h} %RH passed validation.`;
-    this.logEvent('sensor', `DHT22 on GPIO 13 returned ${t} °C and ${h} %RH.`, 'good');
+    const row = this.sourceMode === 'recorded_replay' ? this.datasetRow : null;
+    const t = row ? row.temperature : +(this.conditions.temperature + 0.15 * Math.sin(this.time * 0.6)).toFixed(1);
+    const h = row ? row.humidity : Math.round(this.conditions.humidity + 0.4 * Math.sin(this.time * 0.36));
+    this.updateReading('temperature', t, t === null ? 'not_available' : 'ok');
+    this.updateReading('humidity', h, h === null ? 'not_available' : 'ok');
+    if (row) {
+      this.lastDecision = `Educational ESP32 logic accepted recorded temperature ${t ?? 'N/A'} °C and humidity ${h ?? 'N/A'} %RH. The dataset does not establish a DHT22 or ESP32 as its source device.`;
+      this.logEvent('sensor', `Dataset row ${this.datasetIndex+1} replayed: T ${t ?? 'N/A'} °C and RH ${h ?? 'N/A'} %.`, 'good');
+    } else {
+      this.lastDecision = `ESP32 model decoded DHT22 digital data from GPIO 13. Temperature ${t} °C and humidity ${h} %RH passed validation.`;
+      this.logEvent('sensor', `Simulated DHT22 GPIO 13: ${t} °C and ${h} %RH.`, 'good');
+    }
   }
   sampleSoil() {
+    if (this.sourceMode === 'recorded_replay') {
+      const percent = this.datasetRow?.soil;
+      this.updateReading('soil_adc', null, 'not_available');
+      this.updateReading('soil_percent', percent ?? null, percent == null ? 'not_available' : 'ok');
+      if (percent != null) {
+        this.lastDecision = `Recorded soil moisture ${percent}% was received by the educational processing model. No ADC counts or ESP32 voltage were measured in this dataset.`;
+        this.logEvent('sensor', `Source soil reading ${percent}% reprocessed. ADC is unknown.`, 'good');
+      }
+      return;
+    }
     const soil = soilReading(this.conditions.soil, this.faults.soil, this.time * 0.9);
     this.updateReading('soil_adc', soil.status === 'rail_error' ? null : soil.adc, soil.status === 'rail_error' ? 'rail_error' : 'ok');
     this.updateReading('soil_percent', soil.percent, soil.status);
@@ -136,6 +216,10 @@ export class SensorLab {
     }
   }
   sampleVoc() {
+    if (this.sourceMode === 'recorded_replay') {
+      this.updateReading('voc_index', null, 'not_available');
+      return;
+    }
     const temp = this.readings.temperature;
     const hum = this.readings.humidity;
     const compensation = temp.status === 'ok' && hum.status === 'ok' && this.time - temp.goodAt <= 10 && this.time - hum.goodAt <= 10;
@@ -164,7 +248,7 @@ export class SensorLab {
     const maxAge = key === 'temperature' || key === 'humidity' ? 10000 : 3500;
     const status = r.status === 'ok' && age !== null && age > maxAge ? 'stale' : r.status;
     return { value: status === 'ok' ? r.value : null, last_good_value: r.last_good_value, unit: r.unit,
-      status, age_ms: age, error_count: r.error_count, consecutive_errors: r.consecutive_errors };
+      status, age_ms: age, sampled_at: r.goodAt, error_count: r.error_count, consecutive_errors: r.consecutive_errors };
   }
   getFrame(nodeId = this.nodeId) {
     const secondary = nodeId.endsWith('02');
@@ -176,7 +260,8 @@ export class SensorLab {
         if (sensorData[k].last_good_value !== null) sensorData[k].last_good_value = +(sensorData[k].last_good_value + adjustments[k]).toFixed(1);
       }
     }
-    return { schema_version: 1, node_id: nodeId, simulation: true,
+    return { schema_version: 1, node_id: nodeId, simulation: true, source_mode: this.sourceMode,
+      source: this.sourceMode === 'recorded_replay' ? { dataset_id: this.dataset.id, sample: this.datasetRow.sample, recorded_time: this.datasetRow.recordedTime } : { label: 'browser physics model' },
       sequence: this.seq, uptime_ms: Math.round(this.time * 1000),
       compensation: this.compensation || 'fallback_25C_50RH', sensors: sensorData };
   }
@@ -225,39 +310,43 @@ export class SensorLab {
   }
   step(seconds = 0.25) {
     if (!this.isRunning) return;
-    const stepSize = Math.max(0, Math.min(10, Number(seconds) * this.rate));
-    const end = this.time + stepSize;
-    for (const [name, interval, fn] of [
-      ['dht', 2.5, 'sampleDht'], ['soil', 1, 'sampleSoil'], ['voc', 1, 'sampleVoc'], ['mqtt', 5, 'publish']]) {
-      let safety = 0;
-      while (this.nextSample[name] <= end + 1e-7 && safety++ < 30) {
-        const at = this.nextSample[name];
-        this.time = at;
-        this[fn]();
-        this.nextSample[name] += interval;
+    const dt = Number(seconds);
+    if (!Number.isFinite(dt) || dt <= 0) return;
+    const end = this.time + Math.min(10, dt * this.rate);
+    const jobs = { dht: ['sampleDht', 2.5], soil: ['sampleSoil', 1], voc: ['sampleVoc', 1], mqtt: ['publish', 5], dataset: ['advanceDataset', this.replayInterval] };
+    let safety = 0;
+    while (safety++ < 200) {
+      const due = Object.entries(this.nextSample).filter(([key, time]) => jobs[key] && time <= end + 1e-8).sort((a, b) => a[1] - b[1] || (a[0] === 'dataset' ? -1 : b[0] === 'dataset' ? 1 : 0));
+      if (!due.length || !this.isRunning) break;
+      const [name, at] = due[0];
+      this.time = at;
+      this.nextSample[name] += jobs[name][1];
+      this[jobs[name][0]]();
+      if (this.lastHistoryAt === null || this.time - this.lastHistoryAt >= 1) {
+        this.sampleHistory();
+        this.lastHistoryAt = this.time;
       }
     }
-    this.time = end;
-    // Sample graph once per virtual second.
-    if (!this.lastHistoryAt || this.time - this.lastHistoryAt >= 1) {
-      this.sampleHistory();
-      this.lastHistoryAt = this.time;
-    }
+    if (this.isRunning) this.time = end;
   }
   advance(seconds) {
-    const saved = this.isRunning;
+    if (!Number.isFinite(seconds) || seconds <= 0) return;
+    const saved = this.isRunning, rate = this.rate;
     this.isRunning = true;
-    while (seconds > 0) { const part = Math.min(0.25, seconds); this.step(part / this.rate); seconds -= part; }
-    this.isRunning = saved;
+    this.rate = 1;
+    let remaining = Math.min(seconds, 3600), n=0;
+    while (remaining > 1e-8 && n++ < 15000 && this.isRunning) {
+      const part=Math.min(0.25,remaining);
+      this.step(part);
+      remaining-=part;
+    }
+    this.rate=rate;
+    // When a replay naturally finishes, preserve its paused state.
+    this.isRunning = this.dataset && !this.nextSample.dataset ? false : saved;
   }
 }
 
-// Minimal self-check for the circuit mapping and error contract.
-if (typeof process !== "undefined" && import.meta.url === `file://${process.argv?.[1] || ''}`) {
-  const lab = new SensorLab();
-  lab.advance(46);
-  if (lab.getReading('voc_index').status !== 'ok' || lab.getReading('soil_percent').status !== 'ok') throw Error('Simulation failed healthy sample self-check');
-  lab.setFault('soil', true); lab.advance(1);
-  if (lab.getReading('soil_percent').value !== null) throw Error('Invalid soil reading leaked');
-  console.log('MW-SENSE simulator self-check passed');
-}
+
+
+
+
