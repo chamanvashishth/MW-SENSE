@@ -2,151 +2,90 @@
 
 **Modular Wireless Sensor Network for Real Time Infrastructure and Environmental Monitoring**
 
-An interactive virtual lab styled after the eight-slide MW-SENSE presentation. The browser model lets students change environmental conditions and observe how a DHT22, an SGP40 and a capacitive soil probe become validated ESP32 telemetry, MQTT frames and dashboard records.
+A classroom focused virtual lab using the warm off white and charcoal theme of the MW-SENSE PowerPoint. Explore how environmental data reaches the sensor processing model, is validated by the virtual ESP32, becomes a telemetry frame, and arrives at a simulated monitoring dashboard.
 
-> **Simulation notice:** The site does not read a physical ESP32. All values and packet delivery events are generated locally. Nothing is transmitted to a broker or cloud service. The original physical firmware remains available in `source/tinkered`.
+**[Open the standalone dataset replay lab](MW_SENSE_Research_Replay_2026.html)**
 
+You can also download the HTML file and open it in your browser without installing dependencies. GitHub does not execute an HTML file as a live app in its code viewer. For an online website, serve the repository root locally or enable GitHub Pages from the main branch.
 
-## Open the rebuilt lab
+## What is simulated and what is measured?
 
-The interactive website is the repository's new [main page](index.html). For a browser demo without installing software download [MW_SENSE_Lab_Demo.html](MW_SENSE_Lab_Demo.html) and open it locally. GitHub Pages can host the same static site from the main branch root if Pages is enabled in repository settings.
+Two input modes are offered.
 
-The previous virtual lab interface is preserved at [legacy/index.html](legacy/index.html) and the prior detailed README at [docs/README_PREVIOUS.md](docs/README_PREVIOUS.md). The earlier FastAPI backend and original PlatformIO firmware under `backend/` and `firmware/esp32/` remain in the repository. They are independent from the new browser simulation. The uploaded Tinkered firmware and its actual pin map are preserved in [source/tinkered](source/tinkered/README.md).
+**Synthetic environment** uses adjustable temperature, humidity, VOC target and soil conditions. The browser models DHT22 readings every 2.5 seconds, SGP40 relative VOC behaviour every 1 second, soil ADC acquisition every 1 second, and MQTT publishing every 5 seconds. The VOC approximation is for teaching. It is **not** Sensirion's official Gas Index Algorithm.
 
-## Start the website
+**Recorded dataset replay** uses historical published measurements. Source records are preserved with their original observation number or timestamp. They are reprocessed through the educational pipeline on a compressed replay clock, not transmitted by any real connected ESP32. The dataset verifier compares each recorded value with the resulting reading and marks it MATCH, SAMPLING, ERROR or NOT RECORDED.
 
-For the simplest experience, open the accompanying **MW_SENSE_Lab_Demo.html** file in any modern browser. That version includes all code and styles and works without an internet connection.
+## Research datasets
 
-For the modular website version run:
+| Dataset | Replay excerpt | Observed fields | Original source |
+|---|---:|---|---|
+| University of Ngaoundéré Greenhouse Scenario 1 | 40 consecutive Sensor 1 records | Temperature, humidity, soil humidity and RSSI | [Original CSV](https://github.com/Saynbemorinbewang2/Open-Dataset-for-Precision-Agriculture-in-Greenhouse-Environments/blob/master/Dataset_scenario_1.csv) |
+| University of Ngaoundéré Greenhouse Scenario 4 | 40 consecutive Sensor 1 records | Temperature, humidity, soil humidity and RSSI | [Original CSV](https://github.com/Saynbemorinbewang2/Open-Dataset-for-Precision-Agriculture-in-Greenhouse-Environments/blob/master/Dataset_scenario_4.csv) |
+| UCI Air Quality | 40 consecutive hourly observations, March 2004 | Temperature, relative humidity and original metal oxide sensor response | [UCI source](https://archive.ics.uci.edu/dataset/360/air+quality) |
 
-```sh
-python -m http.server 8000
-```
+UCI Air Quality is documented under **CC BY 4.0**. The greenhouse repository describes measurements taken every 30 minutes and provides CSV files, but does not visibly state a dataset license. The excerpts are attributed for educational inspection. The greenhouse CSV gives sample numbers but no absolute timestamps. The lab never invents source collection timestamps.
 
-Then visit `http://localhost:8000`.
+**Important sensor distinctions:** Neither dataset contains a native Sensirion SGP40 VOC Index or ESP32 analog to digital conversion counts. Replay marks these as **NOT RECORDED**. The metal oxide response in the UCI dataset is from a different sensor and is not a VOC Index, CO concentration or AQI. A source reported zero soil moisture remains zero rather than silently becoming a missing value. RSSI comes from the dataset source equipment, not from this simulated ESP32 network.
 
-Use the five tabs: **Virtual environment**, **Hardware and wiring**, **Data journey**, **Reliability tests**, and **Project guide**.
+## Operating the lab
 
-## What students can do
+1. Select **Virtual environment** and choose **Greenhouse Scenario 1**, **Greenhouse Scenario 4**, or **UCI Air Quality** from Input Data Source.
+2. Read the source record on the right. Observe the comparison table showing the original values alongside the simulated ESP32 output.
+3. Use **Pause simulation** to freeze the clock and sensor pipeline, **Step 1 s** to inspect the next event, **Next source record** to jump to another historical observation, and **Reset lab** to restart the current dataset.
+4. Open **Data journey** to inspect the structured MQTT frame, node ID, source dataset, reading statuses and in memory reception table.
+5. Open **Reliability tests** and inject sensor faults or a WiFi outage. Observe null readings, errors, queued frames and simulated recovery.
+6. Download the original observation with **Save record** or the full processed history using **Export output trace**.
+7. Import your own simple CSV. The accepted columns are `temperature`, `humidity`, `soil_moisture`, with optional `timestamp` and `rssi`. Imported rows are labelled user supplied, not verified. Maximum 1 MB and 10,000 rows.
 
-1. Load **Normal room**, **Greenhouse**, **Heatwave**, **Poor ventilation**, or **After rainfall**, or use the four sliders to adjust conditions directly.
-2. Watch temperature, humidity, VOC index and soil moisture readings change. Each sensor responds at the rate defined in the provided source rather than instantly or simultaneously.
-3. Inspect the animated wiring diagram to identify exactly which signal enters each ESP32 pin. Select a component to see its measured output and validation logic.
-4. Watch the full data path: **Sense → Validate → Encode → Transmit → Store → Visualize**.
-5. Inspect the actual simulated JSON packet and the reception table. Add a second **emulated** node to see why IDs and a consistent data schema matter.
-6. Inject DHT22, SGP40, soil ADC, WiFi and MQTT failures. The model labels invalid current readings and keeps the last known good value separate.
-7. Change the simulation clock between 1×, 2× and 4× to get through the VOC warm up period faster, or pause and reset.
+The original greenhouse sampling interval is about 30 minutes according to its source README. **Every recorded sample plays back over 6 virtual seconds** in this teaching model. UCI source observations are hourly, and their original time strings are retained.
 
-## Source based hardware mapping
+## Actual hardware described in the supplied Tinkered ZIP
 
-The Tinkered ZIP is the definitive source of the pin map used by this virtual lab. The earlier presentation's generic circuit slide used different example pins. Those are not the pin assignments implemented by the supplied Tinkered firmware.
+| Part | ESP32 connection | Interface |
+|---|---|---|
+| DHT22 | GPIO 13 with 10 kΩ pullup | Digital temperature and humidity |
+| Sensirion SGP40 | GPIO 21 SDA and GPIO 22 SCL | I²C, address 0x59 |
+| Capacitive soil probe v1.2 | GPIO 34 | ADC1 analog input |
+| ESP32 DevKit V1 | USB power, shared regulated sensor power and ground | Processor and wireless node |
 
-| Physical part | ESP32 connection | Lab behaviour |
-| --- | --- | --- |
-| DHT22 | Data on **GPIO 13** | Digital temperature and relative humidity every 2500 ms |
-| SGP40 VOC sensor | I²C SDA **GPIO 21**, SCL **GPIO 22**, address **0x59** | Relative VOC index every 1000 ms after about 45 seconds warm up |
-| Capacitive soil moisture v1.2 | Analog output **GPIO 34**, ADC1 | 16-sample 12-bit ADC average every 1000 ms |
-| 10 kΩ resistor | Between DHT data and 3.3 V rail | Data line pullup |
-| ESP32 DevKit V1 (30 pin) | USB power | 3.3 V supply to sensors, common GND |
-| Breadboard and jumper wires | 3.3 V rail and GND rail | Physical connections, 14 jumper wires in uploaded BOM |
+The uploaded original source is preserved in [source/tinkered](source/tinkered/README.md). The original separate firmware and FastAPI backend directories are still available in this repository.
 
-The SGP40 reports a **relative VOC index**. It is **not CO₂**, **not gas PPM**, and **not a certified AQI**. The displayed virtual VOC index moves toward the scenario value as a teaching approximation after warm up.
+## Issues investigated and corrected
 
-### Soil calibration
+- **Moisture endpoint bug:** Clamped synthetic ADC jitter so valid 0% and 100% endpoints do not falsely become calibration errors.
+- **Scheduler order:** Sensor, dataset and MQTT jobs now execute in timestamp order, preventing time reversal on fast playback.
+- **Reset leakage:** Changing or resetting a source clears history and old sensor state.
+- **Error visibility:** An injected failed sensor displays ERROR rather than an incorrect waiting or matching state.
+- **False measurements:** UCI metal oxide output is never represented as SGP40 VOC Index; missing soil and analog ADC readings remain null.
+- **Pause and recovery:** Recovering WiFi while paused no longer flushes the queue until the simulation advances.
+- **Provenance:** Each replay packet includes a dataset identifier, source sample and `simulation: true`.
 
-The supplied `config.h` defines dry ADC count **3723** and wet ADC count **1489**. The model estimates:
+Run the test suite with `node --test`. This version adds ten replay regression tests to the original six simulator tests. Browser checks also covered dataset selection, pause, step, reset, CSV import, WiFi queue recovery and mobile layout.
 
-```text
-moisture (%) = 100 × (3723 − ADC) / (3723 − 1489)
-```
-
-Values outside those calibration endpoints are flagged and not silently shown as healthy moisture percentages. ADC rail values near 0 or 4095 are treated as errors. A realistic looking ADC value does **not** guarantee a probe is connected. For physical deployment you must calibrate the real probe against dry and wet soil.
-
-### Other validation rules
-
-- The DHT22 firmware checks temperature between **−40 and 80 °C** and humidity between **0 and 100 %RH**.
-- The VOC sensor reads once per second and can take about **45 seconds** to return a useful nonzero index. If recent DHT data is unavailable it falls back to **25 °C and 50 %RH** for algorithm compensation.
-- Healthy readings older than **10 seconds** (DHT) or **3.5 seconds** (VOC or soil) are marked stale in the Tinkered firmware.
-- Every **5 seconds** the firmware creates a telemetry message containing node identity, sequence number, uptime, compensation method and individual sensor statuses.
-- Invalid current readings use `null`, while `last_good_value` remains a separate field. The virtual lab follows the same principle.
-
-## How the ESP32 responds
+## Repository structure
 
 ```text
-Environment condition
-       ↓
-DHT22 digital value   SGP40 I²C index   Soil ADC counts
-       ↓                  ↓                 ↓
-              ESP32 sensor routines
-       ↓
-    Validate signal and value
-       ↓
-  Identify node and sensor fields
-       ↓
-       Encode JSON frame
-       ↓
-          WiFi + MQTT
-       ↓
-       Monitoring record
-       ↓
-    Dashboard and history
+index.html              Responsive site using the presentation theme
+lab/app.mjs             UI controls and source verification table
+lab/engine.mjs          Simulation scheduler and ESP32 teaching model
+lab/datasets.mjs        Attributed recorded source excerpts and CSV parser
+lab/style.css           Responsive site styling
+tests/                  Node regression tests
+source/tinkered/         Original supplied firmware, circuit and wiring
+MW_SENSE_Lab_Demo.html  Single file offline demo
 ```
 
-### Fault injection is an educational extension
+To run locally: `python -m http.server 8000` from the repository root, then open `http://localhost:8000`.
 
-The supplied Tinkered firmware **does not implement an offline persistent telemetry queue**. This virtual lab has a bounded **in memory demonstration queue** to explain a possible store and forward design. It flushes held packets when the simulated link returns, while preserving their original virtual uptime. This behaviour **must not** be attributed to the physical ESP32 until it has been implemented and verified there.
+## References and research gap
 
-Likewise, the second node is emulated with shifted readings and unique IDs. It is not a second hardware device. Real RF attenuation, interference, sensor drift, electrical noise, power budgets, physical failures and broker authentication are not modelled.
+- [UCI Air Quality dataset](https://archive.ics.uci.edu/dataset/360/air+quality)
+- [Greenhouse wireless sensor network repository](https://github.com/Saynbemorinbewang2/Open-Dataset-for-Precision-Agriculture-in-Greenhouse-Environments)
+- [Soil moisture and temperature dataset from Universidad Loyola](https://data.mendeley.com/datasets/fpbfmc9vnm/1) as a future source for soil validation. Not bundled.
+- [Sensirion Gas Index Algorithm](https://github.com/Sensirion/gas-index-algorithm), for generating VOC Index from actual SGP40 sensor ticks.
+- [Espressif ESP32 technical documentation](https://docs.espressif.com/projects/esp-idf/en/stable/esp32/).
 
-## Files
+This lab checks **software replay, data correctness and simulated failure handling**, not actual field performance. Real-world validation is still required for sensor accuracy, analog calibration, gas response, WiFi packet loss, reconnection, battery power and multi-node reliability.
 
-```text
-site/
-├── index.html              App UI, accessible controls and the wiring illustration
-├── lab/
-│   ├── style.css           Responsive PowerPoint inspired theme
-│   ├── app.mjs             View logic, controls, graphs and event inspector
-│   └── engine.mjs          Testable model for sensors, validation and transport
-├── tests/
-│   └── lab.test.mjs        Six runnable tests for sampling, warm up and fault recovery
-├── docs/
-│   └── PROJECT_NOTES.md    Scope, source distinction and future validation plan
-└── source/tinkered/       The supplied Tinkered project for comparison
-```
-
-## Run tests
-
-From the website root:
-
-```sh
-node --test tests/lab.test.mjs
-```
-
-A browser smoke check was also performed on Chromium by injecting the application into a permitted about:blank page. The virtual lab rendered without JavaScript errors, the five navigation sections opened, network recovery controls worked, and a mobile viewport had no horizontal overflow. This smoke check is not a physical hardware validation.
-
-## Tinkered firmware
-
-The physical C++ implementation and wiring exports live in `source/tinkered` in this downloadable package:
-
-```sh
-cd source/tinkered
-pio run -e esp32dev
-pio run -e esp32dev -t upload
-pio device monitor -b 115200
-```
-
-Before flashing, edit `src/config.h` for your WiFi access and trusted MQTT broker. The supplied firmware defaults to a publicly reachable broker on **plaintext port 1883** with no authentication and a local HTTP dashboard. Do not expose this configuration to an untrusted or public deployment. See the firmware README for network limitations and sensor calibration details.
-
-## Research gap and next experimental work
-
-The academic proposal calls out reliability, communication recovery and scaling across low cost nodes. A real evaluation should record MQTT delivery rate, network outages, recovery time, power consumption, measurement accuracy against reference instruments, calibration stability and behaviour with several physical ESP32 nodes. The virtual lab helps explain these tests but does not replace them.
-
-## References
-
-- [Espressif ESP32 documentation](https://docs.espressif.com/projects/esp-idf/en/stable/esp32/)
-- [Sensirion SGP40 documentation](https://sensirion.com/products/catalog/SGP40)
-- [Adafruit DHT sensor guide](https://learn.adafruit.com/dht)
-- [MQTT information and specification links](https://mqtt.org/)
-- [Wokwi ESP32 simulator documentation](https://docs.wokwi.com/)
-
-**Presentation source:** `MW_SENSE_Synopsis_Aligned_Final(1).pptx` (provided by the user). The page styling uses its warm off white `#F7F5F0`, strong charcoal type, subtle borders and modular panels. The website content reflects the actual pin map and component list in the uploaded Tinkered ZIP.
+Academic project by Chaman Vashishth and Vineet Sharma. Dayalbagh Educational Institution Agra.
