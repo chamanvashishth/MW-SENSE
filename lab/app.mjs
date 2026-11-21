@@ -1,5 +1,5 @@
 import { SensorLab, SCENARIOS, SENSOR_KEYS, SENSOR_META } from './engine.mjs';
-
+import { DATASETS, parseCsvReplay } from './datasets.mjs';
 let lab = new SensorLab();
 let selectedSensor = 'temperature';
 let selectedComponent = 'dht';
@@ -7,11 +7,12 @@ let selectedStage = 0;
 let visibleTab = 'lab';
 let clearedUntil = 0;
 let lastRendered = '';
+let importedSource = null;
 const $ = id => document.getElementById(id);
 const nf = (value, decimals = 0) => Number(value).toFixed(decimals);
 const clock = seconds => `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`;
-const statusPretty = status => ({ ok: 'OK', loading: 'LOADING', warming_up: 'WARMING', error: 'ERROR', out_of_calibration: 'UNCALIBRATED', rail_error: 'RAIL ERROR', stale: 'STALE' })[status] || status.toUpperCase();
-const statusBrief = status => ({loading:'Waiting for sample',warming_up:'Learning sensor baseline',error:'Read failure',rail_error:'ADC rail detected',out_of_calibration:'Probe needs calibration',stale:'Reading is old',ok:'Valid and up to date'})[status];
+const statusPretty = status => ({not_available:'NOT RECORDED', ok: 'OK', loading: 'LOADING', warming_up: 'WARMING', error: 'ERROR', out_of_calibration: 'UNCALIBRATED', rail_error: 'RAIL ERROR', stale: 'STALE' })[status] || status.toUpperCase();
+const statusBrief = status => ({not_available:'Source does not contain this sensor',loading:'Waiting for sample',warming_up:'Learning sensor baseline',error:'Read failure',rail_error:'ADC rail detected',out_of_calibration:'Probe needs calibration',stale:'Reading is old',ok:'Valid and up to date'})[status];
 const labels = { lab:'VIRTUAL ENVIRONMENT', circuit:'HARDWARE AND WIRING', journey:'DATA JOURNEY', testing:'RELIABILITY TESTS', guide:'PROJECT GUIDE' };
 const stages = [
   ['Sensor acquisition', 'DHT22 supplies digital temperature and humidity. SGP40 returns a relative VOC index via I²C. The soil sensor provides a voltage that the ESP32 converts into ADC counts.'],
@@ -31,7 +32,7 @@ const components = {
 function show(reading, decimals, unit) {
   if (!reading) return 'Waiting';
   if (reading.status === 'ok' && reading.value !== null) return `${nf(reading.value,decimals)} ${unit}`.trim();
-  return reading.status === 'warming_up' ? 'Warming up' : reading.status === 'loading' ? 'Waiting' : 'Unavailable';
+  return reading.status === 'warming_up' ? 'Warming up' : reading.status === 'loading' ? 'Waiting' : reading.status === 'not_available' ? 'Not recorded' : 'Unavailable';
 }
 function goTab(id) {
   if (!labels[id]) return;
@@ -47,7 +48,54 @@ function bindEvents() {
   document.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => goTab(b.dataset.tab)));
   $('dismiss-notice').addEventListener('click', () => $('.notice').style.display='none');
   $('pause-btn').addEventListener('click', () => { lab.isRunning = !lab.isRunning; render(); });
-  $('reset-btn').addEventListener('click', () => { lab = new SensorLab(); clearedUntil=0; lastRendered=''; $('second-node').checked=false; document.querySelectorAll('[data-fault]').forEach(x=>x.checked=false); $('speed').value='1'; updateSliders(); render(); });
+  $('reset-btn').addEventListener('click', () => {
+    lab.restart(); clearedUntil=0; lastRendered=''; $('second-node').checked=false;
+    document.querySelectorAll('[data-fault]').forEach(x=>x.checked=false);
+    $('speed').value='1'; updateSliders(); render();
+  });
+  $('step-btn').addEventListener('click', () => { lab.advance(1); render(); });
+  $('source-select').addEventListener('change', e => {
+    try {
+      if (e.target.value === 'synthetic') lab.useSynthetic();
+      else if (e.target.value === 'imported' && importedSource) lab.loadDataset('imported', importedSource);
+      else lab.loadDataset(e.target.value);
+      resetUiAfterSourceChange();
+    } catch(err) { $('source-message').textContent = `Unable to load dataset: ${err.message}`; }
+  });
+  $('next-record').addEventListener('click', () => {
+    if (!lab.dataset || lab.datasetIndex === lab.dataset.rows.length - 1) return;
+    const nextTime = lab.nextSample.dataset;
+    lab.advance(Math.max(.001, nextTime-lab.time) + 2.6);
+    render();
+  });
+  $('csv-upload').addEventListener('change', async e => {
+    const file=e.target.files?.[0]; if (!file) return;
+    try {
+      if(file.size > 1024*1024) throw Error('Maximum CSV size is 1 MB.');
+      const rows=parseCsvReplay(await file.text());
+      importedSource={id:'imported',name:file.name,origin:'User supplied CSV. Provenance has not been verified.',sourceUrl:null,
+        cadence:'Provided row sequence. No cadence inference.',note:'Imported values are user supplied. Temperature and humidity are reprocessed. Soil percent is used directly and no ESP32 ADC or VOC signal is invented.',
+        measured:['temperature','humidity','soil'].filter(k=>rows.some(r=>r[k]!==null)),rows};
+      const select=$('source-select');
+      let option=select.querySelector('option[value="imported"]');
+      if(!option){option=document.createElement('option');option.value='imported';select.appendChild(option);}
+      option.textContent=`Imported CSV · ${rows.length} rows`;
+      select.value='imported';lab.loadDataset('imported',importedSource);resetUiAfterSourceChange();
+    } catch(err) { $('source-message').textContent=`CSV import failed: ${err.message}`; }
+    e.target.value='';
+  });
+  $('export-trace').addEventListener('click', () => {
+    const data={kind:'MW-SENSE virtual lab trace',source_mode:lab.sourceMode,source_name:lab.dataset?.name || 'Synthetic model',
+      simulation:true,hardware_connected:false,virtual_seconds:lab.time,
+      received_frames:lab.records.map(x=>x.frame),pending_frames:lab.queue,log_events:lab.log};
+    const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+    const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='mw-sense-output-trace.json';document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
+  });
+  $('export-record').addEventListener('click', () => {
+    if (!lab.datasetRow) return;
+    const blob=new Blob([JSON.stringify({source:lab.dataset.name,record:lab.datasetRow,verification:lab.verifyCurrentRow()},null,2)],{type:'application/json'});
+    const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='mw-sense-source-record.json';document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
+  });
   $('speed').addEventListener('change', e => { lab.rate = Number(e.target.value); lab.logEvent('system', `Virtual clock set to ${lab.rate}× speed.`, 'neutral'); render(); });
   document.querySelectorAll('[data-scenario]').forEach(b => b.addEventListener('click', () => { lab.setScenario(b.dataset.scenario); updateSliders(); render(); }));
   for (const id of ['temperature','humidity','voc','soil']) $(id).addEventListener('input', e => { lab.setCondition(id, e.target.value); updateSliders(); render(); });
@@ -60,19 +108,90 @@ function bindEvents() {
   document.querySelectorAll('[data-fault]').forEach(b=>b.addEventListener('change',()=>{lab.setFault(b.dataset.fault,b.checked);render();}));
   $('second-node').addEventListener('change',e=>{lab.setSecondNode(e.target.checked);render();});
 }
+function resetUiAfterSourceChange() {
+  lastRendered = '';
+  $('second-node').checked = false;
+  document.querySelectorAll('[data-fault]').forEach(x => { x.checked = false; });
+  $('speed').value = '1';
+  updateSliders();
+  render();
+}
+function renderEvidence() {
+  const isReplay = lab.sourceMode === 'recorded_replay';
+  const ds = lab.dataset;
+  $('source-mode-label').textContent = isReplay ? 'HISTORICAL REPLAY' : 'BROWSER SIMULATION';
+  $('source-badge').textContent = isReplay ? 'RECORDED DATA' : 'SYNTHETIC DATA';
+  $('source-badge').classList.toggle('is-recorded', isReplay);
+  $('next-record').disabled = !isReplay || lab.datasetIndex >= ds.rows.length - 1;
+  $('export-record').disabled = !isReplay;
+  document.querySelectorAll('[data-scenario]').forEach(b=>b.disabled=isReplay);
+  for(const key of ['temperature','humidity','soil','voc']) $(key).disabled=isReplay;
+  $('scenario-buttons').classList.toggle('is-locked',isReplay);
+  $('second-node').disabled=isReplay;
+  if (!isReplay) {
+    $('source-message').textContent='Synthetic values are driven by the sliders. All readings are simulated. No outside dataset or physical sensor is connected.';
+    $('record-position').textContent='Synthetic environment · adjustable input';
+    $('record-cadence').textContent='DHT 2.5s · Soil and VOC 1s · MQTT 5s';
+    $('record-progress').style.width='0%';
+    $('verification-rows').replaceChildren();
+    const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=4;td.textContent='Select a recorded dataset to compare source and processed measurements.';tr.appendChild(td);$('verification-rows').appendChild(tr);
+    $('source-raw-json').textContent='Synthetic input: '+JSON.stringify(lab.conditions,null,2);
+    $('verify-count').textContent='SYNTHETIC';
+    $('verification-notes').textContent='Values are generated from the educational model. They are not evidence of physical hardware readings.';
+    $('dataset-indicator').textContent='Synthetic model · not hardware telemetry';
+    $('dataset-source-link').hidden=true;
+    $('dataset-source-note').textContent='No external source selected.';
+    return;
+  }
+  const sourceRow=lab.datasetRow;
+  $('source-message').textContent=`${ds.origin}. ${ds.note}`;
+  $('record-position').textContent=`SOURCE RECORD ${lab.datasetIndex + 1} OF ${ds.rows.length} · ${sourceRow.recordedTime}`;
+  $('record-cadence').textContent=`Source cadence: ${ds.cadence} · Browser replay advances one row every ${lab.replayInterval}s`;
+  $('record-progress').style.width=`${(lab.datasetIndex + 1) * 100 / ds.rows.length}%`;
+  $('source-raw-json').textContent=JSON.stringify({source:ds.name,record:sourceRow},null,2);
+  const packet=lab.lastPacket,deliver=lab.lastDelivery;
+  if(packet?.source?.dataset_id===ds.id && packet.source.sample===sourceRow.sample){
+    const received=deliver?.frame?.source?.dataset_id===ds.id && deliver.frame.source.sample===sourceRow.sample;
+    $('dataset-indicator').textContent=received
+      ? `Source row ${sourceRow.sample} → virtual ESP32 → MQTT frame ${packet.sequence} → stored browser record ✓`
+      : `Source row ${sourceRow.sample} → MQTT frame ${packet.sequence} prepared. Waiting for simulated delivery.`;
+  } else {
+    $('dataset-indicator').textContent=`Source row ${sourceRow.sample} loaded. Waiting for the virtual ESP32 to sample and publish it.`;
+  }
+  $('dataset-source-link').hidden=!ds.sourceUrl;
+  if(ds.sourceUrl) $('dataset-source-link').href=ds.sourceUrl;
+  $('dataset-source-note').textContent=ds.origin;
+  const checks=lab.verifyCurrentRow(),body=$('verification-rows');body.replaceChildren();
+  let matched=0,available=0;
+  for(const x of checks){
+    if(x.expected!==null)available++;
+    if(x.status==='match')matched++;
+    const tr=document.createElement('tr');
+    const strings=[x.field==='soil'?'Soil moisture':x.field==='humidity'?'Humidity':'Temperature',
+      x.expected===null?'Not in source':String(x.expected)+(x.field==='temperature'?' °C':' %'),
+      x.observed===null?'Waiting or N/A':String(x.observed)+(x.field==='temperature'?' °C':' %'),
+      x.status==='match'?'MATCH':x.status==='pending'?'SAMPLING':x.status==='not_recorded'?'N/A':x.status.toUpperCase()];
+    for(let i=0;i<strings.length;i++){const td=document.createElement('td');td.textContent=strings[i];if(i===3)td.className='compare-status '+x.status;tr.appendChild(td);}body.appendChild(tr);
+  }
+  $('verify-count').textContent=`${matched} OF ${available} MATCH`;
+  const issues=checks.filter(x=>x.status==='mismatch').length;
+  $('verification-notes').textContent=issues?'Mismatch detected. Inspect timing, fault switches or processing logic.':
+    'The comparison checks equality to source measurements after the next scheduled sample. Zero soil moisture remains zero. ADC counts and SGP40 VOC index remain unavailable because the dataset did not measure them.';
+}
 function updateSliders() {
   Object.entries(lab.conditions).forEach(([key,value])=>{const el=$(key);if(el)el.value=value; const output=$(`${key}-val`);if(output)output.textContent= key==='temperature'?`${value} °C`:key==='humidity'?`${value} %RH`:key==='soil'?`${value} %`:value;});
   document.querySelectorAll('[data-scenario]').forEach(b=>b.classList.toggle('active',b.dataset.scenario===lab.scenario));
+  $('source-select').value = lab.dataset?.id || 'synthetic';
 }
 function renderScene() {
   const c=lab.conditions;
   $('scene-temp').textContent=`${nf(c.temperature,1)} °C`;
-  $('scene-air').textContent=c.voc>300?'Poor ventilation':c.voc>180?'Elevated':'Normal';
-  $('scene-soil').textContent=c.soil<25?'Dry':c.soil>78?'Very wet':'Moderate';
+  $('scene-air').textContent=lab.dataset ? 'Not recorded' : c.voc>300?'Poor ventilation':c.voc>180?'Elevated':'Normal';
+  $('scene-soil').textContent=lab.dataset && lab.datasetRow.soil===null?'Not recorded':c.soil<25?'Dry':c.soil>78?'Very wet':'Moderate';
   $('scene-sun').setAttribute('fill',c.temperature>37?'#e3a16d':c.temperature<10?'#b9cadd':'#e4c27c');
   $('scene-sun').setAttribute('r',String(24+Math.max(0,c.temperature-20)*0.48));
   $('scene-clouds').style.opacity=String(.3+c.humidity*.007);
-  $('scene-voc-haze').style.opacity=String(Math.min(.8,c.voc/550));
+  $('scene-voc-haze').style.opacity=lab.dataset?'0':String(Math.min(.8,c.voc/550));
   $('scene-drops').style.opacity=c.humidity>=80?'1':'0';
   $('soil-bed').style.filter=`brightness(${1-Math.max(0,c.soil-40)/180})`;
 }
@@ -88,11 +207,11 @@ function renderSensorTile(key,id,valueId,statusId,detailId,decimals) {
 }
 function renderSummary() {
   $('uptime').textContent=clock(lab.time);
-  $('node-state').textContent=lab.isRunning?'SENSING':'PAUSED';
+  $('node-state').textContent=lab.isRunning?(lab.dataset?'REPLAY':'SENSING'):'PAUSED';
   $('network-summary').innerHTML=`<i class="tiny-status ${lab.canPublish()?'good':'bad'}"></i>${lab.faults.wifi?'WiFi offline':lab.faults.mqtt?'MQTT offline':'WiFi + MQTT'}`;
   $('packet-count').textContent=String(lab.records.length);
   $('queue-count').textContent=String(lab.queue.length);
-  $('sidebar-node').textContent=lab.isRunning?'NODE 01 · RUNNING':'NODE 01 · PAUSED';
+  $('sidebar-node').textContent=lab.isRunning?(lab.dataset?'NODE 01 · REPLAY':'NODE 01 · RUNNING'):'NODE 01 · PAUSED';
   $('sidebar-node-sub').textContent=`Virtual time ${clock(lab.time)} · ${lab.rate}× speed`;
   $('pause-icon').textContent=lab.isRunning?'Ⅱ':'▶';
   $('pause-text').textContent=lab.isRunning?'Pause simulation':'Resume simulation';
@@ -165,7 +284,7 @@ function render() {
     renderSensorTile('voc_index','voc','read-voc','voc-status','voc-explain',0);
     renderSensorTile('soil_percent','soil','read-soil','soil-status','soil-explain',0);
     $('esp32-decision').textContent=lab.lastDecision;
-    renderChart();renderLogs();
+    renderEvidence();renderChart();renderLogs();
   } else if(visibleTab==='circuit')renderComponent();
   else if(visibleTab==='journey'){renderStage();renderJourney();}
   else if(visibleTab==='testing')renderTesting();
