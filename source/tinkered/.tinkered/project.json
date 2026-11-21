@@ -1,0 +1,13 @@
+{
+  "id": "eb8ec6ef-8a8f-4cdf-8c52-d9da15d559e2",
+  "name": "MW-SENSE IoT Environmental Dashboard",
+  "path": "MW-SENSE IoT Environmental Dashboard",
+  "board": "esp32",
+  "boardId": "esp32-devkit-v1",
+  "boardFqbn": "esp32:esp32:esp32",
+  "createdAt": 1794988816418,
+  "updatedAt": 1794989168546,
+  "schemaVersion": 1,
+  "exportedAt": "2026-11-21T11:52:35.072Z",
+  "exportedBy": "tinkered-app/1.0"
+}
