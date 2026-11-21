@@ -1,0 +1,65 @@
+{
+  "version": 2,
+  "tips": {
+    "breadboard": {
+      "why": "Provides connected rows and power rails for building the circuit.",
+      "tip": ""
+    },
+    "place:esp32_1": {
+      "why": "Positions the ESP32 pins so they can connect to the power rails and sensor wiring.",
+      "tip": "The board must straddle the center trench so pins on opposite sides stay electrically separate."
+    },
+    "power:esp32_1": {
+      "why": "Connects the ESP32 3.3 V output and ground to the breadboard power rails.",
+      "tip": "The positive rail is fed from 3.3 V, not VIN."
+    },
+    "place:dht_pullup": {
+      "why": "Places a resistor between the DHT data connection and the positive supply connection.",
+      "tip": ""
+    },
+    "power:dht_pullup": {
+      "why": "Connects the resistor to the positive supply so it can pull the DHT data line high.",
+      "tip": ""
+    },
+    "place:air_1": {
+      "why": "Positions the SGP40 pins for power and I2C signal connections.",
+      "tip": ""
+    },
+    "power:air_1": {
+      "why": "Supplies power and ground to the SGP40.",
+      "tip": "Use the ground rail shared with the ESP32; an unshared ground leaves the sensor without a return path."
+    },
+    "signal:air_1": {
+      "why": "Connects the SGP40 SDA and SCL lines to the ESP32 I2C pins.",
+      "tip": ""
+    },
+    "place:dht_1": {
+      "why": "Positions the DHT22 pins for power, ground, and data connections.",
+      "tip": ""
+    },
+    "power:dht_1": {
+      "why": "Supplies power and ground to the DHT22.",
+      "tip": ""
+    },
+    "signal:dht_1": {
+      "why": "Connects the DHT22 data line to the ESP32 and the pull-up resistor.",
+      "tip": "The two green wires share the data node, so keep both connected to the DHT data row."
+    },
+    "place:soil_1": {
+      "why": "Prepares the soil moisture sensor for power and output connections.",
+      "tip": ""
+    },
+    "power:soil_1": {
+      "why": "Supplies power and ground to the soil moisture sensor.",
+      "tip": "Its ground must share the ESP32 ground rail for the output signal to have a reference."
+    },
+    "signal:soil_1": {
+      "why": "Brings the sensor's analog output onto the breadboard.",
+      "tip": ""
+    },
+    "check": {
+      "why": "Confirms the assembly is ready for testing.",
+      "tip": ""
+    }
+  }
+}
