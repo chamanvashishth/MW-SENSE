@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "name": "MW-SENSE",
+  "intent": "Create an MW-SENSE simulation using ESP32 with DHT22 temperature and humidity sensor along with air quality and soil moisture sensors. Simulate WiFi and MQTT transmission to a centralized live monitoring dashboard, with automatic updates, error detection and future sensor nodes.",
+  "deliverables": [
+    "breadboard",
+    "firmware",
+    "docs"
+  ],
+  "power": {
+    "sources": [
+      {
+        "kind": "Development board USB",
+        "volts": 5
+      }
+    ]
+  },
+  "programming": "Run the compiled ESP32 firmware in the 3D simulator; USB serial flashing for a physical ESP32 DevKit V1.",
+  "acceptance": [
+    "ESP32 connected to DHT22, air-quality and soil moisture sensors with correct GPIO and power wiring.",
+    "Firmware collects and validates sensor readings with automatic updates and error detection.",
+    "WiFi and MQTT transmit sensor data to a centralized dashboard displaying live values and sensor status.",
+    "Additional sensor nodes can be added in future."
+  ],
+  "assumed": [
+    {
+      "field": "power.sources[0]",
+      "why": "USB-powered development board; sensors supplied by its 3.3V output."
+    }
+  ],
+  "decisions": [
+    {
+      "what": "notes: \"Selected 3D breadboard and ESP32 DevKit V1 30-pin. Use S… → \"Selected 3D breadboard and ESP32 DevKit V1 30-pin. SGP40…",
+      "why": "Record the confirmed wiring/check results and startup/expansion expectations for the requested simulation.",
+      "at": "2026-11-18T08:02:45.124Z"
+    }
+  ],
+  "notes": "Selected 3D breadboard and ESP32 DevKit V1 30-pin. SGP40 VOC breakout for relative air-quality trends, not certified AQI or CO2; capacitive soil moisture v1.2 at 3.3V with real-probe calibration required. DHT22 DATA GPIO13 with 10k pullup; SGP40 SDA21/SCL22; soil AOUT GPIO34 ADC1. All sensor power inputs at3.3V, common ground; SGP40 3V3 output left unconnected. Structural wiring has no faults; soil and SGP40 have no internal SPICE models, so SPICE excludes those internals but interactive…"
+}
