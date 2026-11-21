@@ -1,0 +1,849 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#f7f5f0">
+  <meta name="description" content="MW-SENSE virtual laboratory. Watch environmental changes become sensor readings, ESP32 decisions, MQTT packets and monitoring records.">
+  <title>MW-SENSE | Interactive Virtual Lab</title>
+  <style>
+:root{--bg:#f7f5f0;--ink:#1f211f;--muted:#6d706a;--line:#dddcd5;--line2:#e9e8e2;--paper:#fffefa;--soft:#f4f3ee;--accent:#466b57;--accentsoft:#e5eee6;--warn:#94632b;--bad:#a34944;--shadow:0 9px 24px rgba(30,32,28,.036);color-scheme:light}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;-webkit-font-smoothing:antialiased}button,input,select{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible,[tabindex]:focus-visible{outline:3px solid #649a77;outline-offset:3px}button:disabled{opacity:.5;cursor:not-allowed}h1,h2,h3,p{margin-top:0}h1,h2,h3{letter-spacing:-.035em}h1{font-size:clamp(37px,3.5vw,58px);line-height:1.09;font-weight:750}h1 em{font-style:normal;color:#76796f}h2{font-size:clamp(24px,2.4vw,34px);line-height:1.2;margin-bottom:9px}h3{font-size:19px;line-height:1.28;margin:4px 0 0}p{line-height:1.65;color:var(--muted)}small{font-size:12px}a{color:inherit}.shell{display:flex;min-height:100vh}.sidebar{position:sticky;top:0;height:100vh;width:266px;min-width:266px;background:#fbfaf7;border-right:1px solid var(--line);padding:33px 20px 25px;display:flex;flex-direction:column;gap:0;z-index:11}.brand{display:flex;gap:15px;align-items:center;padding:0 6px}.brand strong{display:block;font-size:20px;letter-spacing:-.055em;font-weight:850}.brand small{display:block;font-size:9px;letter-spacing:.22em;color:var(--muted);margin-top:2px}.brand-mark{height:39px;width:39px;position:relative;flex:none;transform:rotate(45deg)}.brand-mark:before,.brand-mark:after{content:'';position:absolute;background:#b5bcb3;top:18px;left:1px;width:37px;height:2px}.brand-mark:after{transform:rotate(90deg)}.brand-mark .core{position:absolute;width:22px;height:22px;border-radius:50%;background:#262824;left:8.5px;top:8.5px;z-index:2}.brand-mark .dot{position:absolute;width:8px;height:8px;border-radius:50%;background:#272925;z-index:2}.d1{top:0;left:0}.d2{top:0;right:0}.d3{bottom:0;left:0}.d4{bottom:0;right:0}.side-divider{height:1px;background:var(--line);margin:34px 0 26px}.nav-caption,.card-caption,.section-kicker,.control-label,.tiny-caption{letter-spacing:.13em;font-size:10px;font-weight:780;color:#777c74}.nav-caption{padding:0 11px;margin-bottom:16px}.navigation{display:grid;gap:5px}.nav-btn{width:100%;display:flex;align-items:center;gap:13px;border:0;background:transparent;border-radius:9px;padding:13px 12px;text-align:left;color:#5d625b;font-size:13px;font-weight:600;transition:background .18s}.nav-btn:hover{background:#e9e9e3}.nav-btn.active{background:#222521;color:white;box-shadow:0 5px 12px #22252116}.nav-number{font:700 10px ui-monospace,monospace;color:inherit;opacity:.55}.nav-chevron{margin-left:auto;opacity:0;font-size:13px}.nav-btn:hover .nav-chevron,.nav-btn.active .nav-chevron{opacity:.8}.side-grow{flex:1}.side-device{display:flex;align-items:center;gap:11px;padding:15px 12px;border:1px solid var(--line);border-radius:10px;background:var(--soft);margin-bottom:21px}.side-device strong,.side-device small{display:block}.side-device strong{font-size:11px;letter-spacing:.08em}.side-device small{color:var(--muted);font-size:11px;margin-top:3px}.led{display:inline-flex;width:10px;height:10px;border-radius:50%;background:#5e9876;box-shadow:0 0 0 3px #d6e8db;flex:none}.led.pulse{animation:glow 2s infinite}@keyframes glow{50%{box-shadow:0 0 0 7px #d6e8db85}}.side-note{display:grid;gap:10px;color:#82857f;font-size:11px;line-height:1.7;padding:0 8px}.side-note strong{font-size:11px;color:#434b43}.content{width:calc(100% - 266px);min-width:0;padding:0 clamp(26px,4vw,70px)}.topbar{min-height:74px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:15px}.breadcrumbs{color:#8a8a81;font-size:10px;font-weight:700;letter-spacing:.13em}.breadcrumbs strong{color:var(--ink)}.topbar-right{display:flex;align-items:center;gap:19px}.mode-pill,.small-tag,.live-pill{display:inline-flex;align-items:center;gap:7px;border:1px solid #d9dfd6;background:#f1f5ee;color:#4d6d54;border-radius:7px;font-size:10px;padding:7px 10px;font-weight:800;letter-spacing:.07em;white-space:nowrap}.mini-dot,.tiny-status{display:inline-block;background:#76a486;width:7px;height:7px;flex:none;border-radius:50%}.tiny-status.good{background:#6b9b78}.tiny-status.bad{background:#b75a50}.tiny-status.warn{background:#c59b58}.uptime{font:700 12px ui-monospace,monospace;color:#5f635c}.notice{margin:19px 0 -4px;border:1px solid #dfd7c7;background:#f1eee6;padding:10px 13px;border-radius:9px;display:flex;align-items:center;gap:9px;color:#696255;font-size:12px}.notice-icon{font-style:italic;font-weight:bold;display:grid;place-items:center;border:1px solid #ada58f;width:18px;height:18px;border-radius:50%;font-family:serif}.notice span:nth-child(2){flex:1}.notice button{background:none;border:0;color:var(--muted);font-size:19px;line-height:1}.hero{display:grid;grid-template-columns:1fr 235px;gap:20px;align-items:center;padding:50px 0 42px}.eyebrow{font-size:10px;font-weight:850;letter-spacing:.14em;color:#585c55;display:flex;align-items:center;gap:10px;margin-bottom:16px}.eyebrow-line{height:1px;width:20px;background:#9d9f96}.hero h1{margin:0 0 15px}.hero p{max-width:610px;font-size:15px;margin:0 0 23px}.hero-actions{display:flex;align-items:center;gap:9px;flex-wrap:wrap}.btn{border-radius:8px;min-height:40px;padding:0 16px;font-weight:750;font-size:12px;border:1px solid var(--ink);transition:transform .15s,box-shadow .15s}.btn:hover{transform:translateY(-1px)}.btn.primary{background:#242722;color:white}.btn.secondary{background:transparent;color:#282b27;border-color:#bebfb8}.speed-picker{display:flex;align-items:center;gap:9px;font-size:12px;color:var(--muted);padding-left:8px}.speed-picker select{border:1px solid var(--line);padding:8px 6px;border-radius:7px;background:white;color:var(--ink)}.hero-art{text-align:center;position:relative;height:218px;display:grid;place-items:center}.network-symbol{height:190px;width:190px;position:relative}.net-ring{border:2px solid #ddded7;border-radius:50%;position:absolute;left:36px;top:36px;width:118px;height:118px}.net-ring.inner{left:56px;top:56px;width:78px;height:78px}.net-branch{position:absolute;top:94px;left:28px;width:134px;height:3px;background:#d4d6cf;transform:rotate(45deg)}.net-branch.b2{transform:rotate(-45deg)}.net-branch.b3{transform:rotate(135deg)}.net-branch.b4{transform:rotate(-135deg)}.net-core{position:absolute;top:71px;left:71px;width:48px;height:48px;display:grid;place-items:center;border-radius:50%;background:#242622;color:#fff;font-size:16px;font-weight:800;z-index:2;box-shadow:0 3px 7px #0001}.net-end{position:absolute;width:17px;height:17px;border-radius:50%;background:#292c27;box-shadow:0 4px 8px #0002;z-index:2}.net-end.n1{top:26px;left:26px}.net-end.n2{top:26px;right:26px}.net-end.n3{bottom:26px;left:26px}.net-end.n4{bottom:26px;right:26px}.hero-art-label{position:absolute;bottom:0;font-size:10px;letter-spacing:.15em;font-weight:800;color:#777c74}.overview-strip{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin-bottom:35px}.summary-item{padding:19px 20px;border-right:1px solid var(--line);display:grid;gap:7px}.summary-item:first-child{padding-left:0}.summary-item:last-child{border-right:0}.summary-item span{font-size:9px;letter-spacing:.13em;color:#868981;font-weight:800}.summary-item strong{font-size:18px;font-weight:800;letter-spacing:-.03em}.summary-item strong i{margin-right:6px;vertical-align:middle}.section-intro{display:flex;align-items:end;justify-content:space-between;gap:20px;margin:0 0 25px}.section-kicker{margin-bottom:9px}.section-intro h2{margin-bottom:7px}.section-intro p{margin:0;max-width:740px;font-size:13px}.section-intro .small-tag{margin-bottom:3px}.card{background:var(--paper);border:1px solid #deddD6;border-radius:15px;box-shadow:var(--shadow);min-width:0}.card-head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:18px}.card h3{font-weight:800}.lab-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(310px,.9fr);gap:18px}.environment-card,.sensor-card{padding:20px}.environment-illustration{background:#ebede6;border:1px solid #d8ddd4;border-radius:11px;overflow:hidden}.environment-illustration svg{width:100%;height:auto;display:block}.scene-metrics{background:#f9f8f3;display:grid;grid-template-columns:repeat(3,1fr);padding:12px 13px;border-top:1px solid #d7d9d1}.scene-metrics>div{display:grid;gap:3px;padding:0 9px;border-right:1px solid var(--line)}.scene-metrics>div:first-child{padding-left:0}.scene-metrics>div:last-child{border:0}.scene-metrics span{font-size:8px;letter-spacing:.1em;font-weight:800;color:#888b83}.scene-metrics strong{font-size:14px}.scenario-panel{margin:20px 0 16px}.control-label{margin-bottom:10px}.scenario-buttons{display:flex;gap:6px;flex-wrap:wrap}.scenario-btn{border:1px solid #d6d6ce;background:#faf9f5;color:#65675f;border-radius:6px;padding:7px 9px;font-size:11px;font-weight:650}.scenario-btn.active{background:#242823;color:white;border-color:#242823}.scenario-btn:hover{border-color:#929a90}.slider-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px 20px;padding:12px 0 0}.slider-control{display:block;min-width:0}.slider-control>span{display:flex;align-items:center;justify-content:space-between;gap:7px}.slider-control strong{font-size:12px}.slider-control output{font:700 11px ui-monospace,monospace;color:var(--accent)}.slider-control input{width:100%;accent-color:#374f3e;cursor:pointer;margin:10px 0 3px;height:6px}.slider-control small{color:#888c82;line-height:1.45;display:block}.sensor-tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}.sensor-tile{background:#f8f8f3;border:1px solid #dfdfd7;border-radius:10px;min-height:137px;padding:12px;text-align:left;display:flex;flex-direction:column;align-items:flex-start;gap:2px}.sensor-tile.selected{border-color:#7e9584;background:#f2f6f0;box-shadow:inset 0 0 0 1px #9bb2a0}.sensor-tile:hover{border-color:#889e8d}.sensor-tile-top{font-size:9px;font-weight:800;letter-spacing:.04em;display:flex;width:100%;justify-content:space-between;gap:4px;color:#787f75}.status-label{font-style:normal;font-size:8px;border:1px solid #e0d7ba;border-radius:4px;padding:1px 4px;color:#97783e;letter-spacing:0}.status-label.ok{color:#437554;border-color:#b4d0b9}.status-label.error,.status-label.rail_error{color:#a74b47;border-color:#e4bcb7}.sensor-tile>strong{font-size:clamp(19px,2.35vw,30px);font-weight:820;line-height:1.15;letter-spacing:-.05em;margin-top:12px}.sensor-tile .tile-name{font-size:11px;font-weight:750}.sensor-tile small{font-size:10px;color:#858a81;margin-top:auto}.cpu-response{border-top:1px solid var(--line);margin-top:18px;padding-top:17px;display:flex;gap:14px;align-items:flex-start}.cpu-chip{background:#242721;border-radius:9px;color:white;min-width:88px;min-height:77px;display:flex;flex-direction:column;justify-content:center;text-align:center;font-size:20px;letter-spacing:-.06em;font-weight:850}.cpu-chip small{font-size:8px;letter-spacing:.08em;font-weight:500;color:#c7cdc2}.cpu-response>div:last-child{flex:1}.cpu-response>div:last-child>span{font-size:9px;color:var(--accent);font-weight:800;letter-spacing:.1em}.cpu-response p{color:#484d45;margin:6px 0 0;font-size:12px}.bottom-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:18px}.compact-card{padding:20px}.minimal-select{max-width:160px;font-size:11px;padding:7px 10px;border:1px solid var(--line);background:#fafaf6;border-radius:6px}.graph-box svg{width:100%;height:auto;max-height:220px;display:block}.graph-box line{stroke:#e4e7df;stroke-width:1}.graph-box path{fill:none;stroke:#4c735b;stroke-width:3;stroke-linejoin:round;stroke-linecap:round}.chart-caption{color:#8c9087;font-size:10px;margin-top:4px}.text-button{border:0;background:none;color:#42654e;font-size:11px;font-weight:750;padding:7px}.text-button:hover{text-decoration:underline}.terminal{height:182px;overflow:auto;background:#252a24;color:#d9e3d4;font:11px/1.55 ui-monospace,Consolas,monospace;border-radius:8px;padding:11px 12px}.terminal p{margin:0 0 6px;color:#cfdbd0}.terminal .warn{color:#e2c78a}.terminal .bad{color:#e2a59a}.terminal .good{color:#a6d1b1}.terminal time{color:#8d9f91}.tab-panel[hidden]{display:none!important}.tab-panel{padding-bottom:25px}.circuit-grid{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(275px,.55fr);gap:18px}.circuit-card,.inspector-card{padding:21px}.circuit-card>svg{width:100%;display:block}.component{cursor:pointer}.component-box{fill:#fffefa;stroke:#c7cbc2;stroke-width:2;transition:fill .2s,stroke .2s}.component.active .component-box{fill:#edf4ed;stroke:#4e8260;stroke-width:3}.component:hover .component-box{stroke:#548269}.component-title{font:800 24px ui-sans-serif,system-ui;fill:#272b27}.component-small{font:700 12px ui-sans-serif,system-ui;fill:#70786e}.component-id,.wire-text{font:700 10px ui-monospace,monospace;fill:#80847c}.chip-pin{font:700 12px ui-monospace,monospace;fill:#d3ddd2}.wire{stroke:#4f8063;fill:none;stroke-width:4;stroke-linecap:round;stroke-linejoin:round}.wire.dashed{stroke-dasharray:6 8;stroke:#748477;stroke-width:2}.wire.active{stroke:#275f3c;stroke-width:6}.power-wire{fill:none;stroke:#9cae9e;stroke-width:3;stroke-linecap:round}.ground-wire{fill:none;stroke:#8e918b;stroke-width:3;stroke-linecap:round}.circuit-legend{display:flex;flex-wrap:wrap;gap:12px 17px;font-size:10px;color:#82877d;align-items:center;margin:0 9px 6px}.legend-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px}.inspector-card h3{font-size:27px;margin:10px 0 6px}.inspector-card p{font-size:12px}.spec-list{margin:16px 0;border-top:1px solid var(--line)}.spec-list>div{display:grid;gap:4px;padding:11px 0;border-bottom:1px solid var(--line2)}.spec-list dt{font-size:10px;color:#82867e;font-weight:650}.spec-list dd{margin:0;font-size:12px;color:#262a25;font-weight:730;line-height:1.45}.inspector-tip{border-left:3px solid #88a68b;background:#eef4eb;padding:13px;font-size:12px;color:#526b56;line-height:1.5;border-radius:0 6px 6px 0}.hardware-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:18px 0}.hardware-item{padding:16px 14px;border:1px solid var(--line);border-radius:9px;display:grid;gap:6px}.hardware-index{font:700 11px ui-monospace,monospace;color:#7b857b}.hardware-item strong{font-size:13px}.hardware-item span{font-size:11px;color:var(--muted)}.pipeline{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:15px}.pipeline-step{border:1px solid var(--line);border-radius:9px;background:#fdfcf8;padding:15px 8px;display:grid;gap:7px;text-align:left;min-width:0}.pipeline-step:hover,.pipeline-step.chosen{background:#252823;color:white;border-color:#252823}.stage-number{font:700 11px ui-monospace,monospace;opacity:.6}.pipeline-step strong{font-size:15px}.pipeline-step small{font-size:10px;opacity:.75}.stage-explanation{border-left:3px solid #7b9980;background:#eeefe9;padding:14px 18px;border-radius:0 8px 8px 0;margin-bottom:18px}.stage-explanation strong{font-size:13px}.stage-explanation p{font-size:12px;margin:4px 0 0}.journey-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.packet-card,.storage-card{padding:21px}.packet-actions{display:flex;align-items:center;gap:9px;font-size:11px;color:var(--muted);flex-wrap:wrap;margin-bottom:10px}.packet-actions code{font-size:11px;color:#426b4f}.packet-actions button{margin-left:auto}.json-view{margin:0;min-height:320px;max-height:450px;overflow:auto;background:#222720;color:#e5f1e2;border-radius:10px;padding:17px 16px;font:11px/1.6 ui-monospace,Consolas,monospace;white-space:pre-wrap;word-break:break-word}.note-line{font-size:11px;margin:11px 0 0;color:#82877d}.note-line code{font-family:ui-monospace,monospace}.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:15px}.stats-grid>div{display:grid;gap:3px;background:#f4f5f0;border-radius:7px;padding:13px}.stats-grid span,.queued-box>span{font-size:9px;letter-spacing:.12em;color:#848982;font-weight:800}.stats-grid strong{font-size:16px}.storage-table-wrap{overflow:auto;max-height:326px}.storage-table-wrap table{border-collapse:collapse;width:100%;text-align:left;font-size:11px;white-space:nowrap}.storage-table-wrap th{background:#f3f4ee;color:#878d83;font-size:9px;font-weight:800;letter-spacing:.06em;padding:11px 7px;position:sticky;top:0}.storage-table-wrap td{padding:11px 7px;border-bottom:1px solid var(--line2)}.empty-state{text-align:center;color:#999}.soft-paragraph{font-size:12px;margin:5px 0 18px}.switch-wrap{font-size:11px;display:flex;align-items:center;gap:8px;color:#6d756c;font-weight:750;cursor:pointer}.switch-wrap input{position:absolute;opacity:0;width:1px;height:1px}.switch{background:#bfc5ba;width:34px;height:19px;border-radius:12px;position:relative;transition:background .2s}.switch:before{content:'';position:absolute;background:#fff;width:13px;height:13px;border-radius:50%;left:3px;top:3px;transition:left .2s}.switch-wrap input:checked+.switch{background:#567d5d}.switch-wrap input:checked+.switch:before{left:18px}.switch-wrap input:focus-visible+.switch{outline:3px solid #649a77}.node-list{display:flex;gap:9px;flex-wrap:wrap}.node-tag{padding:10px 12px;background:#f4f5ef;border:1px solid #dedfd7;font-size:11px;border-radius:7px;font-weight:750}.node-tag.selected-node{background:#e3eee4;color:#47634b}.test-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.test-panel{padding:21px}.fault-options{border-top:1px solid var(--line)}.fault-option{display:flex;justify-content:space-between;align-items:center;gap:15px;padding:17px 0;border-bottom:1px solid var(--line2);cursor:pointer}.fault-option>div{display:grid;gap:5px}.fault-option strong{font-size:13px}.fault-option small{color:#858880;line-height:1.5;max-width:420px}.fault-option input{width:20px;height:20px;accent-color:#8c4b43;flex:none}.network-diagram{display:flex;gap:6px;align-items:center;justify-content:space-between;flex-wrap:wrap;color:#555e53;font-size:11px;font-weight:750;margin-top:24px;background:#f1f3ef;padding:14px;border-radius:8px}.queued-box{display:flex;flex-direction:column;gap:4px;border:1px solid #daddd4;background:#fbfcf8;border-radius:9px;padding:15px;margin-top:16px}.queued-box strong{font-size:33px;letter-spacing:-.05em}.queued-box small{color:var(--muted)}.research-card{margin-top:18px;padding:23px;background:#eeeee8}.research-card h3{font-size:24px;margin:9px 0}.research-card p{max-width:880px;font-size:13px}.research-points{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;border-top:1px solid #d3d6cb;margin-top:20px;padding-top:16px}.research-points span{font-size:11px;font-weight:750}.guide-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.guide-card,.reference-card,.resources-card{padding:23px}.guide-card h3{font-size:23px;margin:10px 0 14px}.guide-card p{font-size:13px}.guide-sequence{display:flex;flex-wrap:wrap;gap:7px;margin-top:16px}.guide-sequence span{background:#e8eae3;border-radius:4px;font-size:9px;font-weight:850;padding:6px 9px;letter-spacing:.06em}.reference-card,.resources-card{margin-top:18px}.bom-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 25px}.bom-grid>div{display:grid;gap:4px;padding:12px 0;border-bottom:1px solid var(--line2)}.bom-grid strong{font-size:13px}.bom-grid span{color:#82857e;font-size:11px}.resource-list a{display:flex;justify-content:space-between;gap:15px;align-items:center;text-decoration:none;padding:14px 3px;border-bottom:1px solid var(--line2)}.resource-list a:hover{background:#f4f6f1}.resource-list a strong{font-size:13px}.resource-list a span{color:#738273;font-size:11px}.guide-disclaimer{border-left:3px solid #8b9a84;padding:16px 19px;background:#eff0e8;margin-top:18px;border-radius:0 8px 8px 0}.guide-disclaimer strong{font-size:13px}.guide-disclaimer p{font-size:12px;margin:5px 0 0}.footer{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:20px 0 28px;border-top:1px solid var(--line);margin-top:23px;color:#9b9d95;font-size:10px;font-weight:750;letter-spacing:.08em}
+@media(max-width:1200px){.sidebar{width:230px;min-width:230px}.content{width:calc(100% - 230px);padding:0 28px}.lab-grid{grid-template-columns:1fr}.sensor-card{padding:19px}.sensor-tiles{grid-template-columns:repeat(4,1fr)}.sensor-tile{min-height:145px}.sensor-tile-top{display:block}.sensor-tile-top i{display:inline-block;margin-top:4px}.circuit-grid{grid-template-columns:1fr}.inspector-card .spec-list{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}.hardware-row{grid-template-columns:1fr 1fr}}
+@media(max-width:850px){.sidebar{height:auto;width:100%;min-width:0;position:relative;padding:15px 18px 10px;display:block;border-right:0;border-bottom:1px solid var(--line)}.shell{display:block}.brand{display:inline-flex;padding:0}.side-divider,.side-grow,.side-device,.side-note,.nav-caption{display:none}.navigation{display:flex;overflow-x:auto;gap:5px;margin-top:14px;scrollbar-width:thin;padding-bottom:4px}.nav-btn{white-space:nowrap;width:auto;padding:8px 10px;font-size:11px}.nav-chevron{display:none}.content{width:100%;padding:0 22px}.topbar{min-height:54px}.hero{padding:32px 0;grid-template-columns:1fr}.hero-art{display:none}.overview-strip{grid-template-columns:1fr 1fr}.summary-item{border-bottom:1px solid var(--line)}.summary-item:nth-child(even){border-right:0}.summary-item:nth-child(3),.summary-item:nth-child(4){border-bottom:0}.bottom-grid,.journey-grid,.test-grid,.guide-grid{grid-template-columns:1fr}.pipeline{grid-template-columns:repeat(3,1fr)}.research-points{grid-template-columns:1fr 1fr}}
+@media(max-width:550px){body{font-size:14px}.content{padding:0 14px}.hero h1{font-size:38px}.hero p{font-size:13px}.hero-actions{align-items:start}.speed-picker{padding:0}.notice{margin-top:12px}.breadcrumbs{font-size:9px;letter-spacing:.05em}.mode-pill{font-size:9px;padding:5px 6px}.topbar-right{gap:8px}.section-intro{align-items:start}.section-intro .small-tag{display:none}.environment-card,.sensor-card,.compact-card,.circuit-card,.inspector-card,.packet-card,.storage-card,.test-panel,.guide-card,.reference-card,.resources-card{padding:15px}.sensor-tiles{grid-template-columns:1fr 1fr}.sensor-tile{min-height:137px}.slider-grid{grid-template-columns:1fr}.scene-metrics strong{font-size:11px}.scene-metrics span{font-size:7px}.pipeline{grid-template-columns:repeat(2,1fr)}.research-points,.hardware-row,.bom-grid{grid-template-columns:1fr}.resource-list a{align-items:start;flex-direction:column;gap:3px}.footer{display:grid;font-size:9px}.hero-art{display:none}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+
+#intro-hero[hidden]{display:none!important}
+/* Recorded research dataset replay and verification console */
+.evidence-console{padding:23px 25px;margin-bottom:19px;border:1px solid #d8dcd4;background:linear-gradient(135deg,#fffefa,#f8f9f5)}
+.evidence-head{display:flex;align-items:start;gap:15px;justify-content:space-between}.evidence-head h3{font-size:23px;margin:6px 0}.evidence-head p{max-width:720px;font-size:12px;margin:0}.evidence-badge{border-radius:5px;padding:7px 10px;white-space:nowrap;background:#ecebe7;color:#687068;font-size:10px;font-weight:800;letter-spacing:.09em}.evidence-badge.is-recorded{color:#276044;background:#dfede2}
+.evidence-control-row{display:flex;gap:11px;align-items:end;flex-wrap:wrap;margin:20px 0 10px}.data-selector{display:grid;gap:7px;flex:1;min-width:min(290px,100%)}.data-selector span{font-weight:800;font-size:10px;letter-spacing:.1em;color:#676f67}.data-selector select{background:#fff;border:1px solid #cdd4ca;border-radius:8px;padding:11px 13px;color:#252b26;font-size:13px;max-width:100%;min-height:43px}.evidence-control-row .btn{min-height:43px}.import-csv{display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;cursor:pointer}.source-message{font-size:12px;color:#69746b;line-height:1.7;min-height:22px}.record-timeline{margin-top:13px;display:grid;grid-template-columns:auto minmax(70px,1fr);align-items:center;gap:8px 16px}.record-timeline span{font-size:10px;font-weight:750;color:#5c665e}.record-timeline span:last-child{grid-column:1 / -1;color:#8a8e87;font-weight:500}.record-meter{height:7px;border-radius:5px;background:#e4e6df;overflow:hidden}.record-meter>div{height:100%;width:0%;background:#577f60;transition:width .2s}.verification-layout{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:16px;margin-top:18px}.verification-column,.source-raw{border:1px solid #e5e7df;background:#fff;border-radius:10px;padding:14px 16px;min-width:0}.mini-head{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:10px}.mini-head strong{font-size:12px}.mini-head span{font:800 10px ui-monospace,monospace;color:#558266}.verify-table{border-collapse:collapse;width:100%;font-size:11px}.verify-table th{background:#f6f7f2;text-align:left;font-size:9px;color:#7f897e;letter-spacing:.06em;padding:9px 7px}.verify-table td{padding:11px 7px;border-bottom:1px solid #edece7;color:#3a453a}.compare-status{font-weight:800;font-size:9px;letter-spacing:.05em}.compare-status.match{color:#3e7c4c}.compare-status.pending,.compare-status.not_recorded{color:#9a7a37}.compare-status.mismatch,.compare-status.error{color:#ad514e}.verification-column .note-line{font-size:11px;margin:11px 0 0}.source-raw pre{margin:0;background:#f5f6f2;border:1px solid #ebede7;padding:12px;border-radius:6px;white-space:pre-wrap;overflow:auto;max-height:238px;font:11px/1.65 ui-monospace,monospace;color:#314036}.dataset-indicator{padding:10px 0 0;font-weight:650;font-size:10px;color:#697d6a}.provenance-line{margin:13px 0 0;color:#7b8077;font-size:11px}.provenance-line a{color:#527359;text-decoration:underline;text-underline-offset:2px;margin:0 8px}.provenance-line a[hidden]{display:none}.scenario-buttons.is-locked{opacity:.48;pointer-events:none}.slider-control input:disabled{opacity:.45}.import-csv:focus-within{outline:2px solid #5c8e63}
+@media(max-width:1000px){.verification-layout{grid-template-columns:1fr}}
+@media(max-width:550px){.evidence-console{padding:15px}.evidence-head{display:grid}.evidence-badge{width:fit-content}.record-timeline{grid-template-columns:1fr}.record-timeline span:last-child{grid-column:1}.verification-column,.source-raw{padding:10px}.verify-table th,.verify-table td{font-size:9px;padding:8px 3px}.evidence-control-row{align-items:stretch}.evidence-control-row .btn{width:100%}}
+
+</style>
+  <script>
+// Recorded data excerpted with attribution. This is historical replay, never live ESP32 telemetry.
+// Greenhouse source: https://github.com/Saynbemorinbewang2/Open-Dataset-for-Precision-Agriculture-in-Greenhouse-Environments
+// UCI source: https://archive.ics.uci.edu/dataset/360/air+quality (CC BY 4.0)
+// The greenhouse files do not include absolute timestamps. Number_data is an ordinal per sensor.
+// No source below includes an SGP40 VOC index or ESP32 ADC counts.
+const greenhouseRows = data => data.split(';').map((line, i) => {
+  const [temperature, humidity, soil, rssi] = line.trim().split(/\s+/).map(Number);
+  return { sample: i + 1, temperature, humidity, soil, rssi, voc: null, recordedTime: `Sample ${i + 1} (30 minute source interval)` };
+});
+const airRows = data => data.split(';').map((line, i) => {
+  const [date, hour, t, h, response] = line.trim().split(/\s+/);
+  return { sample: i + 1, temperature: Number(t), humidity: Number(h), soil: null, voc: null, rssi: null, metalOxideResponse: Number(response), recordedTime: `${date} ${hour.replaceAll('.', ':')}` };
+});
+
+const DATASETS = Object.freeze({
+  greenhouse1: {
+    id: 'greenhouse1', name: 'Greenhouse Scenario 1', origin: 'University of Ngaoundéré WSN greenhouse dataset',
+    sourceUrl: 'https://github.com/Saynbemorinbewang2/Open-Dataset-for-Precision-Agriculture-in-Greenhouse-Environments/blob/master/Dataset_scenario_1.csv',
+    cadence: 'Approximately 30 minutes per device according to source README',
+    note: '40 unmodified measurements from Sensor 1. Original Soil_humidity zero values are retained as zero, not interpreted as missing. RSSI is source equipment signal strength, not the virtual ESP32 WiFi status.',
+    measured: ['temperature', 'humidity', 'soil', 'rssi'], rows: greenhouseRows('25.3 86 0 -86;25.6 86 0 -91;26.3 83 0 -86;27.6 75 0 -87;27.5 73 0 -86;27.7 72 0 -86;26.9 74 0 -82;24.7 80 0 -82;23.8 86 0 -82;23.3 88 0 -82;22.9 89 11.10 -82;22.6 91 20.70 -81;22.5 92 31 -82;22.2 94 40.80 -82;22.4 95 70.03 -81;22.2 95 59.30 -81;22.4 95 53 -81;22.5 95 40.80 -81;22.4 95 41.30 -81;22.2 95 39.90 -81;22.1 95 39.90 -81;21.8 94 35.10 -81;21.5 94 29.70 -80;21.8 94 28.70 -81;22 95 26 -81;21.9 94 23.50 -80;21.8 94 21.30 -80;21.7 94 15 -81;21.3 94 12.30 -80;21.6 94 11 -81;21.6 94 9.20 -81;21.9 94 8.10 -80;22.3 95 8.20 -81;24.3 89 6.23 -81;25.1 86 6.45 -85;29.3 76 1.10 -84;28.8 74 0 -84;31.1 69 0 -83;35.3 54 0 -83;32.6 62 0 -90'),
+  },
+  greenhouse4: {
+    id: 'greenhouse4', name: 'Greenhouse Scenario 4', origin: 'University of Ngaoundéré WSN greenhouse dataset',
+    sourceUrl: 'https://github.com/Saynbemorinbewang2/Open-Dataset-for-Precision-Agriculture-in-Greenhouse-Environments/blob/master/Dataset_scenario_4.csv',
+    cadence: 'Approximately 30 minutes per device according to source README',
+    note: '40 unmodified measurements from Sensor 1. Source scenario conditions differ. Zero soil readings are preserved.',
+    measured: ['temperature', 'humidity', 'soil', 'rssi'], rows: greenhouseRows('32.5 57 0 -86;32.1 60 0 -88;29 72 0 -88;27.7 74 0 -90;27 78 0 -89;25.7 86 0 -87;24.8 91 0 -88;24 95 0 -86;23.6 95 0 -87;23.6 95 0 -89;23.5 95 0 -88;22.7 95 0 -87;22.5 95 0 -93;22.3 95 0 -89;22.5 95 0 -89;22.4 95 0 -89;22 95 0 -88;22.3 95 0 -88;22.6 95 0 -88;22.6 95 0 -87;22.5 95 0 -87;22.3 95 0 -89;22.3 95 0 -88;22.4 95 0 -95;22.4 95 0 -87;22.7 95 0 -86;22.7 95 0 -87;22.5 95 0 -89;22.8 95 0 -90;23.3 95 0 -88;24.1 95 0 -93;24.3 95 0 -92;24.4 95 0 -92;28.3 85 0 -89;30.1 75 0 -91;30.5 77 29.02 -92;32.8 64 25.32 -92;34.9 62 34.18 -90;36.9 62 46.39 -87;35.5 59 65.47 -92'),
+  },
+  uci: {
+    id: 'uci', name: 'UCI Urban Air Quality', origin: 'UCI Air Quality, Italy 2004',
+    sourceUrl: 'https://archive.ics.uci.edu/dataset/360/air+quality',
+    cadence: 'Hourly averages, original timestamps provided',
+    note: '40 original hourly temperature and relative humidity observations from UCI AirQualityUCI.csv. PT08.S1(CO) metal oxide response is available for inspection, but is NOT an SGP40 VOC index, CO concentration, or calibrated air quality index. Dataset distributed as CC BY 4.0.',
+    measured: ['temperature', 'humidity', 'metalOxideResponse'], rows: airRows('10/03/2004 18.00.00 13.6 48.9 1360;10/03/2004 19.00.00 13.3 47.7 1292;10/03/2004 20.00.00 11.9 54 1402;10/03/2004 21.00.00 11 60 1376;10/03/2004 22.00.00 11.2 59.6 1272;10/03/2004 23.00.00 11.2 59.2 1197;11/03/2004 00.00.00 11.3 56.8 1185;11/03/2004 01.00.00 10.7 60 1136;11/03/2004 02.00.00 10.7 59.7 1094;11/03/2004 03.00.00 10.3 60.2 1010;11/03/2004 04.00.00 10.1 60.5 1011;11/03/2004 05.00.00 11 56.2 1066;11/03/2004 06.00.00 10.5 58.1 1052;11/03/2004 07.00.00 10.2 59.6 1144;11/03/2004 08.00.00 10.8 57.4 1333;11/03/2004 09.00.00 10.5 60.6 1351;11/03/2004 10.00.00 10.8 58.4 1233;11/03/2004 11.00.00 10.5 57.9 1179;11/03/2004 12.00.00 9.5 66.8 1236;11/03/2004 13.00.00 8.3 76.4 1286;11/03/2004 14.00.00 8 81.1 1371;11/03/2004 15.00.00 8.3 79.8 1310;11/03/2004 16.00.00 9.7 71.2 1292;11/03/2004 17.00.00 9.8 67.6 1383;11/03/2004 18.00.00 10.3 64.2 1581;11/03/2004 19.00.00 9.7 69.3 1776;11/03/2004 20.00.00 9.6 67.8 1640;11/03/2004 21.00.00 9.1 64 1313;11/03/2004 22.00.00 8.2 63.4 965;11/03/2004 23.00.00 8.2 60.8 913;12/03/2004 00.00.00 8.3 58.5 1080;12/03/2004 01.00.00 7.7 59.7 1044;12/03/2004 02.00.00 7.1 61.8 988;12/03/2004 03.00.00 7 62.3 889;12/03/2004 04.00.00 6.1 65.9 831;12/03/2004 05.00.00 6.3 65 847;12/03/2004 06.00.00 6.8 62.9 927;12/03/2004 07.00.00 6.4 65.1 1091;12/03/2004 08.00.00 7.3 63.1 1587;12/03/2004 09.00.00 9.2 56.2 1545'),
+  },
+});
+function validateReplayRows(rows) {
+  if (!Array.isArray(rows) || !rows.length || rows.length > 10000) throw Error('Replay must contain 1 to 10000 rows.');
+  return rows.map((item, i) => {
+    const row = { sample: Number(item.sample) || i + 1, recordedTime: String(item.recordedTime || `Record ${i+1}`), rssi: null, voc: null, metalOxideResponse: null };
+    for (const [key, range] of Object.entries({temperature:[-40,80],humidity:[0,100],soil:[0,100]})) {
+      if (item[key] === null || item[key] === undefined || item[key] === '') { row[key] = null; continue; }
+      const val = Number(item[key]);
+      if (!Number.isFinite(val) || val < range[0] || val > range[1]) throw Error(`Row ${i+1} has invalid ${key}.`);
+      row[key] = val;
+    }
+    if (row.temperature===null && row.humidity===null && row.soil===null) throw Error(`Row ${i+1} has no sensor observations.`);
+    if (item.rssi != null && Number.isFinite(Number(item.rssi))) row.rssi=Number(item.rssi);
+    if (item.metalOxideResponse != null && Number.isFinite(Number(item.metalOxideResponse))) row.metalOxideResponse=Number(item.metalOxideResponse);
+    return row;
+  });
+}
+function parseCsvReplay(csv) {
+  if (typeof csv !== 'string' || csv.length > 1024*1024) throw Error('CSV must be a text file below 1 MB.');
+  const lines = csv.trim().replace(/^\uFEFF/, '').split(/\r?\n/).filter(x=>x.trim());
+  if (lines.length < 2) throw Error('CSV needs a header and at least one observation.');
+  const headers=lines[0].split(',').map(x=>x.trim().toLowerCase());
+  const aliases={temperature:['temperature','temperature_c','temp','t'],humidity:['humidity','relative_humidity','humidity_pct','rh'],soil:['soil','soil_moisture','soil_humidity','moisture'],recordedTime:['timestamp','date','time','recordedtime'],rssi:['rssi']};
+  const position=Object.fromEntries(Object.entries(aliases).map(([key, keys])=>[key,headers.findIndex(h=>keys.includes(h))]));
+  if (position.temperature<0 && position.humidity<0 && position.soil<0) throw Error('CSV needs a temperature, humidity or soil_moisture column.');
+  return validateReplayRows(lines.slice(1).map((line,i)=>{
+    const pieces=line.split(',').map(x=>x.trim());
+    if (pieces.length !== headers.length) throw Error(`CSV row ${i+2} has the wrong number of columns.`);
+    const at=k=>position[k]<0?null:pieces[position[k]];
+    return {sample:i+1,recordedTime:at('recordedTime')||`Record ${i+1}`,temperature:at('temperature'),humidity:at('humidity'),soil:at('soil'),rssi:at('rssi')};
+  }));
+}
+
+// MW-SENSE teaching model. Recorded dataset replay and synthetic data are NEVER live physical ESP32 telemetry.
+
+// Sampling cadence and validation boundaries are adapted from the supplied Tinkered firmware.
+const SENSOR_META = {
+  temperature: { title: 'Temperature', unit: '°C', sensor: 'DHT22', pin: 'GPIO 13', period: 2500, min: -40, max: 80 },
+  humidity: { title: 'Humidity', unit: '%RH', sensor: 'DHT22', pin: 'GPIO 13', period: 2500, min: 0, max: 100 },
+  voc_index: { title: 'VOC Index', unit: 'index', sensor: 'SGP40', pin: 'GPIO 21 + 22', period: 1000, min: 1, max: 500 },
+  soil_percent: { title: 'Soil Moisture', unit: '%', sensor: 'Capacitive v1.2', pin: 'GPIO 34', period: 1000, min: 0, max: 100 },
+  soil_adc: { title: 'Soil ADC', unit: 'counts', sensor: 'Capacitive v1.2', pin: 'GPIO 34', period: 1000, min: 0, max: 4095 },
+};
+const SENSOR_KEYS = Object.keys(SENSOR_META);
+const SCENARIOS = {
+  room: { label: 'Normal room', temperature: 24, humidity: 52, voc: 105, soil: 45 },
+  greenhouse: { label: 'Greenhouse', temperature: 29, humidity: 72, voc: 125, soil: 67 },
+  heatwave: { label: 'Heatwave', temperature: 43, humidity: 30, voc: 155, soil: 13 },
+  ventilation: { label: 'Poor ventilation', temperature: 28, humidity: 63, voc: 370, soil: 42 },
+  rainfall: { label: 'After rainfall', temperature: 21, humidity: 92, voc: 75, soil: 91 },
+};
+const DEFAULT_FAULTS = Object.freeze({ dht: false, sgp: false, soil: false, wifi: false, mqtt: false });
+const SOIL_DRY = 3723, SOIL_WET = 1489;
+const tickMs = 250;
+
+function soilReading(percent, fail = false, phase = 0) {
+  // The circuit's dry and wet ADC endpoints must be calibrated on physical hardware.
+  const adc = fail ? 4095 : Math.max(SOIL_WET, Math.min(SOIL_DRY, Math.round(SOIL_DRY - (SOIL_DRY - SOIL_WET) * percent / 100 + (percent > 0 && percent < 100 ? 3 * Math.sin(phase) : 0))));
+  if (adc <= 16 || adc >= 4079) return { adc, percent: null, status: 'rail_error' };
+  if (adc < SOIL_WET || adc > SOIL_DRY) return { adc, percent: null, status: 'out_of_calibration' };
+  return { adc, percent: Math.round((SOIL_DRY - adc) * 100 / (SOIL_DRY - SOIL_WET)), status: 'ok' };
+}
+
+function makeReading(unit) {
+  return { value: null, last_good_value: null, status: 'loading', unit, age_ms: null, error_count: 0, consecutive_errors: 0, goodAt: null };
+}
+
+class SensorLab {
+  constructor() { this.reset(); }
+  reset() {
+    this.time = 0;
+    this.isRunning = true;
+    this.rate = 1;
+    this.scenario = 'room';
+    this.conditions = { ...SCENARIOS.room };
+    this.faults = { ...DEFAULT_FAULTS };
+    this.hasSecondNode = false;
+    this.readings = Object.fromEntries(SENSOR_KEYS.map(k => [k, makeReading(SENSOR_META[k].unit)]));
+    this.nextSample = { dht: 2.5, soil: 1, voc: 1, mqtt: 5 };
+    this.vocEstimate = 100;
+    this.seq = 0;
+    this.queue = [];
+    this.records = [];
+    this.log = [];
+    this.history = Object.fromEntries(SENSOR_KEYS.map(k => [k, []]));
+    this.lastPacket = null;
+    this.lastDelivery = null;
+    this.lastDecision = 'Boot complete. Sensor sampling is scheduled.';
+    this.lastAction = 'boot';
+    this.nodeId = 'mw-virtual-01';
+    this.startAt = Date.now();
+    this.lastHistoryAt = null;
+    this.compensation = null;
+    this.sourceMode = 'synthetic';
+    this.dataset = null;
+    this.datasetIndex = 0;
+    this.datasetRow = null;
+    this.datasetRowAt = 0;
+    this.replayInterval = 6;
+    this.sourceError = null;
+    this.logEvent('boot', 'ESP32 booted. GPIO and I²C interfaces initialized.', 'neutral');
+    this.logEvent('boot', 'SGP40 relative VOC algorithm begins a 45 second warm up.', 'warn');
+  }
+  loadDataset(id, custom = null) {
+    const source = custom || DATASETS[id];
+    if (!source) throw Error('Dataset not found.');
+    const rows = validateReplayRows(source.rows);
+    if (!rows.length) throw Error('Dataset has no observations.');
+    this.reset();
+    this.sourceMode = 'recorded_replay';
+    this.dataset = { id: source.id, name: source.name, origin: source.origin, sourceUrl: source.sourceUrl || null,
+      cadence: source.cadence, note: source.note, measured: source.measured, rows };
+    this.nextSample.dataset = this.replayInterval;
+    this.applyDatasetRow(0);
+    this.logEvent('dataset', `Loaded ${rows.length} historical observations from ${source.name}. This is a replay, not live sensing.`, 'good');
+  }
+  applyDatasetRow(index) {
+    if (!this.dataset || index >= this.dataset.rows.length) return;
+    this.datasetIndex = index;
+    this.datasetRow = this.dataset.rows[index];
+    this.datasetRowAt = this.time;
+    const row = this.datasetRow;
+    this.conditions.temperature = row.temperature ?? 24;
+    this.conditions.humidity = row.humidity ?? 50;
+    this.conditions.soil = row.soil ?? 45;
+    this.conditions.voc = 100; // Only scene fallback. VOC output is always unavailable in replay.
+    this.logEvent('dataset', `Original observation ${index + 1}/${this.dataset.rows.length}: ${row.recordedTime}. Source values are kept separate from ESP32 calculations.`, 'neutral');
+  }
+  advanceDataset() {
+    if (!this.dataset) return;
+    if (this.datasetIndex + 1 >= this.dataset.rows.length) {
+      this.isRunning = false;
+      this.lastDecision = 'Reached final recorded observation. Playback paused. Press Reset to replay from the beginning.';
+      this.logEvent('dataset', 'End of recorded dataset. Replay stopped automatically.', 'good');
+      delete this.nextSample.dataset;
+      return;
+    }
+    this.applyDatasetRow(this.datasetIndex + 1);
+  }
+  restart() {
+    const selected = this.dataset;
+    if (selected) this.loadDataset(selected.id, selected);
+    else this.reset();
+  }
+  useSynthetic() { this.reset(); }
+  verifyCurrentRow() {
+    if (!this.datasetRow) return [];
+    return [['temperature', 'temperature'], ['humidity', 'humidity'], ['soil', 'soil_percent']].map(([field,key]) => {
+      const expected = this.datasetRow[field], actual = this.getReading(key);
+      const measured = expected !== null && expected !== undefined;
+      const pending = measured && ['ok', 'loading'].includes(actual.status) && (actual.sampled_at === null || actual.sampled_at < this.datasetRowAt - 1e-8);
+      const match = !pending && measured && actual.status === 'ok' && actual.value !== null && Math.abs(actual.value - expected) < (key === 'soil_percent' ? .02 : .11);
+      return { field, expected: measured ? expected : null, observed: pending ? null : actual.value, status: !measured ? 'not_recorded' : pending ? 'pending' : match ? 'match' : actual.status === 'ok' ? 'mismatch' : actual.status }; 
+    });
+  }
+  logEvent(stage, message, kind = 'neutral') {
+    this.log.unshift({ t: this.time, stage, message, kind });
+    if (this.log.length > 110) this.log.length = 110;
+    this.lastAction = stage;
+  }
+  setCondition(name, value) {
+    if (this.sourceMode === 'recorded_replay') return;
+    if (!['temperature', 'humidity', 'voc', 'soil'].includes(name)) return;
+    const ranges = { temperature: [-20, 60], humidity: [0, 100], voc: [1, 500], soil: [0, 100] };
+    const n = Number(value);
+    if (!Number.isFinite(n)) return;
+    this.conditions[name] = Math.min(ranges[name][1], Math.max(ranges[name][0], n));
+    this.scenario = 'custom';
+  }
+  setScenario(name) {
+    if (!SCENARIOS[name] || this.sourceMode === 'recorded_replay') return;
+    this.scenario = name;
+    this.conditions = { ...SCENARIOS[name] };
+    delete this.conditions.label;
+    this.logEvent('environment', `Environment changed to ${SCENARIOS[name].label}.`, 'neutral');
+  }
+  setFault(key, on) {
+    if (!(key in this.faults)) return;
+    const next = Boolean(on);
+    if (this.faults[key] === next) return;
+    this.faults[key] = next;
+    this.logEvent(key === 'wifi' || key === 'mqtt' ? 'network' : 'sensor',
+      `${{dht:'DHT22 data',sgp:'SGP40 I²C',soil:'Soil ADC',wifi:'WiFi link',mqtt:'MQTT broker'}[key]} ${next ? 'fault injected' : 'restored'}.`, next ? 'warn' : 'good');
+    if (this.isRunning && !next && (key === 'wifi' || key === 'mqtt') && this.canPublish() && this.queue.length) this.flushQueue(2);
+  }
+  setSecondNode(on) {
+    this.hasSecondNode = this.sourceMode === 'recorded_replay' ? false : Boolean(on);
+    this.logEvent('network', this.hasSecondNode ? 'Virtual Node 02 joined for expansion demonstration.' : 'Virtual Node 02 removed.', 'neutral');
+  }
+  updateReading(key, value, status) {
+    const r = this.readings[key];
+    if (status === 'ok' && Number.isFinite(value)) {
+      r.value = value;
+      r.last_good_value = value;
+      r.goodAt = this.time;
+      r.age_ms = 0;
+      r.consecutive_errors = 0;
+    } else {
+      r.value = null;
+      if (status === 'error' || status === 'rail_error' || status === 'out_of_calibration') {
+        r.error_count++;
+        r.consecutive_errors++;
+      }
+    }
+    r.status = status;
+    this.lastAction = 'sensor';
+  }
+  sampleDht() {
+    if (this.faults.dht) {
+      for (const key of ['temperature', 'humidity']) this.updateReading(key, null, 'error');
+      this.lastDecision = 'DHT22 returned no valid data. ESP32 marks current readings invalid and retains last good values.';
+      this.logEvent('validation', 'DHT22 read failed on GPIO 13. Invalid readings will not be shown as current.', 'bad');
+      return;
+    }
+    const row = this.sourceMode === 'recorded_replay' ? this.datasetRow : null;
+    const t = row ? row.temperature : +(this.conditions.temperature + 0.15 * Math.sin(this.time * 0.6)).toFixed(1);
+    const h = row ? row.humidity : Math.round(this.conditions.humidity + 0.4 * Math.sin(this.time * 0.36));
+    this.updateReading('temperature', t, t === null ? 'not_available' : 'ok');
+    this.updateReading('humidity', h, h === null ? 'not_available' : 'ok');
+    if (row) {
+      this.lastDecision = `Educational ESP32 logic accepted recorded temperature ${t ?? 'N/A'} °C and humidity ${h ?? 'N/A'} %RH. The dataset does not establish a DHT22 or ESP32 as its source device.`;
+      this.logEvent('sensor', `Dataset row ${this.datasetIndex+1} replayed: T ${t ?? 'N/A'} °C and RH ${h ?? 'N/A'} %.`, 'good');
+    } else {
+      this.lastDecision = `ESP32 model decoded DHT22 digital data from GPIO 13. Temperature ${t} °C and humidity ${h} %RH passed validation.`;
+      this.logEvent('sensor', `Simulated DHT22 GPIO 13: ${t} °C and ${h} %RH.`, 'good');
+    }
+  }
+  sampleSoil() {
+    if (this.sourceMode === 'recorded_replay') {
+      const percent = this.datasetRow?.soil;
+      this.updateReading('soil_adc', null, 'not_available');
+      this.updateReading('soil_percent', percent ?? null, percent == null ? 'not_available' : 'ok');
+      if (percent != null) {
+        this.lastDecision = `Recorded soil moisture ${percent}% was received by the educational processing model. No ADC counts or ESP32 voltage were measured in this dataset.`;
+        this.logEvent('sensor', `Source soil reading ${percent}% reprocessed. ADC is unknown.`, 'good');
+      }
+      return;
+    }
+    const soil = soilReading(this.conditions.soil, this.faults.soil, this.time * 0.9);
+    this.updateReading('soil_adc', soil.status === 'rail_error' ? null : soil.adc, soil.status === 'rail_error' ? 'rail_error' : 'ok');
+    this.updateReading('soil_percent', soil.percent, soil.status);
+    if (soil.status === 'ok') {
+      this.lastDecision = `ESP32 ADC1 read ${soil.adc} counts on GPIO 34. Calibration maps this to ${soil.percent}% soil moisture.`;
+      this.logEvent('sensor', `GPIO 34 sampled 16 ADC readings. Mean ${soil.adc} converts to ${soil.percent}% moisture.`, 'good');
+    } else {
+      this.lastDecision = 'ESP32 detects an invalid soil ADC reading and rejects the current moisture percentage.';
+      this.logEvent('validation', `Soil sensor reported ${soil.adc} ADC counts with ${soil.status} status.`, 'bad');
+    }
+  }
+  sampleVoc() {
+    if (this.sourceMode === 'recorded_replay') {
+      this.updateReading('voc_index', null, 'not_available');
+      return;
+    }
+    const temp = this.readings.temperature;
+    const hum = this.readings.humidity;
+    const compensation = temp.status === 'ok' && hum.status === 'ok' && this.time - temp.goodAt <= 10 && this.time - hum.goodAt <= 10;
+    this.compensation = compensation ? 'recent_dht' : 'fallback_25C_50RH';
+    if (this.faults.sgp) {
+      this.updateReading('voc_index', null, 'error');
+      this.lastDecision = 'SGP40 did not respond at I²C address 0x59. ESP32 flags an I²C error and schedules a retry.';
+      this.logEvent('validation', 'SGP40 I²C response missing on GPIO 21 and 22.', 'bad');
+      return;
+    }
+    if (this.time < 45) {
+      this.updateReading('voc_index', null, 'warming_up');
+      if (Math.abs(this.time % 10) < .13) this.logEvent('sensor', `SGP40 algorithm learning. ${Math.max(0, Math.ceil(45 - this.time))} seconds to first VOC index.`, 'warn');
+      return;
+    }
+    this.vocEstimate += (this.conditions.voc - this.vocEstimate) * 0.20;
+    const v = Math.round(Math.min(500, Math.max(1, this.vocEstimate + 2 * Math.sin(this.time / 3))));
+    this.updateReading('voc_index', v, 'ok');
+    this.lastDecision = `ESP32 requested VOC index via I²C GPIO 21 and 22. Index ${v} is relative air quality information${compensation ? ' with DHT compensation' : ' using fallback compensation'}.`;
+    this.logEvent('sensor', `SGP40 at 0x59 returned relative VOC index ${v} (${this.compensation}).`, 'good');
+  }
+  getReading(key) {
+    const r = this.readings[key];
+    if (!r) return null;
+    const age = r.goodAt === null ? null : Math.round((this.time - r.goodAt) * 1000);
+    const maxAge = key === 'temperature' || key === 'humidity' ? 10000 : 3500;
+    const status = r.status === 'ok' && age !== null && age > maxAge ? 'stale' : r.status;
+    return { value: status === 'ok' ? r.value : null, last_good_value: r.last_good_value, unit: r.unit,
+      status, age_ms: age, sampled_at: r.goodAt, error_count: r.error_count, consecutive_errors: r.consecutive_errors };
+  }
+  getFrame(nodeId = this.nodeId) {
+    const secondary = nodeId.endsWith('02');
+    const sensorData = Object.fromEntries(SENSOR_KEYS.map(k => [k, this.getReading(k)]));
+    if (secondary) {
+      const adjustments = { temperature: 1.8, humidity: -3, voc_index: 11, soil_percent: -9, soil_adc: 180 };
+      for (const k of SENSOR_KEYS) {
+        if (sensorData[k].status === 'ok') sensorData[k].value = +(sensorData[k].value + adjustments[k]).toFixed(1);
+        if (sensorData[k].last_good_value !== null) sensorData[k].last_good_value = +(sensorData[k].last_good_value + adjustments[k]).toFixed(1);
+      }
+    }
+    return { schema_version: 1, node_id: nodeId, simulation: true, source_mode: this.sourceMode,
+      source: this.sourceMode === 'recorded_replay' ? { dataset_id: this.dataset.id, sample: this.datasetRow.sample, recorded_time: this.datasetRow.recordedTime } : { label: 'browser physics model' },
+      sequence: this.seq, uptime_ms: Math.round(this.time * 1000),
+      compensation: this.compensation || 'fallback_25C_50RH', sensors: sensorData };
+  }
+  canPublish() { return !this.faults.wifi && !this.faults.mqtt; }
+  deliver(frame, fromQueue = false) {
+    const packet = JSON.parse(JSON.stringify(frame));
+    const event = { at: this.time, frame: packet, queued: fromQueue };
+    this.records.unshift(event);
+    if (this.records.length > 120) this.records.length = 120;
+    this.lastDelivery = event;
+    const qualifier = fromQueue ? 'Recovered queued frame' : 'MQTT delivered telemetry';
+    this.logEvent('dashboard', `${qualifier} for ${packet.node_id}. Data stored and dashboard refreshed.`, 'good');
+  }
+  flushQueue(limit = 1) {
+    if (!this.canPublish() || !this.queue.length) return;
+    let count = 0;
+    while (this.queue.length && count++ < limit) this.deliver(this.queue.shift(), true);
+    this.lastDecision = `Connection restored. ${count - 1} queued packet(s) sent to the simulated storage.`;
+  }
+  publish() {
+    this.seq++;
+    const frames = [this.getFrame(this.nodeId)];
+    if (this.hasSecondNode) frames.push(this.getFrame('mw-virtual-02'));
+    this.lastPacket = frames[0];
+    for (const frame of frames) {
+      if (this.canPublish()) {
+        if (this.queue.length) this.flushQueue(2);
+        this.deliver(frame);
+      } else {
+        this.queue.push(JSON.parse(JSON.stringify(frame)));
+        if (this.queue.length > 24) {
+          this.queue.shift();
+          this.logEvent('network', 'Educational offline queue is full. Oldest frame was dropped.', 'warn');
+        }
+        this.lastDecision = `${this.faults.wifi ? 'WiFi link' : 'MQTT broker'} unavailable. The simulated frame is queued locally.`;
+        this.logEvent('network', `Network unavailable. Frame ${this.seq} held in simulation queue.`, 'warn');
+      }
+    }
+  }
+  sampleHistory() {
+    for (const key of SENSOR_KEYS) {
+      const r = this.getReading(key);
+      this.history[key].push({ t: this.time, value: r.status === 'ok' ? r.value : null, status: r.status });
+      if (this.history[key].length > 90) this.history[key].shift();
+    }
+  }
+  step(seconds = 0.25) {
+    if (!this.isRunning) return;
+    const dt = Number(seconds);
+    if (!Number.isFinite(dt) || dt <= 0) return;
+    const end = this.time + Math.min(10, dt * this.rate);
+    const jobs = { dht: ['sampleDht', 2.5], soil: ['sampleSoil', 1], voc: ['sampleVoc', 1], mqtt: ['publish', 5], dataset: ['advanceDataset', this.replayInterval] };
+    let safety = 0;
+    while (safety++ < 200) {
+      const due = Object.entries(this.nextSample).filter(([key, time]) => jobs[key] && time <= end + 1e-8).sort((a, b) => a[1] - b[1] || (a[0] === 'dataset' ? -1 : b[0] === 'dataset' ? 1 : 0));
+      if (!due.length || !this.isRunning) break;
+      const [name, at] = due[0];
+      this.time = at;
+      this.nextSample[name] += jobs[name][1];
+      this[jobs[name][0]]();
+      if (this.lastHistoryAt === null || this.time - this.lastHistoryAt >= 1) {
+        this.sampleHistory();
+        this.lastHistoryAt = this.time;
+      }
+    }
+    if (this.isRunning) this.time = end;
+  }
+  advance(seconds) {
+    if (!Number.isFinite(seconds) || seconds <= 0) return;
+    const saved = this.isRunning, rate = this.rate;
+    this.isRunning = true;
+    this.rate = 1;
+    let remaining = Math.min(seconds, 3600), n=0;
+    while (remaining > 1e-8 && n++ < 15000 && this.isRunning) {
+      const part=Math.min(0.25,remaining);
+      this.step(part);
+      remaining-=part;
+    }
+    this.rate=rate;
+    // When a replay naturally finishes, preserve its paused state.
+    this.isRunning = this.dataset && !this.nextSample.dataset ? false : saved;
+  }
+}
+
+
+
+
+
+let lab = new SensorLab();
+let selectedSensor = 'temperature';
+let selectedComponent = 'dht';
+let selectedStage = 0;
+let visibleTab = 'lab';
+let clearedUntil = 0;
+let lastRendered = '';
+let importedSource = null;
+const $ = id => document.getElementById(id);
+const nf = (value, decimals = 0) => Number(value).toFixed(decimals);
+const clock = seconds => `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`;
+const statusPretty = status => ({not_available:'NOT RECORDED', ok: 'OK', loading: 'LOADING', warming_up: 'WARMING', error: 'ERROR', out_of_calibration: 'UNCALIBRATED', rail_error: 'RAIL ERROR', stale: 'STALE' })[status] || status.toUpperCase();
+const statusBrief = status => ({not_available:'Source does not contain this sensor',loading:'Waiting for sample',warming_up:'Learning sensor baseline',error:'Read failure',rail_error:'ADC rail detected',out_of_calibration:'Probe needs calibration',stale:'Reading is old',ok:'Valid and up to date'})[status];
+const labels = { lab:'VIRTUAL ENVIRONMENT', circuit:'HARDWARE AND WIRING', journey:'DATA JOURNEY', testing:'RELIABILITY TESTS', guide:'PROJECT GUIDE' };
+const stages = [
+  ['Sensor acquisition', 'DHT22 supplies digital temperature and humidity. SGP40 returns a relative VOC index via I²C. The soil sensor provides a voltage that the ESP32 converts into ADC counts.'],
+  ['Local data validation', 'The ESP32 checks the DHT range, detects missing I²C responses and rejects ADC rail readings. Invalid current values are marked null and last good values remain separate.'],
+  ['Structured telemetry packet', 'Every published MQTT frame carries a schema version, node identifier, sequence number, uptime, compensation method and one reading object for each measured parameter.'],
+  ['WiFi and MQTT transport', 'Every five virtual seconds the node attempts to publish the frame. Network failures prevent simulated delivery. The browser queue is an educational extension, not a feature of the original Tinkered firmware.'],
+  ['Centralized monitoring record', 'Successfully delivered frames are added to this browser session’s in memory reception list. This is a simulated database view, not proof of an external broker or backend.'],
+  ['Dashboard visualization', 'The dashboard displays the most recent valid sensor values, current status and trends while preserving an audit trail of the data journey.'],
+];
+const components = {
+  dht: { title:'DHT22', description:'One digital sensor measures ambient temperature and relative humidity.', pin:'GPIO 13 · digital data', interface:'Single digital data line with a 10 kΩ pullup', frequency:'Every 2.5 seconds', processing:'Checks −40 to 80 °C and 0 to 100 %RH. Invalid readings are marked as errors.', tip:'Data is pulled to 3.3 V through the 10 kΩ resistor. Both outputs come from one digital sensor.', reading:() => { const t=lab.getReading('temperature'),h=lab.getReading('humidity');return `${show(t,1,'°C')} · ${show(h,0,'%RH')}`; } },
+  sgp: { title:'SGP40', description:'A digital VOC sensor that reports a relative VOC index, not certified AQI or CO₂.', pin:'GPIO 21 SDA · GPIO 22 SCL', interface:'I²C at address 0x59', frequency:'Once per second · 45 s initial warm up', processing:'Uses current DHT values for compensation when fresh. I²C errors invalidate the measurement.', tip:'The index is relative to changing air conditions. Its value is not a gas concentration in ppm.', reading:() => show(lab.getReading('voc_index'),0,' index') },
+  soil: { title:'Capacitive soil moisture v1.2', description:'A capacitive probe produces an analog voltage related to soil water content.', pin:'GPIO 34 · ADC1', interface:'12 bit analog to digital conversion', frequency:'Every second · mean of 16 ADC samples', processing:'Uses dry endpoint 3723 and wet endpoint 1489 to estimate moisture. Rail counts and out of calibration values are flagged.', tip:'The ADC endpoints are examples from the Tinkered configuration. Calibrate with the real probe before field use.', reading:() => `${show(lab.getReading('soil_percent'),0,'%')} · ${show(lab.getReading('soil_adc'),0,' counts')}` },
+  esp32: { title:'ESP32 DevKit V1', description:'The controller reads the sensors, checks quality, prepares telemetry and handles wireless communication.', pin:'GPIO 13 · 21 · 22 · 34', interface:'Digital · I²C · ADC1 · built in WiFi', frequency:'DHT 2.5 s · VOC/soil 1 s · MQTT 5 s', processing:'Tracks validity, age, error counters, node identity and MQTT transmission status.', tip:'Sensors operate at 3.3 V with common ground. The ESP32 board is powered over USB.', reading:() => `${lab.records.length} delivered · ${lab.queue.length} queued` },
+};
+
+function show(reading, decimals, unit) {
+  if (!reading) return 'Waiting';
+  if (reading.status === 'ok' && reading.value !== null) return `${nf(reading.value,decimals)} ${unit}`.trim();
+  return reading.status === 'warming_up' ? 'Warming up' : reading.status === 'loading' ? 'Waiting' : reading.status === 'not_available' ? 'Not recorded' : 'Unavailable';
+}
+function goTab(id) {
+  if (!labels[id]) return;
+  visibleTab = id;
+  $('intro-hero').hidden = id !== 'lab';
+  document.querySelectorAll('.tab-panel').forEach(panel => { const active = panel.id === `tab-${id}`; panel.hidden = !active; panel.classList.toggle('active',active); });
+  document.querySelectorAll('.nav-btn').forEach(button => { const active = button.dataset.tab === id; button.classList.toggle('active',active); if (active) button.setAttribute('aria-current','page'); else button.removeAttribute('aria-current'); });
+  $('breadcrumb').textContent = labels[id];
+  window.scrollTo(0, 0);
+  render();
+}
+function bindEvents() {
+  document.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => goTab(b.dataset.tab)));
+  $('dismiss-notice').addEventListener('click', () => $('.notice').style.display='none');
+  $('pause-btn').addEventListener('click', () => { lab.isRunning = !lab.isRunning; render(); });
+  $('reset-btn').addEventListener('click', () => {
+    lab.restart(); clearedUntil=0; lastRendered=''; $('second-node').checked=false;
+    document.querySelectorAll('[data-fault]').forEach(x=>x.checked=false);
+    $('speed').value='1'; updateSliders(); render();
+  });
+  $('step-btn').addEventListener('click', () => { lab.advance(1); render(); });
+  $('source-select').addEventListener('change', e => {
+    try {
+      if (e.target.value === 'synthetic') lab.useSynthetic();
+      else if (e.target.value === 'imported' && importedSource) lab.loadDataset('imported', importedSource);
+      else lab.loadDataset(e.target.value);
+      resetUiAfterSourceChange();
+    } catch(err) { $('source-message').textContent = `Unable to load dataset: ${err.message}`; }
+  });
+  $('next-record').addEventListener('click', () => {
+    if (!lab.dataset || lab.datasetIndex === lab.dataset.rows.length - 1) return;
+    const nextTime = lab.nextSample.dataset;
+    lab.advance(Math.max(.001, nextTime-lab.time) + 2.6);
+    render();
+  });
+  $('csv-upload').addEventListener('change', async e => {
+    const file=e.target.files?.[0]; if (!file) return;
+    try {
+      if(file.size > 1024*1024) throw Error('Maximum CSV size is 1 MB.');
+      const rows=parseCsvReplay(await file.text());
+      importedSource={id:'imported',name:file.name,origin:'User supplied CSV. Provenance has not been verified.',sourceUrl:null,
+        cadence:'Provided row sequence. No cadence inference.',note:'Imported values are user supplied. Temperature and humidity are reprocessed. Soil percent is used directly and no ESP32 ADC or VOC signal is invented.',
+        measured:['temperature','humidity','soil'].filter(k=>rows.some(r=>r[k]!==null)),rows};
+      const select=$('source-select');
+      let option=select.querySelector('option[value="imported"]');
+      if(!option){option=document.createElement('option');option.value='imported';select.appendChild(option);}
+      option.textContent=`Imported CSV · ${rows.length} rows`;
+      select.value='imported';lab.loadDataset('imported',importedSource);resetUiAfterSourceChange();
+    } catch(err) { $('source-message').textContent=`CSV import failed: ${err.message}`; }
+    e.target.value='';
+  });
+  $('export-record').addEventListener('click', () => {
+    if (!lab.datasetRow) return;
+    const blob=new Blob([JSON.stringify({source:lab.dataset.name,record:lab.datasetRow,verification:lab.verifyCurrentRow()},null,2)],{type:'application/json'});
+    const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='mw-sense-source-record.json';document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
+  });
+  $('speed').addEventListener('change', e => { lab.rate = Number(e.target.value); lab.logEvent('system', `Virtual clock set to ${lab.rate}× speed.`, 'neutral'); render(); });
+  document.querySelectorAll('[data-scenario]').forEach(b => b.addEventListener('click', () => { lab.setScenario(b.dataset.scenario); updateSliders(); render(); }));
+  for (const id of ['temperature','humidity','voc','soil']) $(id).addEventListener('input', e => { lab.setCondition(id, e.target.value); updateSliders(); render(); });
+  document.querySelectorAll('[data-sensor]').forEach(b => b.addEventListener('click', () => { selectedSensor=b.dataset.sensor; document.querySelectorAll('.sensor-tile').forEach(x=>x.classList.toggle('selected',x===b)); $('graph-sensor').value=selectedSensor; render(); }));
+  $('graph-sensor').addEventListener('change', e => { selectedSensor=e.target.value; document.querySelectorAll('.sensor-tile').forEach(x=>x.classList.toggle('selected',x.dataset.sensor===selectedSensor));render(); });
+  $('clear-log').addEventListener('click', () => { lab.log = []; clearedUntil = null; lastRendered = ''; renderLogs(); });
+  document.querySelectorAll('[data-component]').forEach(el => { const act=()=>{selectedComponent=el.dataset.component;renderComponent();};el.addEventListener('click',act);el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();act();}}); });
+  document.querySelectorAll('[data-stage]').forEach(el=>el.addEventListener('click',()=>{selectedStage=Number(el.dataset.stage);renderStage();}));
+  $('copy-packet').addEventListener('click', async ()=>{if(!lab.lastPacket)return;const text=JSON.stringify(lab.lastPacket,null,2);try{await navigator.clipboard.writeText(text);$('copy-packet').textContent='Copied';setTimeout(()=>$('copy-packet').textContent='Copy JSON',1200);}catch{const range=document.createRange();range.selectNodeContents($('packet-json'));const selection=window.getSelection();selection.removeAllRanges();selection.addRange(range);$('copy-packet').textContent='Select and copy';}});
+  document.querySelectorAll('[data-fault]').forEach(b=>b.addEventListener('change',()=>{lab.setFault(b.dataset.fault,b.checked);render();}));
+  $('second-node').addEventListener('change',e=>{lab.setSecondNode(e.target.checked);render();});
+}
+function resetUiAfterSourceChange() {
+  lastRendered = '';
+  $('second-node').checked = false;
+  document.querySelectorAll('[data-fault]').forEach(x => { x.checked = false; });
+  $('speed').value = '1';
+  updateSliders();
+  render();
+}
+function renderEvidence() {
+  const isReplay = lab.sourceMode === 'recorded_replay';
+  const ds = lab.dataset;
+  $('source-mode-label').textContent = isReplay ? 'HISTORICAL REPLAY' : 'BROWSER SIMULATION';
+  $('source-badge').textContent = isReplay ? 'RECORDED DATA' : 'SYNTHETIC DATA';
+  $('source-badge').classList.toggle('is-recorded', isReplay);
+  $('next-record').disabled = !isReplay || lab.datasetIndex >= ds.rows.length - 1;
+  $('export-record').disabled = !isReplay;
+  document.querySelectorAll('[data-scenario]').forEach(b=>b.disabled=isReplay);
+  for(const key of ['temperature','humidity','soil','voc']) $(key).disabled=isReplay;
+  $('scenario-buttons').classList.toggle('is-locked',isReplay);
+  $('second-node').disabled=isReplay;
+  if (!isReplay) {
+    $('source-message').textContent='Synthetic values are driven by the sliders. All readings are simulated. No outside dataset or physical sensor is connected.';
+    $('record-position').textContent='Synthetic environment · adjustable input';
+    $('record-cadence').textContent='DHT 2.5s · Soil and VOC 1s · MQTT 5s';
+    $('record-progress').style.width='0%';
+    $('verification-rows').replaceChildren();
+    const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=4;td.textContent='Select a recorded dataset to compare source and processed measurements.';tr.appendChild(td);$('verification-rows').appendChild(tr);
+    $('source-raw-json').textContent='Synthetic input: '+JSON.stringify(lab.conditions,null,2);
+    $('verify-count').textContent='SYNTHETIC';
+    $('verification-notes').textContent='Values are generated from the educational model. They are not evidence of physical hardware readings.';
+    $('dataset-indicator').textContent='Synthetic model · not hardware telemetry';
+    $('dataset-source-link').hidden=true;
+    $('dataset-source-note').textContent='No external source selected.';
+    return;
+  }
+  const sourceRow=lab.datasetRow;
+  $('source-message').textContent=`${ds.origin}. ${ds.note}`;
+  $('record-position').textContent=`SOURCE RECORD ${lab.datasetIndex + 1} OF ${ds.rows.length} · ${sourceRow.recordedTime}`;
+  $('record-cadence').textContent=`Source cadence: ${ds.cadence} · Browser replay advances one row every ${lab.replayInterval}s`;
+  $('record-progress').style.width=`${(lab.datasetIndex + 1) * 100 / ds.rows.length}%`;
+  $('source-raw-json').textContent=JSON.stringify({source:ds.name,record:sourceRow},null,2);
+  $('dataset-indicator').textContent='Recorded source → simulated ESP32 logic → simulated MQTT';
+  $('dataset-source-link').hidden=!ds.sourceUrl;
+  if(ds.sourceUrl) $('dataset-source-link').href=ds.sourceUrl;
+  $('dataset-source-note').textContent=ds.origin;
+  const checks=lab.verifyCurrentRow(),body=$('verification-rows');body.replaceChildren();
+  let matched=0,available=0;
+  for(const x of checks){
+    if(x.expected!==null)available++;
+    if(x.status==='match')matched++;
+    const tr=document.createElement('tr');
+    const strings=[x.field==='soil'?'Soil moisture':x.field==='humidity'?'Humidity':'Temperature',
+      x.expected===null?'Not in source':String(x.expected)+(x.field==='temperature'?' °C':' %'),
+      x.observed===null?'Waiting or N/A':String(x.observed)+(x.field==='temperature'?' °C':' %'),
+      x.status==='match'?'MATCH':x.status==='pending'?'SAMPLING':x.status==='not_recorded'?'N/A':x.status.toUpperCase()];
+    for(let i=0;i<strings.length;i++){const td=document.createElement('td');td.textContent=strings[i];if(i===3)td.className='compare-status '+x.status;tr.appendChild(td);}body.appendChild(tr);
+  }
+  $('verify-count').textContent=`${matched} OF ${available} MATCH`;
+  const issues=checks.filter(x=>x.status==='mismatch').length;
+  $('verification-notes').textContent=issues?'Mismatch detected. Inspect timing, fault switches or processing logic.':
+    'The comparison checks equality to source measurements after the next scheduled sample. Zero soil moisture remains zero. ADC counts and SGP40 VOC index remain unavailable because the dataset did not measure them.';
+}
+function updateSliders() {
+  Object.entries(lab.conditions).forEach(([key,value])=>{const el=$(key);if(el)el.value=value; const output=$(`${key}-val`);if(output)output.textContent= key==='temperature'?`${value} °C`:key==='humidity'?`${value} %RH`:key==='soil'?`${value} %`:value;});
+  document.querySelectorAll('[data-scenario]').forEach(b=>b.classList.toggle('active',b.dataset.scenario===lab.scenario));
+  $('source-select').value = lab.dataset?.id || 'synthetic';
+}
+function renderScene() {
+  const c=lab.conditions;
+  $('scene-temp').textContent=`${nf(c.temperature,1)} °C`;
+  $('scene-air').textContent=lab.dataset ? 'Not recorded' : c.voc>300?'Poor ventilation':c.voc>180?'Elevated':'Normal';
+  $('scene-soil').textContent=lab.dataset && lab.datasetRow.soil===null?'Not recorded':c.soil<25?'Dry':c.soil>78?'Very wet':'Moderate';
+  $('scene-sun').setAttribute('fill',c.temperature>37?'#e3a16d':c.temperature<10?'#b9cadd':'#e4c27c');
+  $('scene-sun').setAttribute('r',String(24+Math.max(0,c.temperature-20)*0.48));
+  $('scene-clouds').style.opacity=String(.3+c.humidity*.007);
+  $('scene-voc-haze').style.opacity=lab.dataset?'0':String(Math.min(.8,c.voc/550));
+  $('scene-drops').style.opacity=c.humidity>=80?'1':'0';
+  $('soil-bed').style.filter=`brightness(${1-Math.max(0,c.soil-40)/180})`;
+}
+function renderSensorTile(key,id,valueId,statusId,detailId,decimals) {
+  const r=lab.getReading(key);
+  $(valueId).textContent=show(r,decimals,SENSOR_META[key].unit);
+  $(statusId).textContent=statusPretty(r.status);
+  $(statusId).className=`status-label ${r.status}`;
+  let desc=statusBrief(r.status);
+  if(r.status==='warming_up')desc=`Learning baseline · ${Math.max(0,Math.ceil(45-lab.time))}s`;
+  if (r.status !== 'ok' && r.last_good_value !== null) desc+=` · previous ${nf(r.last_good_value,decimals)}`;
+  $(detailId).textContent=desc;
+}
+function renderSummary() {
+  $('uptime').textContent=clock(lab.time);
+  $('node-state').textContent=lab.isRunning?(lab.dataset?'REPLAY':'SENSING'):'PAUSED';
+  $('network-summary').innerHTML=`<i class="tiny-status ${lab.canPublish()?'good':'bad'}"></i>${lab.faults.wifi?'WiFi offline':lab.faults.mqtt?'MQTT offline':'WiFi + MQTT'}`;
+  $('packet-count').textContent=String(lab.records.length);
+  $('queue-count').textContent=String(lab.queue.length);
+  $('sidebar-node').textContent=lab.isRunning?(lab.dataset?'NODE 01 · REPLAY':'NODE 01 · RUNNING'):'NODE 01 · PAUSED';
+  $('sidebar-node-sub').textContent=`Virtual time ${clock(lab.time)} · ${lab.rate}× speed`;
+  $('pause-icon').textContent=lab.isRunning?'Ⅱ':'▶';
+  $('pause-text').textContent=lab.isRunning?'Pause simulation':'Resume simulation';
+}
+function renderChart() {
+  const chart=lab.history[selectedSensor]||[];
+  $('chart-caption').textContent=`${SENSOR_META[selectedSensor].title} · ${SENSOR_META[selectedSensor].unit} · sampled on virtual time. Gaps indicate missing or invalid data.`;
+  const values=chart.map(p=>p.value).filter(v=>v!==null);
+  if(!values.length){$('chart-path').setAttribute('d','');$('chart-markers').innerHTML='';return;}
+  const max=Math.max(...values),min=Math.min(...values);
+  const spread=Math.max(1,max-min);
+  const pad=spread*.42;
+  let d='',lastPoint=null;
+  for(let i=0;i<chart.length;i++){
+    const p=chart[i];if(p.value===null){lastPoint=null;continue;}
+    const x=30+(i/Math.max(1,chart.length-1))*625;
+    const y=147-(p.value-(min-pad))/(spread+2*pad)*119;
+    d+=`${lastPoint?'L':'M'}${x.toFixed(1)} ${y.toFixed(1)} `;lastPoint=[x,y];
+  }
+  $('chart-path').setAttribute('d',d);
+  if(lastPoint)$('chart-markers').innerHTML=`<circle cx="${lastPoint[0]}" cy="${lastPoint[1]}" r="4.5" fill="#497658" stroke="#fff" stroke-width="2"/>`;
+}
+function renderLogs() {
+  const events=lab.log.filter(e=>e!==clearedUntil).slice(0,12);
+  // No executable content from logs. All messages are authored simulator strings.
+  const key=events.map(e=>`${e.t}|${e.message}`).join(';');
+  if(key===lastRendered)return;
+  lastRendered=key;
+  const node=$('serial-log');node.replaceChildren();
+  for(const e of events){const row=document.createElement('p');row.className=e.kind;
+    const stamp=document.createElement('time');stamp.textContent=`[${clock(e.t)}] `;row.append(stamp,document.createTextNode(e.message));node.appendChild(row);}
+}
+function renderComponent() {
+  const c=components[selectedComponent];
+  $('component-title').textContent=c.title;$('component-description').textContent=c.description;
+  $('component-pin').textContent=c.pin;$('component-interface').textContent=c.interface;
+  $('component-frequency').textContent=c.frequency;$('component-reading').textContent=c.reading();
+  $('component-processing').textContent=c.processing;$('component-tip').textContent=c.tip;
+  document.querySelectorAll('[data-component]').forEach(el=>el.classList.toggle('active',el.dataset.component===selectedComponent));
+  document.querySelectorAll('[data-wire]').forEach(el=>el.classList.toggle('active',el.dataset.wire===selectedComponent));
+}
+function renderStage() {
+  const [name,desc]=stages[selectedStage];$('stage-title').textContent=`0${selectedStage+1} · ${name}`;$('stage-description').textContent=desc;
+  document.querySelectorAll('[data-stage]').forEach(b=>b.classList.toggle('chosen',Number(b.dataset.stage)===selectedStage));
+}
+function renderJourney() {
+  $('packet-json').textContent=lab.lastPacket?JSON.stringify(lab.lastPacket,null,2):'Waiting for the first 5 second publish event…';
+  $('mqtt-topic').textContent=`mw-sense/${lab.nodeId}/telemetry`;
+  $('packet-time').textContent=lab.lastPacket?`FRAME ${lab.lastPacket.sequence} · ${clock(lab.lastPacket.uptime_ms/1000)}`:'WAITING FOR FIRST FRAME';
+  $('store-count').textContent=`${lab.records.length} STORED`;
+  $('last-delivery').textContent=lab.lastDelivery?clock(lab.lastDelivery.at):'Not received';
+  $('held-count').textContent=String(lab.queue.length);
+  const body=$('storage-rows');body.replaceChildren();
+  if(!lab.records.length){const row=document.createElement('tr');const cell=document.createElement('td');cell.colSpan=4;cell.className='empty-state';cell.textContent='No records yet';row.appendChild(cell);body.appendChild(row);}
+  else for(const event of lab.records.slice(0,18)){const tr=document.createElement('tr');for(const str of [clock(event.at),event.frame.node_id,event.frame.sequence,event.queued?'Recovered':'Delivered']){const td=document.createElement('td');td.textContent=String(str);tr.appendChild(td);}body.appendChild(tr);}
+  $('node-list').replaceChildren();for(const id of ['mw-virtual-01',...(lab.hasSecondNode?['mw-virtual-02']:[])]){const span=document.createElement('span');span.className='node-tag'+(id.endsWith('01')?' selected-node':'');span.textContent=id.endsWith('01')?'NODE 01 · LOCAL':'NODE 02 · EMULATED';$('node-list').appendChild(span);}
+}
+function renderTesting() {
+  $('queued-number').textContent=String(lab.queue.length);
+  $('wifi-led').className=`tiny-status ${lab.faults.wifi?'bad':'good'}`;
+  $('mqtt-led').className=`tiny-status ${lab.faults.mqtt||lab.faults.wifi?'bad':'good'}`;
+  $('recovery-note').textContent=lab.canPublish()?lab.queue.length?'Link is available. Queue drains on the next publish.':'Link healthy. Frames deliver normally.':`Delivery stopped. Sensors keep sampling. ${lab.queue.length} demo frame(s) held.`;
+}
+function render() {
+  renderSummary();
+  if(visibleTab==='lab'){
+    renderScene();
+    renderSensorTile('temperature','temperature','read-temperature','temp-status','temp-explain',1);
+    renderSensorTile('humidity','humidity','read-humidity','hum-status','hum-explain',0);
+    renderSensorTile('voc_index','voc','read-voc','voc-status','voc-explain',0);
+    renderSensorTile('soil_percent','soil','read-soil','soil-status','soil-explain',0);
+    $('esp32-decision').textContent=lab.lastDecision;
+    renderEvidence();renderChart();renderLogs();
+  } else if(visibleTab==='circuit')renderComponent();
+  else if(visibleTab==='journey'){renderStage();renderJourney();}
+  else if(visibleTab==='testing')renderTesting();
+}
+
+bindEvents();updateSliders();render();
+let previous = performance.now();
+setInterval(()=>{
+  const now=performance.now();
+  const realDelta=Math.min((now-previous)/1000,.5);previous=now;
+  lab.step(realDelta);
+  render();
+},250);
+
+</script>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand"><div class="brand-mark" aria-hidden="true"><span class="core"></span><i class="dot d1"></i><i class="dot d2"></i><i class="dot d3"></i><i class="dot d4"></i></div><div><strong>MW-SENSE</strong><small>VIRTUAL LABORATORY</small></div></div>
+      <div class="side-divider"></div>
+      <div class="nav-caption">WORKSPACE</div>
+      <nav class="navigation" aria-label="Lab sections">
+        <button class="nav-btn active" data-tab="lab" aria-current="page"><span class="nav-number">01</span><span>Virtual environment</span><span class="nav-chevron">↗</span></button>
+        <button class="nav-btn" data-tab="circuit"><span class="nav-number">02</span><span>Hardware and wiring</span><span class="nav-chevron">↗</span></button>
+        <button class="nav-btn" data-tab="journey"><span class="nav-number">03</span><span>Data journey</span><span class="nav-chevron">↗</span></button>
+        <button class="nav-btn" data-tab="testing"><span class="nav-number">04</span><span>Reliability tests</span><span class="nav-chevron">↗</span></button>
+        <button class="nav-btn" data-tab="guide"><span class="nav-number">05</span><span>Project guide</span><span class="nav-chevron">↗</span></button>
+      </nav>
+      <div class="side-grow"></div>
+      <div class="side-device"><span class="led pulse"></span><div><strong id="sidebar-node">NODE 01 · RUNNING</strong><small id="sidebar-node-sub">Virtual ESP32 active</small></div></div>
+      <div class="side-note"><strong>Academic project</strong><span>Chaman Vashishth · 2505200<br>Vineet Sharma · 2505234</span><span>Dayalbagh Educational Institution<br>B.Voc Internet of Things</span></div>
+    </aside>
+
+    <main class="content">
+      <header class="topbar"><div class="breadcrumbs">PROJECT / MW-SENSE / <strong id="breadcrumb">VIRTUAL ENVIRONMENT</strong></div><div class="topbar-right"><span class="mode-pill"><span class="mini-dot"></span><span id="source-mode-label">BROWSER SIMULATION</span></span><span class="uptime" id="uptime">00:00</span></div></header>
+      <div class="notice" role="note"><span class="notice-icon">i</span><span>This is a simulated learning environment. Choose a synthetic environment or replay historical measurements from published research. Neither mode is a live connection to physical ESP32 hardware.</span><button id="dismiss-notice" aria-label="Dismiss this notice">×</button></div>
+      <section class="hero" id="intro-hero"><div><div class="eyebrow">MODULAR WIRELESS SENSOR NETWORK <span class="eyebrow-line"></span> VIRTUAL FIELD STATION</div><h1>See the environment<br><em>become data.</em></h1><p>Change real world conditions. Follow every sensor reading through the ESP32 and see exactly what reaches the monitoring dashboard.</p><div class="hero-actions"><button class="btn primary" id="pause-btn"><span id="pause-icon">Ⅱ</span> <span id="pause-text">Pause simulation</span></button><button class="btn secondary" id="reset-btn">↺ &nbsp; Reset lab</button><button class="btn secondary" id="step-btn" title="Move virtual time by one second even while paused">Step 1 s</button><div class="speed-picker"><span>Speed</span><select id="speed" aria-label="Simulation speed"><option value="1">1×</option><option value="2">2×</option><option value="4">4×</option></select></div></div></div><div class="hero-art" aria-label="Four wireless sensors connected to a central node"><div class="network-symbol"><span class="net-ring outer"></span><span class="net-ring inner"></span><span class="net-branch b1"></span><span class="net-branch b2"></span><span class="net-branch b3"></span><span class="net-branch b4"></span><span class="net-end n1"></span><span class="net-end n2"></span><span class="net-end n3"></span><span class="net-end n4"></span><span class="net-core">MW</span></div><span class="hero-art-label">SENSE · VALIDATE · TRANSMIT</span></div></section>
+      <div class="overview-strip" aria-label="Live simulator summary"><div class="summary-item"><span>ESP32 NODE</span><strong id="node-state">SENSING</strong></div><div class="summary-item"><span>NETWORK</span><strong id="network-summary"><i class="tiny-status good"></i>WiFi + MQTT</strong></div><div class="summary-item"><span>DELIVERED FRAMES</span><strong id="packet-count">0</strong></div><div class="summary-item"><span>HELD IN QUEUE</span><strong id="queue-count">0</strong></div></div>
+
+      <section class="tab-panel active" id="tab-lab" aria-label="Virtual environment">
+        <div class="section-intro"><div><div class="section-kicker">01 / VIRTUAL ENVIRONMENT</div><h2>Start with the physical world.</h2><p>Move the controls or load a scenario to see how each sensor responds on its own sampling schedule.</p></div><span class="small-tag">AUTO SAMPLING ON</span></div>
+        <section class="card evidence-console" aria-labelledby="evidence-heading">
+          <div class="evidence-head"><div><span class="card-caption">DATA PROVENANCE LAB</span><h3 id="evidence-heading">Replay actual recorded observations.</h3><p>Compare original research values with the virtual ESP32 processing stage. These are historical records, not live sensor readings.</p></div><span class="evidence-badge" id="source-badge">SYNTHETIC DATA</span></div>
+          <div class="evidence-control-row">
+            <label class="data-selector"><span>INPUT DATA SOURCE</span><select id="source-select"><option value="synthetic">Synthetic sensor environment</option><option value="greenhouse1">Greenhouse case 1 · 40 measured rows</option><option value="greenhouse4">Greenhouse case 4 · 40 measured rows</option><option value="uci">UCI air quality · 40 hourly rows</option></select></label>
+            <button id="next-record" class="btn secondary" disabled>Next source record</button>
+            <label class="import-csv btn secondary" for="csv-upload">Import your CSV<input id="csv-upload" type="file" accept=".csv,text/csv" hidden></label>
+          </div>
+          <div id="source-message" class="source-message" role="status">Synthetic model active. Select a recorded dataset to check reproducible measurements.</div>
+          <div class="record-timeline"><span id="record-position">No recorded dataset selected</span><div class="record-meter"><div id="record-progress"></div></div><span id="record-cadence">Virtual sensor sampling</span></div>
+          <div class="verification-layout"><div class="verification-column"><div class="mini-head"><strong>Original dataset vs processed output</strong><span id="verify-count">NOT STARTED</span></div>
+            <table class="verify-table"><thead><tr><th>CHANNEL</th><th>RECORDED</th><th>PROCESSED</th><th>CHECK</th></tr></thead><tbody id="verification-rows"><tr><td colspan="4">Load a dataset to compare values.</td></tr></tbody></table>
+            <p id="verification-notes" class="note-line">A matching reading confirms the replay logic, not the accuracy of any physical sensor.</p></div>
+            <div class="source-raw"><div class="mini-head"><strong>Unmodified source record</strong><button class="text-button" id="export-record">Save record</button></div><pre id="source-raw-json">Select a dataset to inspect its original measured fields.</pre><div class="dataset-indicator" id="dataset-indicator">ESP32 model · not connected to hardware</div></div>
+          </div>
+          <p class="provenance-line"><strong>Research source:</strong> <a id="dataset-source-link" href="https://archive.ics.uci.edu/dataset/360/air+quality" target="_blank" rel="noopener noreferrer">View dataset documentation</a> <span id="dataset-source-note">Recorded data are attributed to their original publishers.</span></p>
+        </section>
+        <div class="lab-grid"><div class="card environment-card"><div class="card-head"><div><span class="card-caption">SIMULATED SITE</span><h3>Campus greenhouse and lab</h3></div><span class="live-pill"><i class="tiny-status good"></i> LIVE SCENE</span></div>
+          <div class="environment-illustration" id="environment-scene">
+            <svg viewBox="0 0 720 320" role="img" aria-label="A stylized building with a greenhouse, soil bed, cloud, sun and sensor nodes" xmlns="http://www.w3.org/2000/svg">
+              <defs><linearGradient id="windowGlow" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#fdfcf8"/><stop offset="100%" stop-color="#dce7df"/></linearGradient><linearGradient id="earth" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#9d886e"/><stop offset="100%" stop-color="#6c5d4f"/></linearGradient></defs>
+              <rect width="720" height="320" fill="#e9eae3"/><circle id="scene-sun" cx="599" cy="60" r="31" fill="#e4c27c" opacity=".86"/><g stroke="#ceb077" stroke-width="2" opacity=".7"><path d="M599 13v-8M599 114v9M551 60h-9M648 60h9M565 26l-8-8M632 93l8 8M634 26l8-8M565 93l-8 8"/></g>
+              <g id="scene-clouds" fill="#d1d8d3"><ellipse cx="116" cy="64" rx="49" ry="15"/><circle cx="93" cy="56" r="19"/><circle cx="132" cy="53" r="22"/></g>
+              <path d="M0 256Q115 236 258 254T510 253T720 245V320H0Z" fill="#c1c8b9"/><path d="M0 284Q123 270 235 285T510 280T720 276V320H0Z" fill="#adbca2"/>
+              <g><rect x="194" y="109" width="286" height="147" rx="3" fill="#e6e2d8" stroke="#92968e" stroke-width="3"/><path d="M178 113l158-71 159 71" fill="none" stroke="#71776f" stroke-width="7" stroke-linejoin="round"/><path d="M235 113V256M337 48V256M437 113V256M194 184h286" stroke="#b5b9ad" stroke-width="4"/><rect x="252" y="147" width="67" height="77" rx="4" fill="url(#windowGlow)" stroke="#b8beb2"/><rect x="359" y="147" width="65" height="77" rx="4" fill="url(#windowGlow)" stroke="#b8beb2"/></g>
+              <g id="plant-cluster" stroke="#496d55" stroke-linecap="round" stroke-width="5" fill="#759a71"><path d="M257 259v-66M295 259v-83M385 259v-70M424 259v-88"/><ellipse cx="243" cy="211" rx="14" ry="7" transform="rotate(30 243 211)"/><ellipse cx="269" cy="224" rx="14" ry="7" transform="rotate(-35 269 224)"/><ellipse cx="278" cy="196" rx="16" ry="7" transform="rotate(26 278 196)"/><ellipse cx="307" cy="206" rx="14" ry="8" transform="rotate(-30 307 206)"/><ellipse cx="373" cy="203" rx="15" ry="7" transform="rotate(30 373 203)"/><ellipse cx="400" cy="215" rx="13" ry="8" transform="rotate(-25 400 215)"/><ellipse cx="410" cy="181" rx="14" ry="7" transform="rotate(27 410 181)"/><ellipse cx="438" cy="205" rx="13" ry="8" transform="rotate(-30 438 205)"/></g>
+              <path id="soil-bed" d="M175 255h328l-18 54H194Z" fill="url(#earth)" stroke="#756a5b"/><path d="M175 255h328" stroke="#987d60" stroke-width="7"/>
+              <g id="scene-voc-haze" opacity=".16" fill="#bdba9e"><ellipse cx="354" cy="111" rx="128" ry="40"/><ellipse cx="427" cy="80" rx="64" ry="24"/></g>
+              <g fill="#191a18" stroke="#f7f5f0" stroke-width="4"><circle cx="252" cy="128" r="10"/><circle cx="339" cy="236" r="10"/><circle cx="448" cy="128" r="10"/></g>
+              <g fill="#1e211d" font-size="14" font-family="Arial, sans-serif" font-weight="bold"><rect x="178" y="116" width="60" height="25" rx="6" fill="#f7f5f0"/><text x="208" y="133" text-anchor="middle">DHT22</text><rect x="355" y="223" width="78" height="25" rx="6" fill="#f7f5f0"/><text x="394" y="241" text-anchor="middle">SOIL</text><rect x="465" y="116" width="63" height="25" rx="6" fill="#f7f5f0"/><text x="496" y="133" text-anchor="middle">SGP40</text></g>
+              <g id="scene-drops" fill="#8da5b7" opacity="0"><path d="M91 100l-4 14h8zM123 103l-4 14h8zM150 93l-4 14h8z"/></g>
+            </svg>
+            <div class="scene-metrics"><div><span>AMBIENT TEMPERATURE</span><strong id="scene-temp">24.0 °C</strong></div><div><span>ATMOSPHERE</span><strong id="scene-air">Normal</strong></div><div><span>SOIL CONDITION</span><strong id="scene-soil">Moderate</strong></div></div>
+          </div>
+          <div class="scenario-panel"><div class="control-label">CHOOSE AN ENVIRONMENT</div><div class="scenario-buttons" id="scenario-buttons"><button data-scenario="room" class="scenario-btn active">Normal room</button><button data-scenario="greenhouse" class="scenario-btn">Greenhouse</button><button data-scenario="heatwave" class="scenario-btn">Heatwave</button><button data-scenario="ventilation" class="scenario-btn">Poor ventilation</button><button data-scenario="rainfall" class="scenario-btn">After rainfall</button></div></div>
+          <div class="slider-grid"><label class="slider-control"><span><strong>Temperature</strong><output id="temperature-val">24 °C</output></span><input type="range" id="temperature" min="-20" max="60" step="1" value="24"><small>DHT22 observes ambient heat</small></label><label class="slider-control"><span><strong>Humidity</strong><output id="humidity-val">52 %RH</output></span><input type="range" id="humidity" min="0" max="100" step="1" value="52"><small>DHT22 reports relative humidity</small></label><label class="slider-control"><span><strong>VOC environment</strong><output id="voc-val">105</output></span><input type="range" id="voc" min="1" max="500" step="1" value="105"><small>Target for the relative VOC index model</small></label><label class="slider-control"><span><strong>Soil wetness</strong><output id="soil-val">45 %</output></span><input type="range" id="soil" min="0" max="100" step="1" value="45"><small>Converted to 12 bit ADC counts</small></label></div>
+        </div>
+        <div class="card sensor-card"><div class="card-head"><div><span class="card-caption">SENSOR RESPONSE</span><h3>What the ESP32 reads</h3></div><span class="tiny-caption">UPDATES AUTOMATICALLY</span></div>
+          <div class="sensor-tiles"><button class="sensor-tile selected" data-sensor="temperature"><span class="sensor-tile-top">DHT22 · GPIO 13 <i class="status-label" id="temp-status">LOADING</i></span><strong id="read-temperature">Waiting</strong><span class="tile-name">Temperature</span><small id="temp-explain">Digital sensing every 2.5 s</small></button><button class="sensor-tile" data-sensor="humidity"><span class="sensor-tile-top">DHT22 · GPIO 13 <i class="status-label" id="hum-status">LOADING</i></span><strong id="read-humidity">Waiting</strong><span class="tile-name">Relative humidity</span><small id="hum-explain">Digital sensing every 2.5 s</small></button><button class="sensor-tile" data-sensor="voc_index"><span class="sensor-tile-top">SGP40 · I²C 21 / 22 <i class="status-label" id="voc-status">WARMING</i></span><strong id="read-voc">Warming up</strong><span class="tile-name">Relative VOC index</span><small id="voc-explain">Learns a baseline for 45 s</small></button><button class="sensor-tile" data-sensor="soil_percent"><span class="sensor-tile-top">SOIL · ADC GPIO 34 <i class="status-label" id="soil-status">LOADING</i></span><strong id="read-soil">Waiting</strong><span class="tile-name">Soil moisture</span><small id="soil-explain">16 sample ADC average every 1 s</small></button></div>
+          <div class="cpu-response"><div class="cpu-chip">ESP32<small>LIVE DECISION</small></div><div><span>WHAT THE CONTROLLER IS DOING</span><p id="esp32-decision">Booting the simulated ESP32. Waiting for the first readings.</p></div></div>
+        </div></div>
+        <div class="bottom-grid"><div class="card compact-card"><div class="card-head"><div><span class="card-caption">SENSOR ACTIVITY</span><h3>Live reading history</h3></div><select id="graph-sensor" class="minimal-select" aria-label="Graph sensor"><option value="temperature">Temperature</option><option value="humidity">Humidity</option><option value="voc_index">VOC Index</option><option value="soil_percent">Soil moisture</option></select></div><div class="graph-box"><svg id="history-chart" viewBox="0 0 680 180" role="img" aria-label="Live simulated sensor time series"><line x1="30" y1="40" x2="655" y2="40"/><line x1="30" y1="85" x2="655" y2="85"/><line x1="30" y1="130" x2="655" y2="130"/><path id="chart-path" d=""/><g id="chart-markers"></g></svg></div><div class="chart-caption" id="chart-caption">Samples appear once the sensor produces valid data.</div></div><div class="card compact-card"><div class="card-head"><div><span class="card-caption">ESP32 SERIAL MONITOR</span><h3>Live activity log</h3></div><button class="text-button" id="clear-log">Clear view</button></div><div class="terminal" id="serial-log" role="log" aria-live="off"><p>Starting sensor interfaces…</p></div></div></div>
+      </section>
+
+      <section class="tab-panel" id="tab-circuit" aria-label="Hardware and wiring" hidden>
+        <div class="section-intro"><div><div class="section-kicker">02 / HARDWARE AND WIRING</div><h2>Inside the sensor node.</h2><p>Select a component to see its electrical signal and how the ESP32 interprets it. Connections follow the Tinkered export.</p></div><span class="small-tag">ESP32 DEVKIT V1</span></div>
+        <div class="circuit-grid"><div class="card circuit-card"><div class="card-head"><div><span class="card-caption">LIVE SIGNAL PATH</span><h3>One controller. Three sensor modules.</h3></div><span class="tiny-caption">3.3 V SENSOR SUPPLY</span></div>
+        <svg id="circuit-diagram" viewBox="0 0 860 525" role="img" aria-label="Electrical block diagram showing DHT22 connected to GPIO 13 with a pullup resistor, SGP40 connected to GPIO 21 and 22 over I2C, and soil sensor connected to GPIO 34">
+          <defs><marker id="end-arrow" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0 0L6 3L0 6" fill="none" stroke="#565f57" stroke-width="1.2"/></marker></defs>
+          <rect x="22" y="19" width="816" height="486" rx="22" fill="#f5f4f0" stroke="#dadad3"/>
+          <rect x="84" y="74" width="690" height="16" rx="8" fill="#d5ddd4"/><text x="91" y="68" class="wire-text">3V3 RAIL</text><rect x="84" y="443" width="690" height="16" rx="8" fill="#d6d6d2"/><text x="91" y="477" class="wire-text">COMMON GROUND</text>
+          <g class="component" data-component="dht" tabindex="0" role="button" aria-label="Inspect DHT22"><rect x="74" y="137" width="209" height="103" rx="15" class="component-box"/><text x="99" y="178" class="component-title">DHT22</text><text x="99" y="203" class="component-small">TEMP + HUMIDITY</text><text x="99" y="225" class="component-id">1 DIGITAL DATA LINE</text></g>
+          <g class="component" data-component="sgp" tabindex="0" role="button" aria-label="Inspect SGP40"><rect x="74" y="270" width="209" height="103" rx="15" class="component-box"/><text x="99" y="311" class="component-title">SGP40</text><text x="99" y="336" class="component-small">RELATIVE VOC INDEX</text><text x="99" y="357" class="component-id">I²C · DEVICE 0x59</text></g>
+          <g class="component" data-component="soil" tabindex="0" role="button" aria-label="Inspect soil sensor"><rect x="570" y="270" width="200" height="103" rx="15" class="component-box"/><text x="592" y="311" class="component-title">SOIL v1.2</text><text x="592" y="336" class="component-small">CAPACITIVE PROBE</text><text x="592" y="357" class="component-id">ANALOG OUTPUT</text></g>
+          <g class="component" data-component="esp32" tabindex="0" role="button" aria-label="Inspect ESP32"><rect x="341" y="153" width="174" height="224" rx="20" fill="#20221f"/><rect x="365" y="174" width="126" height="89" rx="9" fill="#353834" stroke="#7d817b"/><text x="428" y="208" fill="#fff" text-anchor="middle" font-size="25" font-weight="700">ESP32</text><text x="428" y="234" fill="#c3cbc4" text-anchor="middle" font-size="12">WiFi CONTROLLER</text><text x="428" y="297" class="chip-pin" text-anchor="middle">GPIO 13</text><text x="428" y="323" class="chip-pin" text-anchor="middle">I²C 21 + 22</text><text x="428" y="349" class="chip-pin" text-anchor="middle">ADC GPIO 34</text></g>
+          <path class="wire" data-wire="dht" d="M283 190H317V285H341"/><path class="wire" data-wire="sgp" d="M283 322H341"/><path class="wire" data-wire="soil" d="M570 320H515"/><text x="300" y="182" class="wire-text">DATA 13</text><text x="297" y="312" class="wire-text">SDA 21 · SCL 22</text><text x="521" y="308" class="wire-text">ADC 34</text>
+          <path class="power-wire" d="M180 90V137M180 90H668V270M180 90H429V153"/><path class="ground-wire" d="M180 240V450M180 373V450M668 373V450M430 377V450"/>
+          <path d="M301 90V150H317V189" fill="none" stroke="#8b8671" stroke-width="3"/><rect x="299" y="135" width="8" height="27" rx="3" fill="#c3a776" stroke="#85775c" stroke-width="1"/><text x="289" y="130" class="wire-text">10 kΩ</text>
+          <g id="wire-pulse"><circle r="5" fill="#4f816b"><animateMotion dur="2.7s" repeatCount="indefinite" path="M283 190H317V285H341"/></circle><circle r="5" fill="#4f816b"><animateMotion dur="2.1s" repeatCount="indefinite" path="M283 322H341"/></circle><circle r="5" fill="#4f816b"><animateMotion dur="1.6s" repeatCount="indefinite" path="M570 320H515"/></circle></g>
+          <rect x="570" y="153" width="198" height="70" rx="13" fill="#faf9f5" stroke="#c9cec6"/><text x="588" y="180" class="component-small">MQTT BROKER</text><text x="588" y="203" class="component-id">WiFi · 5 second publish</text><path class="wire dashed" d="M515 188H570"/><text x="535" y="178" class="wire-text">RF</text>
+        </svg><div class="circuit-legend"><span><i class="legend-dot" style="background:#4f816b"></i> Signal</span><span><i class="legend-dot" style="background:#a9b8aa"></i> 3.3 V supply</span><span><i class="legend-dot" style="background:#555b55"></i> Ground</span><span>Example circuit, not a SPICE model</span></div></div>
+        <div class="card inspector-card"><span class="card-caption">SELECTED MODULE</span><h3 id="component-title">DHT22</h3><p id="component-description">Digital temperature and humidity sensor.</p><dl class="spec-list"><div><dt>ESP32 connection</dt><dd id="component-pin">GPIO 13</dd></div><div><dt>Electrical interface</dt><dd id="component-interface">Digital data</dd></div><div><dt>Reading schedule</dt><dd id="component-frequency">Every 2.5 seconds</dd></div><div><dt>Current output</dt><dd id="component-reading">Waiting</dd></div><div><dt>ESP32 processing</dt><dd id="component-processing">Read the digital frame and validate range.</dd></div></dl><div class="inspector-tip" id="component-tip">10 kΩ resistor pulls the data line to 3.3 V.</div></div></div>
+        <div class="hardware-row"><div class="hardware-item"><div class="hardware-index">01</div><strong>ESP32 DevKit V1</strong><span>Controller with built in WiFi and ADC1 inputs</span></div><div class="hardware-item"><div class="hardware-index">02</div><strong>DHT22 and 10 kΩ</strong><span>Digital humidity and temperature with data pullup</span></div><div class="hardware-item"><div class="hardware-index">03</div><strong>SGP40 VOC sensor</strong><span>I²C device at address 0x59</span></div><div class="hardware-item"><div class="hardware-index">04</div><strong>Soil probe and wiring</strong><span>Capacitive v1.2 with 3.3 V common ground</span></div></div>
+      </section>
+
+      <section class="tab-panel" id="tab-journey" aria-label="Data journey" hidden>
+        <div class="section-intro"><div><div class="section-kicker">03 / DATA JOURNEY</div><h2>One reading. Six visible stages.</h2><p>Follow the latest sample from the environment to a structured MQTT message and the central monitoring record.</p></div><span class="small-tag" id="journey-mode">SIMULATED TELEMETRY</span></div>
+        <div class="pipeline" id="pipeline"><button data-stage="0" class="pipeline-step chosen"><span class="stage-number">01</span><strong>Sense</strong><small>Sensor captures</small></button><button data-stage="1" class="pipeline-step"><span class="stage-number">02</span><strong>Validate</strong><small>ESP32 checks</small></button><button data-stage="2" class="pipeline-step"><span class="stage-number">03</span><strong>Encode</strong><small>JSON structure</small></button><button data-stage="3" class="pipeline-step"><span class="stage-number">04</span><strong>Transmit</strong><small>WiFi and MQTT</small></button><button data-stage="4" class="pipeline-step"><span class="stage-number">05</span><strong>Store</strong><small>Reception record</small></button><button data-stage="5" class="pipeline-step"><span class="stage-number">06</span><strong>Visualize</strong><small>Dashboard refresh</small></button></div>
+        <div class="stage-explanation"><strong id="stage-title">01 · Sensor acquisition</strong><p id="stage-description">Physical environmental conditions are translated into digital or analog sensor outputs. The ESP32 reads each sensor on the defined schedule.</p></div>
+        <div class="journey-grid"><div class="card packet-card"><div class="card-head"><div><span class="card-caption">LATEST MQTT FRAME</span><h3>Structured telemetry</h3></div><span class="tiny-caption" id="packet-time">WAITING FOR FIRST FRAME</span></div><div class="packet-actions"><span>Topic</span><code id="mqtt-topic">mw-sense/mw-virtual-01/telemetry</code><button id="copy-packet" class="text-button">Copy JSON</button></div><pre class="json-view" id="packet-json" aria-label="Current MQTT telemetry JSON">Waiting for the first 5 second publish event…</pre><p class="note-line">Invalid current values are stored as <code>null</code>. Last good values remain separate so errors are never disguised as healthy measurements.</p></div>
+          <div class="card storage-card"><div class="card-head"><div><span class="card-caption">DATA RECEPTION</span><h3>Monitoring record</h3></div><span class="small-tag" id="store-count">0 STORED</span></div><div class="stats-grid"><div><span>LAST DELIVERY</span><strong id="last-delivery">Not received</strong></div><div><span>HELD FRAMES</span><strong id="held-count">0</strong></div></div><div class="storage-table-wrap"><table><thead><tr><th>SIM TIME</th><th>NODE</th><th>SEQUENCE</th><th>DELIVERY</th></tr></thead><tbody id="storage-rows"><tr><td colspan="4" class="empty-state">No records yet</td></tr></tbody></table></div><p class="note-line">This teaching lab uses in memory storage. The original Tinkered firmware uses the device local dashboard and MQTT broker.</p></div></div>
+        <div class="card compact-card"><div class="card-head"><div><span class="card-caption">MODULAR DESIGN</span><h3>Add a second virtual node</h3></div><label class="switch-wrap"><span>Node 02</span><input id="second-node" type="checkbox" role="switch"><span class="switch" aria-hidden="true"></span></label></div><p class="soft-paragraph">Turn on Node 02 to see how another identifier can share the same data format. It is an emulated node with shifted environmental values, not a second connected ESP32.</p><div class="node-list" id="node-list"><span class="node-tag selected-node">NODE 01 · LOCAL</span></div></div>
+      </section>
+
+      <section class="tab-panel" id="tab-testing" aria-label="Reliability tests" hidden>
+        <div class="section-intro"><div><div class="section-kicker">04 / RELIABILITY TESTS</div><h2>What happens when things go wrong?</h2><p>Interrupt a sensor or the network. Observe error detection, data freshness and the ESP32 response without claiming successful hardware deployment.</p></div><span class="small-tag">FAULT INJECTION</span></div>
+        <div class="test-grid"><div class="card test-panel"><div class="card-head"><div><span class="card-caption">SENSOR FAULTS</span><h3>Test validation rules</h3></div><span class="tiny-caption">INDIVIDUAL ERRORS</span></div><div class="fault-options"><label class="fault-option"><div><strong>DHT22 disconnected</strong><small>Digital reading fails. Last good temperature and humidity remain labelled as previous data.</small></div><input type="checkbox" data-fault="dht" role="switch"></label><label class="fault-option"><div><strong>SGP40 I²C error</strong><small>The sensor fails to respond at address 0x59. The VOC reading becomes invalid.</small></div><input type="checkbox" data-fault="sgp" role="switch"></label><label class="fault-option"><div><strong>Soil ADC at voltage rail</strong><small>ADC reads 4095. A suspicious rail reading is rejected as current moisture.</small></div><input type="checkbox" data-fault="soil" role="switch"></label></div></div><div class="card test-panel"><div class="card-head"><div><span class="card-caption">NETWORK FAULTS</span><h3>Watch communication recovery</h3></div><span class="tiny-caption">EDUCATIONAL MODEL</span></div><div class="fault-options"><label class="fault-option"><div><strong>WiFi link unavailable</strong><small>Sensor acquisition continues. MQTT delivery stops while frames are held in the demo queue.</small></div><input type="checkbox" data-fault="wifi" role="switch"></label><label class="fault-option"><div><strong>MQTT broker unavailable</strong><small>ESP32 can still read the sensors but cannot deliver data to the remote monitoring view.</small></div><input type="checkbox" data-fault="mqtt" role="switch"></label></div><div class="network-diagram"><span>ESP32</span><i class="tiny-status good" id="wifi-led"></i><span>WiFi</span><i class="tiny-status good" id="mqtt-led"></i><span>MQTT</span><span>→</span><span>Dashboard</span></div><div class="queued-box"><span>PENDING DEMO FRAMES</span><strong id="queued-number">0</strong><small id="recovery-note">Link healthy. Frames deliver normally.</small></div></div></div>
+        <div class="card research-card"><span class="card-caption">RESEARCH GAP</span><h3>Reliable recovery across several low cost nodes</h3><p>The presentation identifies communication reliability and recovery as areas requiring real world evaluation. This simulation can demonstrate the logic, but physical testing is still needed for signal quality, power loss, interference, sensor calibration and reconnection behavior.</p><div class="research-points"><span>01 · Packet loss and delay</span><span>02 · Recovery after outages</span><span>03 · Sensor error handling</span><span>04 · Multi node scalability</span></div></div>
+      </section>
+
+      <section class="tab-panel" id="tab-guide" aria-label="Project guide" hidden>
+        <div class="section-intro"><div><div class="section-kicker">05 / PROJECT GUIDE</div><h2>From simulation to a physical build.</h2><p>Learn what each part contributes, how to assemble the circuit and which results still need real hardware verification.</p></div><span class="small-tag">SOURCE ALIGNED</span></div>
+        <div class="guide-grid"><div class="card guide-card"><span class="card-caption">SYSTEM OBJECTIVE</span><h3>One expandable monitoring path</h3><p>Monitor temperature, relative humidity, relative VOC index and soil moisture with one ESP32 node. Validate readings locally before sharing them through a common wireless data format.</p><div class="guide-sequence"><span>SENSE</span><span>VALIDATE</span><span>TRANSMIT</span><span>STORE</span><span>VIEW</span></div></div><div class="card guide-card"><span class="card-caption">WHY THE ESP32</span><h3>Edge processing plus wireless connectivity</h3><p>The microcontroller reads digital and analog inputs, checks data quality, prepares a JSON packet and sends it using WiFi. A centralized dashboard can support additional nodes later.</p><div class="guide-sequence"><span>GPIO</span><span>ADC1</span><span>I²C</span><span>WiFi</span><span>MQTT</span></div></div></div>
+        <div class="card reference-card"><div class="card-head"><div><span class="card-caption">ACTUAL COMPONENTS</span><h3>Tinkered hardware bill</h3></div><span class="tiny-caption">SOURCE: UPLOADED ZIP</span></div><div class="bom-grid"><div><strong>ESP32 DevKit V1</strong><span>30 pin microcontroller board</span></div><div><strong>DHT22</strong><span>Temperature and humidity on GPIO 13</span></div><div><strong>SGP40</strong><span>Relative VOC index on I²C GPIO 21 and 22</span></div><div><strong>Capacitive soil sensor v1.2</strong><span>Analog output on ADC1 GPIO 34</span></div><div><strong>10 kΩ resistor</strong><span>Pullup for DHT22 signal line</span></div><div><strong>Full size breadboard</strong><span>3.3 V power rail and common ground</span></div><div><strong>Jumper wires</strong><span>14 wires in the source bill</span></div><div><strong>USB power</strong><span>Development board powered by USB</span></div></div></div>
+        <div class="card resources-card"><div class="card-head"><div><span class="card-caption">OFFICIAL RESOURCES</span><h3>References and technical notes</h3></div></div><div class="resource-list"><a href="https://docs.espressif.com/projects/esp-idf/en/stable/esp32/" target="_blank" rel="noopener noreferrer"><strong>Espressif ESP32 documentation</strong><span>Controller, WiFi, GPIO and ADC ↗</span></a><a href="https://learn.adafruit.com/dht" target="_blank" rel="noopener noreferrer"><strong>DHT sensor guide</strong><span>Reading temperature and humidity ↗</span></a><a href="https://sensirion.com/products/catalog/SGP40" target="_blank" rel="noopener noreferrer"><strong>Sensirion SGP40</strong><span>VOC index sensing and compensation ↗</span></a><a href="https://mqtt.org/" target="_blank" rel="noopener noreferrer"><strong>MQTT overview</strong><span>Publish and subscribe telemetry ↗</span></a><a href="https://archive.ics.uci.edu/dataset/360/air+quality" target="_blank" rel="noopener noreferrer"><strong>UCI Air Quality dataset</strong><span>Recorded temperature and humidity observations ↗</span></a><a href="https://github.com/Saynbemorinbewang2/Open-Dataset-for-Precision-Agriculture-in-Greenhouse-Environments" target="_blank" rel="noopener noreferrer"><strong>Greenhouse sensor records</strong><span>Recorded temperature, humidity and soil moisture ↗</span></a><a href="https://github.com/Sensirion/gas-index-algorithm" target="_blank" rel="noopener noreferrer"><strong>Sensirion VOC algorithm</strong><span>Why other air sensor data cannot be relabelled as SGP40 ↗</span></a><a href="https://docs.wokwi.com/" target="_blank" rel="noopener noreferrer"><strong>Wokwi documentation</strong><span>ESP32 circuit simulation guidance ↗</span></a></div></div>
+        <div class="guide-disclaimer"><strong>What is verified and what is not</strong><p>The component names, GPIO choices and sampling rules follow the supplied Tinkered project. The animated environment, network buffering, historical records and second virtual node are browser teaching models. They are not proof of physical sensor accuracy, radio reliability or live MQTT delivery. The presentation circuit uses different example pins. For this website the Tinkered pin map takes priority.</p></div>
+      </section>
+      <footer class="footer"><span>MW-SENSE · A MODULAR IoT LEARNING ENVIRONMENT</span><span>2026 TO 2027 · DAYALBAGH EDUCATIONAL INSTITUTION</span></footer>
+    </main>
+  </div>
+</body>
+</html>
