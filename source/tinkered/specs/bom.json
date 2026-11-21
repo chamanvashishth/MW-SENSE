@@ -1,0 +1,44 @@
+[
+  {
+    "componentId": "breadboard-full",
+    "name": "Breadboard (Full-size)",
+    "quantity": 1,
+    "specs": ""
+  },
+  {
+    "componentId": "capacitive-soil-moisture-v12",
+    "name": "Soil Moisture Sensor (Capacitive)",
+    "quantity": 1,
+    "specs": "3.3 V"
+  },
+  {
+    "componentId": "esp32-devkit-v1",
+    "name": "ESP32 DevKit V1 (30-pin)",
+    "quantity": 1,
+    "specs": ""
+  },
+  {
+    "componentId": "dht22",
+    "name": "DHT22 Temp & Humidity Sensor",
+    "quantity": 1,
+    "specs": "3.3 V"
+  },
+  {
+    "componentId": "sgp40-voc-sensor",
+    "name": "SGP40 VOC Sensor",
+    "quantity": 1,
+    "specs": "3.3 V"
+  },
+  {
+    "componentId": "resistor-10000",
+    "name": "Resistor (10.00 kOhm)",
+    "quantity": 1,
+    "specs": "1/4 W"
+  },
+  {
+    "componentId": "wire",
+    "name": "Jumper wires",
+    "quantity": 14,
+    "specs": "male to male"
+  }
+]
